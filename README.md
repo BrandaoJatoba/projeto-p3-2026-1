@@ -6,7 +6,7 @@ João Jatobá
 
 Elis Siqueira
 
-Gabriela Salvador
+Gabriela Salvadora
 
 # 📚 Sobre a Disciplina
 A disciplina de Programação 3 tem como objetivo apresentar os conceitos introdutórios do funcionamento da web e da programação/desenvolvimento de sistemas para a web, abrangendo tanto o ecossistema front-end quanto o back-end (client-side e server-side).
