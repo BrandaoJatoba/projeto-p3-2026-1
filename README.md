@@ -21,11 +21,11 @@ Fase Atual: Levantamento de requisitos (após a realização da entrevista inici
 # 📋 Primeiros Passos (Checklist Inicial)
 Atualmente, o projeto encontra-se na fase inicial, com o repositório configurado e a entrevista inicial concluída. Os próximos passos planejados são:
 
-[ ] Consolidar o Documento de Requisitos: Redigir a especificação detalhada com base na entrevista inicial com a secretaria do PPGI.
+[x] Consolidar o Documento de Requisitos: Redigir a especificação detalhada com base na entrevista inicial com a secretaria do PPGI.
 
-[ ] Definir Requisitos Funcionais e Não Funcionais: Mapear o que o sistema deve fazer (ex: cadastro de alunos, painel de prazos) e suas restrições.
+[x] Definir Requisitos Funcionais e Não Funcionais: Mapear o que o sistema deve fazer (ex: cadastro de alunos, painel de prazos) e suas restrições.
 
-[ ] Escolha da Stack Tecnológica: Selecionar as tecnologias de front-end, back-end e banco de dados que serão utilizadas ao longo da disciplina.
+[x] Escolha da Stack Tecnológica: Selecionar as tecnologias de front-end, back-end e banco de dados que serão utilizadas ao longo da disciplina.
 
 [ ] Elaborar Protótipos de Tela (Wireframes): Desenhar esboços iniciais da interface para validação do fluxo de uso com a secretaria.
 
