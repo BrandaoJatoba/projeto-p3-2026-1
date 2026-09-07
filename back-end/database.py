@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker, DeclarativeBase
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///database/database_ppgi.db"
