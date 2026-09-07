@@ -34,7 +34,16 @@ E-mail Admin: admin.ppgi@ic.ufal.br
 Senha: senha123
 
 ## 💻 Como Consumir o Banco de Dados no FastAPI
-Para integrar o banco de dados às rotas do FastAPI, utilize a injeção de dependência (Depends) com a função get_db do módulo database.py.
+Para integrar o banco de dados às rotas do FastAPI, utilize a injeção de dependência (Depends) com a função get_db do módulo database.py. Importe get_db e crud.
+Algo assi:
+```python
+from database import get_db
+import crud
+
+@app.post("/login")
+def login(ALGUMA COISA AQUI, db: Session = Depends(get_db)):
+    usuario = crud.validar_usuario(db, email=email, senha=senha)
+```
 
 ## 📌 Guia Rápido do Retorno das Funções CRUD
 
