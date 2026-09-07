@@ -2,6 +2,24 @@ from sqlalchemy import Column, Integer, String, Date, Boolean, ForeignKey, DateT
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from database import Base
 
+class Usuario(Base): #Classe responsável pelos dados de LOGIN
+
+    __tablename__ = "usuarios"
+
+    id_usuario = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(100), unique=True, nullable=False)
+    senha_hash = Column(String(255), nullable=False)
+    status_conta = Column(String(20), nullable=False, default="ATIVO")
+    data_ultimo_login = Column(DateTime, nullable=True)
+    data_criacao = Column(DateTime, server_default=func.now())
+
+class UsuarioPerfil(Base):
+
+    __tablename__ = "usuarios_perfis"
+    
+    id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), primary_key=True)
+    id_perfil = Column(Integer, ForeignKey("perfis.id_perfil"), primary_key=True)
+
 class Professor(Base):
 
     __tablename__ = "professores"
@@ -158,17 +176,6 @@ class ConfiguracaoAlerta(Base):
     dias_alerta_2 = Column(Integer, default=30)
     dias_alerta_3 = Column(Integer, default=0)
 
-class Usuario(Base):
-
-    __tablename__ = "usuarios"
-
-    id_usuario = Column(Integer, primary_key=True, autoincrement=True)
-    email = Column(String(100), unique=True, nullable=False)
-    senha_hash = Column(String(255), nullable=False)
-    status_conta = Column(String(20), nullable=False, default="ATIVO")
-    data_ultimo_login = Column(DateTime, nullable=True)
-    data_criacao = Column(DateTime, server_default=func.now())
-
 class Perfil(Base):
     
     __tablename__ = "perfis"
@@ -176,13 +183,6 @@ class Perfil(Base):
     id_perfil = Column(Integer, primary_key=True, autoincrement=True)
     nome_perfil = Column(String(30), unique=True, nullable=False)
     descricao = Column(String(150), nullable=True)
-
-class UsuarioPerfil(Base):
-
-    __tablename__ = "usuarios_perfis"
-    
-    id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), primary_key=True)
-    id_perfil = Column(Integer, ForeignKey("perfis.id_perfil"), primary_key=True)
 
 class SessionRefreshToken(Base):
 
