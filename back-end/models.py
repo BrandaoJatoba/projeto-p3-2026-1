@@ -2,8 +2,11 @@ from sqlalchemy import Column, Integer, String, Date, Boolean, ForeignKey, DateT
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from database import Base
 
-class Usuario(Base): #Classe responsável pelos dados de LOGIN
-
+class Usuario(Base): 
+    """
+    Tabela de autenticação principal. Armazena credenciais de login, status da conta e metadados de acesso de cada usuário.
+    """
+    
     __tablename__ = "usuarios"
 
     id_usuario = Column(Integer, primary_key=True, autoincrement=True)
@@ -14,6 +17,10 @@ class Usuario(Base): #Classe responsável pelos dados de LOGIN
     data_criacao = Column(DateTime, server_default=func.now())
 
 class UsuarioPerfil(Base):
+    
+    """
+    Tabela intermediária associativa (N:N) que vincula cada usuário a um ou mais perfis de acesso (RBAC).
+    """
 
     __tablename__ = "usuarios_perfis"
     
@@ -21,6 +28,10 @@ class UsuarioPerfil(Base):
     id_perfil = Column(Integer, ForeignKey("perfis.id_perfil"), primary_key=True)
 
 class Professor(Base):
+    
+    """
+    Registro dos professores do programa, atuando como orientadores de discentes ou supervisores em estágios de docência.
+    """
 
     __tablename__ = "professores"
 
@@ -28,6 +39,11 @@ class Professor(Base):
     nome_professor = Column(String(100), nullable=False)
 
 class Disciplina(Base):
+    
+    """
+    Catálogo de disciplinas ofertadas pelo programa de pós-graduação,
+    classificadas por grupo e carga de créditos.
+    """
 
     __tablename__ = "disciplinas"
 
@@ -38,6 +54,11 @@ class Disciplina(Base):
     creditos = Column(Integer, nullable=False)
 
 class SemestreLetivo(Base):
+    
+    """
+    Mapeamento dos períodos acadêmicos (ex: 2026.1), registrando datas
+    efetivas de início, término e contagem de dias letivos.
+    """
 
     __tablename__ = "semestres_letivos"
 
@@ -48,6 +69,11 @@ class SemestreLetivo(Base):
     dias_letivos = Column(Integer)
 
 class SuspensaoCalendario(Base):
+    
+    """
+    Registro de paralisações ou suspensões de calendário (greves, prorrogativas)
+    que impactam no cálculo de contagem de prazos acadêmicos.
+    """
 
     __tablename__ = "suspensoes_calendario"
 
@@ -59,6 +85,11 @@ class SuspensaoCalendario(Base):
     dias_suspensos = Column(Integer, nullable=True)
 
 class Estudante(Base):
+    
+    """
+    Cadastro central dos discentes do programa contendo informações acadêmicas,
+    vínculo de orientação, status de bolsa e prazo limite do SIGAA.
+    """
 
     __tablename__ = "estudantes"
 
@@ -72,6 +103,11 @@ class Estudante(Base):
     prazo_conclusao_sigaa = Column(Date, nullable=True)
 
 class HistoricoDisciplina(Base):
+    
+    """
+    Registro de disciplinas cursadas pelo estudante em cada semestre,
+    armazenando o conceito obtido, status e créditos integralizados.
+    """
 
     __tablename__ = "historico_disciplinas"
 
@@ -84,6 +120,10 @@ class HistoricoDisciplina(Base):
     creditos_integralizados = Column(Integer)
 
 class EstagioDocencia(Base):
+    
+    """
+    Acompanhamento das atividades de estágio docência obrigatório, controlando o status da proposta inicial e a entrega do relatório final.
+    """
 
     __tablename__ = "estagios_docencia"
 
@@ -98,6 +138,11 @@ class EstagioDocencia(Base):
     data_entrega_relatorio = Column(Date)
 
 class Proficiencia(Base):
+    
+    """
+    Controle da comprovação de proficiência em língua estrangeira exigida
+    pelo programa de pós-graduação.
+    """
 
     __tablename__ = "proficiencias"
 
@@ -108,6 +153,11 @@ class Proficiencia(Base):
     consolidada_sigaa = Column(Boolean, default=False)
 
 class SubmissaoArtigo(Base):
+    
+    """
+    Registro das submissões de artigos acadêmicos pelos alunos,
+    armazenando Qualis, tipo de veículo e validação do colegiado.
+    """
 
     __tablename__ = "submissoes_artigos"
 
@@ -121,6 +171,11 @@ class SubmissaoArtigo(Base):
     status_validacao_colegiado = Column(String(20))
 
 class Dissertacao(Base):
+    
+    """
+    Entidade central de acompanhamento da dissertação do mestrando,
+    relacionando o estudante ao projeto e marcando o início da contagem dos prazos.
+    """
 
     __tablename__ = "dissertacoes"
 
@@ -130,6 +185,11 @@ class Dissertacao(Base):
     data_inicio = Column(Date, nullable=False)
 
 class Qualificacao(Base):
+    
+    """
+    Acompanhamento do exame de qualificação da dissertação, registrando
+    prazos limites, número de tentativas e resultado final da banca.
+    """
 
     __tablename__ = "qualificacoes"
 
@@ -142,6 +202,11 @@ class Qualificacao(Base):
     data_realizacao = Column(Date, nullable=True)
 
 class Defesa(Base):
+    
+    """
+    Gerenciamento do rito final de defesa da dissertação, prevendo homologação
+    de banca, prazos para versão final com correções e conceito obtido.
+    """
 
     __tablename__ = "defesas"
 
@@ -156,6 +221,11 @@ class Defesa(Base):
     data_realizacao = Column(Date, nullable=True)
 
 class ProrrogacaoHistorico(Base):
+    
+    """
+    Histórico de solicitações de extensão de prazos de qualificação ou defesa
+    aprovadas ou indeferidas pelo colegiado.
+    """
 
     __tablename__ = "prorrogacoes_historico"
 
@@ -168,6 +238,11 @@ class ProrrogacaoHistorico(Base):
 
 class ConfiguracaoAlerta(Base):
 
+    """
+    Parâmetros configuráveis pelo sistema para envio de alertas preventivos
+    conforme a proximidade do vencimento de prazos regimentais.
+    """
+    
     __tablename__ = "configuracoes_alertas"
 
     id_config = Column(Integer, primary_key=True, autoincrement=True)
@@ -178,6 +253,10 @@ class ConfiguracaoAlerta(Base):
 
 class Perfil(Base):
     
+    """
+    Catálogo de papéis de acesso (ADMIN, SECRETARIA, COORDENACAO, DISCENTE) utilizados para controle de permissões no sistema (RBAC).
+    """
+    
     __tablename__ = "perfis"
 
     id_perfil = Column(Integer, primary_key=True, autoincrement=True)
@@ -185,6 +264,11 @@ class Perfil(Base):
     descricao = Column(String(150), nullable=True)
 
 class SessionRefreshToken(Base):
+    
+    """
+    Controle e rastreamento de refresh tokens emitidos para persistência
+    de sessões JWT ativas por usuário e dispositivo.
+    """
 
     __tablename__ = "sessions_refresh_tokens"
 
