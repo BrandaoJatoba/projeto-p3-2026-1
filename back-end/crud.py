@@ -18,7 +18,7 @@ def validar_usuario(db: Session, email: str, senha: str) -> Optional[models.Usua
     Retorna o usuário se o e-mail existir e a senha estiver correta.
     Retorna None em qualquer outro caso (previne ataques de enumeração de usuários).
     """
-    usuario = db.query(models.Usuario).filter(models.Usuario.email == email).first()
+    usuario = db.query(models.Usuario).filter(models.Usuario.email == email, models.Usuario.status_conta == "ATIVO").first()
     if not usuario:
         return None
 
