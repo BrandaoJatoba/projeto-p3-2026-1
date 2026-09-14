@@ -1,0 +1,17 @@
+# Framework Web & Servidor
+fastapi
+uvicorn[standard]
+
+# Banco de Dados & ORM
+sqlmodel
+sqlalchemy
+argon2-cffi
+
+# Leitura e Processamento de Arquivos (PDF/CSV)
+pandas
+pdfplumber
+python-multipart  # Necessário para o FastAPI aceitar upload de arquivos (PDF/CSV)
+
+# Autenticação & Segurança
+pyjwt
+passlib[bcrypt]
