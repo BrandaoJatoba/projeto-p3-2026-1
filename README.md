@@ -110,7 +110,7 @@ Senha: senha123
 Para iniciar o servidor da API localmente:
 
 ```bash
-uvicorn main:app --reload
+python -m uvicorn main:app --reload
 
 API rodando em: http://localhost:8000
 Documentação Interativa (Swagger): http://localhost:8000/docs
