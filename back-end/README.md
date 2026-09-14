@@ -10,7 +10,7 @@ Este módulo é responsável pela camada de persistência de dados da aplicaçã
 
 ---
 
-## 🛠️ Configuração do Ambiente e Instalação
+## Configuração do Ambiente e Instalação
 
 ### 1. Requisitos Previstos
 Certifique-se de ter o Python 3.10+ instalado.
@@ -19,10 +19,10 @@ Certifique-se de ter o Python 3.10+ instalado.
 Instale as bibliotecas necessárias para executar a camada de banco de dados e autenticação:
 
 ```bash
-pip install sqlalchemy argon2-cffi
+pip install -r requirements.txt
 ```
 
-## 🚀 Inicializando o Banco de Dados
+## Inicializando o Banco de Dados
 Para criar o diretório, o arquivo SQLite (database_ppgi.db), todas as tabelas e popular o usuário ADMIN inicial junto com os perfis padrão do sistema, execute o comando no terminal NA PASTA BACK-END:
 
 ```bash
@@ -32,6 +32,16 @@ python init_database.py
 Credenciais de Teste Geradas:
 E-mail Admin: admin.ppgi@ic.ufal.br
 Senha: senha123
+
+## Executando o Servidor Back-End (FastAPI)
+
+Para iniciar o servidor da API localmente:
+
+```bash
+uvicorn main:app --reload
+
+API rodando em: http://localhost:8000
+Documentação Interativa (Swagger): http://localhost:8000/docs
 
 ## 💻 Como Consumir o Banco de Dados no FastAPI
 Para integrar o banco de dados às rotas do FastAPI, utilize a injeção de dependência (Depends) com a função get_db do módulo database.py. Importe get_db e crud.
@@ -45,7 +55,7 @@ def login(ALGUMA COISA AQUI, db: Session = Depends(get_db)):
     usuario = crud.validar_usuario(db, email=email, senha=senha)
 ```
 
-## 📌 Guia Rápido do Retorno das Funções CRUD
+## Guia Rápido do Retorno das Funções CRUD
 
 ```python
 crud.validar_usuario(db, email, senha)
