@@ -1,6 +1,6 @@
 from database import engine, Base, SessionLocal
 import models
-import crud
+import usuario
 import os
 
 PERFIS_PADRAO = [
@@ -11,7 +11,7 @@ PERFIS_PADRAO = [
 ]
 
 def garantir_diretorio_banco():
-    pasta_banco = os.path.dirname("./database/database_ppgi.db")    
+    pasta_banco = os.path.dirname("./dados/database_ppgi.db")    
     if pasta_banco and not os.path.exists(pasta_banco):
         os.makedirs(pasta_banco, exist_ok=True)
         print(f"Pasta '{pasta_banco}' criada com sucesso!")
@@ -65,7 +65,7 @@ def criar_banco():
         
         if not admin:
             print("Criando conta de usuário Admin...")
-            admin = crud.criar_usuario(db, email_admin, "senha123")
+            admin = usuario.criar_usuario(db, email_admin, "senha123")
             print(f"Admin criado com sucesso! ID: {admin.id_usuario}")
         else:
             print("Usuário Admin já existente.")
