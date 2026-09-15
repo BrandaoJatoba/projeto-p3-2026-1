@@ -15,3 +15,7 @@ python-multipart  # Necessário para o FastAPI aceitar upload de arquivos (PDF/C
 # Autenticação & Segurança
 pyjwt
 passlib[bcrypt]
+
+# Email
+pydantic
+email-validator
