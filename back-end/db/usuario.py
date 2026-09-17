@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -58,9 +58,15 @@ def buscar_usuario_por_id(db: Session, id_usuario: int) -> Optional[models.Usuar
 
 # -- PERFIS -- #
 
-def obter_perfis_do_usuario(db: Session, id_usuario: int) -> List[int]:
+def obter_perfis_do_usuario(db: Session, id_usuario: int) -> List[str]:
     """
-    Retorna uma lista com os IDs de todos os perfis associados ao usuário.
+    Retorna uma lista com o nome de todos os perfis associados ao usuário.
     """
-    registros = db.query(models.UsuarioPerfil).filter(models.UsuarioPerfil.id_usuario == id_usuario).all()
-    return [r.id_perfil for r in registros]
+    perfis = (
+        db.query(models.Perfil.nome_perfil)
+        .join(models.UsuarioPerfil, models.Perfil.id_perfil == models.UsuarioPerfil.id_perfil)
+        .filter(models.UsuarioPerfil.id_usuario == id_usuario)
+        .all()
+    )
+
+    return [p.nome_perfil for p in perfis]
