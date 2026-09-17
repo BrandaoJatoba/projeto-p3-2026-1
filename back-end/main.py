@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from rotas import auth
 
 app = FastAPI(title="API PPGI")
 
@@ -15,7 +16,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+# diz ao FastAPI que a função abaixo é responsável por tratar as
+# requisições que vão para: o path / usando uma operação get
 @app.get("/")
 def home():
     return {"status": "API PPGI rodando com sucesso!"}
+
+# Inclui o roteador de autenticação
+app.include_router(auth.router)
+
+
+
