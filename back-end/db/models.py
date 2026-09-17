@@ -2,6 +2,8 @@ from sqlalchemy import Column, Integer, String, Date, Boolean, ForeignKey, DateT
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from database import Base
 
+# -- Login e Autorizações -- #
+
 class Usuario(Base): 
     """
     Tabela de autenticação principal. Armazena credenciais de login, status da conta e metadados de acesso de cada usuário.
@@ -26,6 +28,38 @@ class UsuarioPerfil(Base):
     
     id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), primary_key=True)
     id_perfil = Column(Integer, ForeignKey("perfis.id_perfil"), primary_key=True)
+
+class Perfil(Base):
+    
+    """
+    Catálogo de papéis de acesso (ADMIN, SECRETARIA, COORDENACAO, DISCENTE) utilizados para controle de permissões no sistema (RBAC).
+    """
+    
+    __tablename__ = "perfis"
+
+    id_perfil = Column(Integer, primary_key=True, autoincrement=True)
+    nome_perfil = Column(String(30), unique=True, nullable=False)
+    descricao = Column(String(150), nullable=True)
+
+# -- Tokens de Sessão -- #
+
+class SessionRefreshToken(Base):
+    
+    """
+    Controle e rastreamento de refresh tokens emitidos para persistência
+    de sessões JWT ativas por usuário e dispositivo.
+    """
+
+    __tablename__ = "sessions_refresh_tokens"
+
+    id_token = Column(Integer, primary_key=True, autoincrement=True)
+    id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
+    refresh_token = Column(String(512), unique=True, nullable=False)
+    dispositivo_info = Column(String(255), nullable=True)
+    data_expiracao = Column(DateTime, nullable=False)
+    revogado = Column(Boolean, default=False)
+
+# -- Informações Institucionais -- #
 
 class Professor(Base):
     
@@ -84,6 +118,25 @@ class SuspensaoCalendario(Base):
     data_fim_suspensao = Column(Date, nullable=True)
     dias_suspensos = Column(Integer, nullable=True)
 
+# -- Configurações -- #
+
+class ConfiguracaoAlerta(Base):
+
+    """
+    Parâmetros configuráveis pelo sistema para envio de alertas preventivos
+    conforme a proximidade do vencimento de prazos regimentais.
+    """
+    
+    __tablename__ = "configuracoes_alertas"
+
+    id_config = Column(Integer, primary_key=True, autoincrement=True)
+    tipo_prazo = Column(String(30))
+    dias_alerta_1 = Column(Integer, default=90)
+    dias_alerta_2 = Column(Integer, default=30)
+    dias_alerta_3 = Column(Integer, default=0)
+
+# -- Discentes -- #
+
 class Estudante(Base):
     
     """
@@ -102,6 +155,8 @@ class Estudante(Base):
     eh_bolsista = Column(Boolean, default=False)
     prazo_conclusao_sigaa = Column(Date, nullable=True)
 
+# -- REQUISITO 1: Créditos Obtidos -- #
+
 class HistoricoDisciplina(Base):
     
     """
@@ -118,6 +173,8 @@ class HistoricoDisciplina(Base):
     conceito = Column(String(5))
     status_disciplina = Column(String(20))
     creditos_integralizados = Column(Integer)
+
+# --  Requisito 2: Estágio Docência -- #
 
 class EstagioDocencia(Base):
     
@@ -136,6 +193,8 @@ class EstagioDocencia(Base):
     data_entrega_proposta = Column(Date)
     status_relatorio = Column(String(20))
     data_entrega_relatorio = Column(Date)
+
+# -- Requisito 3: Proficiência Línguas -- #
 
 class Proficiencia(Base):
     
@@ -170,13 +229,15 @@ class SubmissaoArtigo(Base):
     tipo = Column(String(10))
     status_validacao_colegiado = Column(String(20))
 
+# -- Requisito 4: Dissertação -- #
+
 class Dissertacao(Base):
     
     """
     Entidade central de acompanhamento da dissertação do mestrando,
     relacionando o estudante ao projeto e marcando o início da contagem dos prazos.
     """
-
+    
     __tablename__ = "dissertacoes"
 
     id_dissertacao = Column(Integer, primary_key=True, autoincrement=True)
@@ -223,8 +284,7 @@ class Defesa(Base):
 class ProrrogacaoHistorico(Base):
     
     """
-    Histórico de solicitações de extensão de prazos de qualificação ou defesa
-    aprovadas ou indeferidas pelo colegiado.
+    Histórico de solicitações de extensão de prazos de qualificação ou defesa aprovadas ou indeferidas pelo colegiado.
     """
 
     __tablename__ = "prorrogacoes_historico"
@@ -235,46 +295,3 @@ class ProrrogacaoHistorico(Base):
     quantidade_meses = Column(Integer)
     data_pedido = Column(Date)
     resultado_pedido = Column(String(15))
-
-class ConfiguracaoAlerta(Base):
-
-    """
-    Parâmetros configuráveis pelo sistema para envio de alertas preventivos
-    conforme a proximidade do vencimento de prazos regimentais.
-    """
-    
-    __tablename__ = "configuracoes_alertas"
-
-    id_config = Column(Integer, primary_key=True, autoincrement=True)
-    tipo_prazo = Column(String(30))
-    dias_alerta_1 = Column(Integer, default=90)
-    dias_alerta_2 = Column(Integer, default=30)
-    dias_alerta_3 = Column(Integer, default=0)
-
-class Perfil(Base):
-    
-    """
-    Catálogo de papéis de acesso (ADMIN, SECRETARIA, COORDENACAO, DISCENTE) utilizados para controle de permissões no sistema (RBAC).
-    """
-    
-    __tablename__ = "perfis"
-
-    id_perfil = Column(Integer, primary_key=True, autoincrement=True)
-    nome_perfil = Column(String(30), unique=True, nullable=False)
-    descricao = Column(String(150), nullable=True)
-
-class SessionRefreshToken(Base):
-    
-    """
-    Controle e rastreamento de refresh tokens emitidos para persistência
-    de sessões JWT ativas por usuário e dispositivo.
-    """
-
-    __tablename__ = "sessions_refresh_tokens"
-
-    id_token = Column(Integer, primary_key=True, autoincrement=True)
-    id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
-    refresh_token = Column(String(512), unique=True, nullable=False)
-    dispositivo_info = Column(String(255), nullable=True)
-    data_expiracao = Column(DateTime, nullable=False)
-    revogado = Column(Boolean, default=False)
