@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 import crud
-import security
+import seguranca
 
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
