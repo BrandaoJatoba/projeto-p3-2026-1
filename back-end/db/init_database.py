@@ -1,5 +1,5 @@
 from database import engine, Base, SessionLocal
-import models
+from db import models
 import usuario
 import os
 

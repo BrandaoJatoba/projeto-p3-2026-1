@@ -50,7 +50,7 @@ from database import get_db
 import crud
 
 @app.post("/login")
-def login(ALGUMA COISA AQUI, db: Session = Depends(get_db)):
+def login(ALGUMA COISA AQUI, db_connection: Session = Depends(get_db)):
     usuario = crud.validar_usuario(db, email=email, senha=senha)
 ```
 

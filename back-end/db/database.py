@@ -32,7 +32,7 @@ def get_db():
         Exemplo de uso em uma rota do FastAPI:
 
         @app.get("/usuarios")
-        def listar_usuarios(db: Session = Depends(get_db)):
+        def listar_usuarios(db_connection: Session = Depends(get_db)):
             return db.query(Usuario).all()
     """
     db = SessionLocal()

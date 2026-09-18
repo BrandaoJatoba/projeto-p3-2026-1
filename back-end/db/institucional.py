@@ -1,14 +1,14 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import date
-import models
+from db import models
 
 # ==========================================
 # CRUD: SEMESTRE LETIVO
 # ==========================================
 
 def criar_semestre_letivo(
-    db: Session, 
+    db_connection: Session, 
     codigo_semestre: str, 
     data_inicio_real: Optional[date] = None, 
     data_fim_real: Optional[date] = None, 
@@ -26,15 +26,15 @@ def criar_semestre_letivo(
     db.refresh(novo_semestre)
     return novo_semestre
 
-def buscar_semestre_letivo(db: Session, id_semestre: int) -> Optional[models.SemestreLetivo]:
+def buscar_semestre_letivo(db_connection: Session, id_semestre: int) -> Optional[models.SemestreLetivo]:
     """Retorna um semestre letivo específico pelo ID."""
     return db.query(models.SemestreLetivo).filter(models.SemestreLetivo.id_semestre == id_semestre).first()
 
-def listar_semestres_letivos(db: Session, skip: int = 0, limit: int = 100) -> List[models.SemestreLetivo]:
+def listar_semestres_letivos(db_connection: Session, skip: int = 0, limit: int = 100) -> List[models.SemestreLetivo]:
     """Retorna uma lista paginada de todos os semestres letivos."""
     return db.query(models.SemestreLetivo).offset(skip).limit(limit).all()
 
-def atualizar_semestre_letivo(db: Session, id_semestre: int, dados_atualizacao: Dict[str, Any]) -> Optional[models.SemestreLetivo]:
+def atualizar_semestre_letivo(db_connection: Session, id_semestre: int, dados_atualizacao: Dict[str, Any]) -> Optional[models.SemestreLetivo]:
     """Atualiza campos específicos de um semestre letivo existente."""
     semestre = buscar_semestre_letivo(db, id_semestre)
     if not semestre:
@@ -48,7 +48,7 @@ def atualizar_semestre_letivo(db: Session, id_semestre: int, dados_atualizacao: 
     db.refresh(semestre)
     return semestre
 
-def deletar_semestre_letivo(db: Session, id_semestre: int) -> bool:
+def deletar_semestre_letivo(db_connection: Session, id_semestre: int) -> bool:
     """Remove um semestre letivo pelo ID."""
     semestre = buscar_semestre_letivo(db, id_semestre)
     if semestre:
@@ -63,7 +63,7 @@ def deletar_semestre_letivo(db: Session, id_semestre: int) -> bool:
 # ==========================================
 
 def criar_suspensao_calendario(
-    db: Session, 
+    db_connection: Session, 
     id_semestre: int, 
     data_inicio_suspensao: date, 
     motivo: Optional[str] = None, 
@@ -83,15 +83,15 @@ def criar_suspensao_calendario(
     db.refresh(nova_suspensao)
     return nova_suspensao
 
-def buscar_suspensao(db: Session, id_suspensao: int) -> Optional[models.SuspensaoCalendario]:
+def buscar_suspensao(db_connection: Session, id_suspensao: int) -> Optional[models.SuspensaoCalendario]:
     """Retorna os dados de uma paralisação específica."""
     return db.query(models.SuspensaoCalendario).filter(models.SuspensaoCalendario.id_suspensao == id_suspensao).first()
 
-def listar_suspensoes_por_semestre(db: Session, id_semestre: int) -> List[models.SuspensaoCalendario]:
+def listar_suspensoes_por_semestre(db_connection: Session, id_semestre: int) -> List[models.SuspensaoCalendario]:
     """Lista todas as suspensões vinculadas a um determinado semestre letivo."""
     return db.query(models.SuspensaoCalendario).filter(models.SuspensaoCalendario.id_semestre == id_semestre).all()
 
-def atualizar_suspensao(db: Session, id_suspensao: int, dados_atualizacao: Dict[str, Any]) -> Optional[models.SuspensaoCalendario]:
+def atualizar_suspensao(db_connection: Session, id_suspensao: int, dados_atualizacao: Dict[str, Any]) -> Optional[models.SuspensaoCalendario]:
     """Atualiza informações de uma suspensão (ex: adicionar data de fim)."""
     suspensao = buscar_suspensao(db, id_suspensao)
     if not suspensao:
@@ -105,7 +105,7 @@ def atualizar_suspensao(db: Session, id_suspensao: int, dados_atualizacao: Dict[
     db.refresh(suspensao)
     return suspensao
 
-def deletar_suspensao(db: Session, id_suspensao: int) -> bool:
+def deletar_suspensao(db_connection: Session, id_suspensao: int) -> bool:
     """Remove o registro de uma suspensão."""
     suspensao = buscar_suspensao(db, id_suspensao)
     if suspensao:

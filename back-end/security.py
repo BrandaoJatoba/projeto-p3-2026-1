@@ -5,8 +5,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from database import get_db
-import crud
+from db.database import get_db
+
 
 
 SECRET_KEY = "chave_secreta_provisoria" # substituir por uma chave secreta segura em produção
