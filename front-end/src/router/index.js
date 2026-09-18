@@ -4,6 +4,7 @@ import HomeView from '../views/HomeView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import AcessoNegadoView from '../views/AcessoNegadoView.vue'
 import { useAuthStore } from '../stores/auth'
+import ConfiguracoesView from '../views/ConfiguracoesView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,6 +17,12 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: DashboardView,
+      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO'] },
+    },
+    {
+      path: '/configuracoes',
+      name: 'configuracoes',
+      component: ConfiguracoesView,
       meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO'] },
     },
   ],
