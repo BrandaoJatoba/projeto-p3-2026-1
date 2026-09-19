@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import token
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -6,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from db.database import get_db
+import db.usuario
 
 
 
@@ -16,6 +18,84 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+def obter_usuario_atual(
+    token: str = Depends(oauth2_scheme),
+    db_connection: Session = Depends(get_db)
+):
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido ou expirado.",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    id_usuario = payload.get("id_usuario")
+
+    if id_usuario is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token não contém identificação do usuário.",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    usuario = db.usuario.buscar_usuario_por_id(
+        db_connection,
+        id_usuario
+    )
+
+    if usuario is None or usuario.status_conta != "ATIVO":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não encontrado.",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    return usuario
+
+def verificar_permissao(
+    usuario,
+    perfis_permitidos: list[str],
+    db_connection: Session = Depends(get_db)
+):
+    perfis_usuario = db.usuario.obter_perfis_do_usuario(
+        db_connection,
+        usuario.id_usuario
+    )
+
+    possui_permissao = any(
+        perfil in perfis_permitidos
+        for perfil in perfis_usuario
+    )
+
+    if not possui_permissao:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuário não possui permissão para acessar este recurso."
+        )
+
+    return usuario
+
+
+def autorizar(perfis_permitidos: list[str]):
+    def verificar(
+        usuario=Depends(obter_usuario_atual),
+        db_connection: Session = Depends(get_db)
+    ):
+        return verificar_permissao(
+            usuario,
+            perfis_permitidos,
+            db_connection
+        )
+
+    return verificar
+
 
 def criar_token_acesso(data: dict) -> str:
     """Gera o Access Token JWT válido por 60 minutos."""
