@@ -16,7 +16,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # diz ao FastAPI que a função abaixo é responsável por tratar as
 # requisições que vão para: o path / usando uma operação get
 @app.get("/")
