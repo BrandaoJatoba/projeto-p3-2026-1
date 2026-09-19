@@ -14,7 +14,7 @@ async function fazerLogin() {
   erro.value = ''
 
   try {
-    const resposta = await fetch('http://localhost:8000/login', {
+    const resposta = await fetch('http://localhost:8000/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

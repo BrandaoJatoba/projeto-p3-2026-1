@@ -16,7 +16,7 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: DashboardView,
-      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO'] },
+      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
     },
   ],
 })
@@ -32,8 +32,8 @@ router.beforeEach((to, from) => {
   if (!authStore.token) {
     return { name: 'login' } // não autenticado → vai logar
   }
-
-  if (!perfisPermitidos.includes(authStore.usuario?.perfil)) {
+  const temPermissao = perfisUsuario.some(perfil => perfisPermitidos.includes(perfil))
+  if (!temPermissao) {
     return { name: 'acesso-negado' } // autenticado, mas sem permissão → avisa
   }
 

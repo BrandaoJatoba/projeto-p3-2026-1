@@ -11,7 +11,7 @@ import db.usuario
 
 
 
-SECRET_KEY = "chave_secreta_provisoria" # substituir por uma chave secreta segura
+SECRET_KEY = "chave_secreta_provisoria_com_tamanho_grande" # substituir por uma chave secreta segura em produção
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
