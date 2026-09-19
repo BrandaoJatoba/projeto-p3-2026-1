@@ -84,10 +84,14 @@ def verificar_permissao(
 
 
 def autorizar(perfis_permitidos: list[str]):
-    def verificar(usuario = Depends(obter_usuario_atual)):
+    def verificar(
+        usuario=Depends(obter_usuario_atual),
+        db_connection: Session = Depends(get_db)
+    ):
         return verificar_permissao(
             usuario,
-            perfis_permitidos
+            perfis_permitidos,
+            db_connection
         )
 
     return verificar
