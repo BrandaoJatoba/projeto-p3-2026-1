@@ -2,7 +2,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker, DeclarativeBase
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///database/database_ppgi.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///dados/database_ppgi.db"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 
@@ -32,7 +32,7 @@ def get_db():
         Exemplo de uso em uma rota do FastAPI:
 
         @app.get("/usuarios")
-        def listar_usuarios(db: Session = Depends(get_db)):
+        def listar_usuarios(db_connection: Session = Depends(get_db)):
             return db.query(Usuario).all()
     """
     db = SessionLocal()
