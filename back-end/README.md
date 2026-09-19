@@ -25,7 +25,7 @@ pip install -r requirements.txt
 Para criar o diretório, o arquivo SQLite (database_ppgi.db), todas as tabelas e popular o usuário ADMIN inicial junto com os perfis padrão do sistema, execute o comando no terminal NA PASTA BACK-END:
 
 ```bash
-py .\db\init_database.py
+python init_database.py
 ```
 
 Credenciais de Teste Geradas:
@@ -37,7 +37,7 @@ Senha: senha123
 Para iniciar o servidor da API localmente:
 
 ```bash
-uvicorn main:app --reload
+python -m uvicorn main:app --reload
 
 API rodando em: http://localhost:8000
 Documentação Interativa (Swagger): http://localhost:8000/docs
@@ -50,7 +50,7 @@ from database import get_db
 import crud
 
 @app.post("/login")
-def login(ALGUMA COISA AQUI, db_connection: Session = Depends(get_db)):
+def login(ALGUMA COISA AQUI, db: Session = Depends(get_db)):
     usuario = crud.validar_usuario(db, email=email, senha=senha)
 ```
 
