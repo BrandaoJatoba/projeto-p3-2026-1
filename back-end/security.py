@@ -50,7 +50,7 @@ def obter_usuario_atual(
         id_usuario
     )
 
-    if usuario is None:
+    if usuario is None or usuario.status_conta != "ATIVO":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuário não encontrado.",
