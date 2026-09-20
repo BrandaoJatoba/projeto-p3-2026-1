@@ -1,5 +1,5 @@
 from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class SemestreCriacao(BaseModel):
@@ -14,6 +14,9 @@ class SemestreAtualizacao(BaseModel):
     dias_letivos: int
 
 class SemestreResposta(BaseModel):
+
+    model_config = ConfigDict(from_attributes=True)
+    
     id_semestre: int
     codigo_semestre: str
     data_inicio_real: date
