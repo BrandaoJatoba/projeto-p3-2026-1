@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from rotas import auth
 from rotas import semestre
+from rotas import suspensao
 
 app = FastAPI(title="API PPGI")
 
@@ -27,6 +28,7 @@ def home():
 # Inclui o roteador de rotas
 app.include_router(auth.router)
 app.include_router(semestre.router)
+app.include_router(suspensao.router)
 
 
 
