@@ -1,6 +1,6 @@
-from database import engine, Base, SessionLocal
-import models
-import usuario
+from db.database import engine, Base, SessionLocal
+from db import models
+from db import usuario
 import os
 
 PERFIS_PADRAO = [

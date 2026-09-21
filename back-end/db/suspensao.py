@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import date
-import models
+from db import models
 
 # ==========================================
 # CRUD: SUSPENSÃO DE CALENDÁRIO

@@ -3,7 +3,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-import models
+from db import models
 
 
 # --- GERENCIAMENTO DE REFRESH TOKENS ---

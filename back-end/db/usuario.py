@@ -5,7 +5,7 @@ from argon2.exceptions import VerifyMismatchError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-import models
+from db import models
 
 ph = PasswordHasher()
 
