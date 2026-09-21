@@ -21,7 +21,7 @@ router = APIRouter(
 def criar_novo_semestre(
     dados: SemestreCriacao,
     db_connection: Session = Depends(get_db),
-    usuario=Depends(autorizar(["SECRETARIA", "ADMIN"]))
+    usuario=Depends(autorizar(["SECRETARIA", "COORDENACAO", "ADMIN"]))
 ):
     semestre_existente = semestre.buscar_semestre_por_codigo(
         db_connection,
@@ -54,7 +54,8 @@ def criar_novo_semestre(
     response_model=list[SemestreResposta]
 )
 def listar_todos_os_semestres(
-    db_connection: Session = Depends(get_db)
+    db_connection: Session = Depends(get_db),
+    usuario=Depends(autorizar(["SECRETARIA", "COORDENACAO", "ADMIN"]))
 ):
     return semestre.listar_semestres(db_connection)
 
@@ -65,7 +66,8 @@ def listar_todos_os_semestres(
 
 def buscar_semestre(
     id_semestre: int,
-    db_connection: Session = Depends(get_db)
+    db_connection: Session = Depends(get_db),
+    usuario=Depends(autorizar(["SECRETARIA", "COORDENACAO", "ADMIN"]))
 ):
     semestre_encontrado = semestre.buscar_semestre_por_id(
         db_connection,
@@ -89,7 +91,7 @@ def atualizar_semestre(
     id_semestre: int,
     dados: SemestreAtualizacao,
     db_connection: Session = Depends(get_db),
-    usuario=Depends(autorizar(["SECRETARIA", "ADMIN"]))
+    usuario=Depends(autorizar(["SECRETARIA", "COORDENACAO", "ADMIN"]))
 ):
     semestre_encontrado = semestre.buscar_semestre_por_id(
         db_connection,

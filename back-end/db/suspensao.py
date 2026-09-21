@@ -1,14 +1,14 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import date
-import models
+from db import models
 
 # ==========================================
 # CRUD: SUSPENSÃO DE CALENDÁRIO
 # ==========================================
 
 def criar_suspensao_calendario(
-    db_connection: Session, 
+    db: Session, 
     id_semestre: int, 
     data_inicio_suspensao: date, 
     motivo: Optional[str] = None, 
@@ -23,22 +23,26 @@ def criar_suspensao_calendario(
         data_fim_suspensao=data_fim_suspensao,
         dias_suspensos=dias_suspensos
     )
-    db_connection.add(nova_suspensao)
-    db_connection.commit()
-    db_connection.refresh(nova_suspensao)
+    db.add(nova_suspensao)
+    db.commit()
+    db.refresh(nova_suspensao)
     return nova_suspensao
 
-def buscar_suspensao(db_connection: Session, id_suspensao: int) -> Optional[models.SuspensaoCalendario]:
+def buscar_suspensao(db: Session, id_suspensao: int) -> Optional[models.SuspensaoCalendario]:
     """Retorna os dados de uma paralisação específica."""
-    return db_connection.query(models.SuspensaoCalendario).filter(models.SuspensaoCalendario.id_suspensao == id_suspensao).first()
+    return db.query(models.SuspensaoCalendario).filter(models.SuspensaoCalendario.id_suspensao == id_suspensao).first()
 
-def listar_suspensoes_por_semestre(db_connection: Session, id_semestre: int) -> List[models.SuspensaoCalendario]:
+def listar_todas_suspensoes(db: Session) -> List[models.SuspensaoCalendario]:
+    """Retorna todas as suspensões cadastradas no sistema."""
+    return db.query(models.SuspensaoCalendario).all()
+
+def listar_suspensoes_por_semestre(db: Session, id_semestre: int) -> List[models.SuspensaoCalendario]:
     """Lista todas as suspensões vinculadas a um determinado semestre letivo."""
-    return db_connection.query(models.SuspensaoCalendario).filter(models.SuspensaoCalendario.id_semestre == id_semestre).all()
+    return db.query(models.SuspensaoCalendario).filter(models.SuspensaoCalendario.id_semestre == id_semestre).all()
 
-def atualizar_suspensao(db_connection: Session, id_suspensao: int, dados_atualizacao: Dict[str, Any]) -> Optional[models.SuspensaoCalendario]:
+def atualizar_suspensao(db: Session, id_suspensao: int, dados_atualizacao: Dict[str, Any]) -> Optional[models.SuspensaoCalendario]:
     """Atualiza informações de uma suspensão (ex: adicionar data de fim)."""
-    suspensao = buscar_suspensao(db_connection, id_suspensao)
+    suspensao = buscar_suspensao(db, id_suspensao)
     if not suspensao:
         return None
         
@@ -46,17 +50,15 @@ def atualizar_suspensao(db_connection: Session, id_suspensao: int, dados_atualiz
         if hasattr(suspensao, chave):
             setattr(suspensao, chave, valor)
             
-    db_connection.commit()
-    db_connection.refresh(suspensao)
+    db.commit()
+    db.refresh(suspensao)
     return suspensao
 
-def deletar_suspensao(db_connection: Session, id_suspensao: int) -> bool:
+def deletar_suspensao(db: Session, id_suspensao: int) -> bool:
     """Remove o registro de uma suspensão."""
-    suspensao = buscar_suspensao(db_connection, id_suspensao)
+    suspensao = buscar_suspensao(db, id_suspensao)
     if suspensao:
-        db_connection.delete(suspensao)
-        db_connection.commit()
+        db.delete(suspensao)
+        db.commit()
         return True
     return False
-
-

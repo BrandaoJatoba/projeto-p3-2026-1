@@ -25,7 +25,7 @@ pip install -r requirements.txt
 Para criar o diretório, o arquivo SQLite (database_ppgi.db), todas as tabelas e popular o usuário ADMIN inicial junto com os perfis padrão do sistema, execute o comando no terminal NA PASTA BACK-END:
 
 ```bash
-py -m db.init_database 
+ py -m db.init_database 
 ```
 
 Credenciais de Teste Geradas:
