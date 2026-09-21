@@ -1,6 +1,6 @@
 from datetime import date
 from sqlalchemy.orm import Session
-from db import models
+import models
 from typing import List, Optional, Dict, Any
 
 

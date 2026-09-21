@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Date, Boolean, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from db.database import Base
+from database import Base
 
 # -- Login e Autorizações -- #
 

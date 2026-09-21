@@ -1,5 +1,5 @@
 from database import engine, Base, SessionLocal
-from db import models
+import models
 import usuario
 import os
 
@@ -59,21 +59,24 @@ def criar_banco():
         # 1. Popula a tabela PERFIS se estiver vazia/incompleta
         inicializar_perfis(db)
 
-        # 2. Cria o usuário Admin se não existir
-        email_admin = "admin.ppgi@ic.ufal.br"
-        admin = db.query(models.Usuario).filter(models.Usuario.email == email_admin).first()
-        
-        if not admin:
-            print("Criando conta de usuário Admin...")
-            admin = usuario.criar_usuario(db, email_admin, "senha123")
-            print(f"Admin criado com sucesso! ID: {admin.id_usuario}")
-        else:
-            print("Usuário Admin já existente.")
+        # 2 e 3. Cria um usuário para cada perfil e faz o vínculo
+        for perfil_info in PERFIS_PADRAO:
+            nome_perfil = perfil_info["nome_perfil"]
+            email_usuario = f"{nome_perfil.lower()}.ppgi@ic.ufal.br"
+            
+            usuario_db = db.query(models.Usuario).filter(models.Usuario.email == email_usuario).first()
+            
+            if not usuario_db:
+                print(f"Criando conta de usuário para o perfil {nome_perfil}...")
+                usuario_db = usuario.criar_usuario(db, email_usuario, "senha123")
+                print(f"Usuário {nome_perfil} criado com sucesso! ID: {usuario_db.id_usuario}")
+            else:
+                print(f"Usuário {email_usuario} já existente.")
 
-        # 3. Associa o usuário Admin ao perfil ADMIN em USUARIOS_PERFIS
-        if admin:
-            vincular_perfil_usuario(db, admin.id_usuario, "ADMIN")
-            print("Perfil ADMIN vinculado ao usuário com sucesso!")
+            # Associa o usuário recém-criado/existente ao perfil em USUARIOS_PERFIS
+            if usuario_db:
+                vincular_perfil_usuario(db, usuario_db.id_usuario, nome_perfil)
+                print(f"Perfil {nome_perfil} vinculado ao usuário {email_usuario} com sucesso!")
 
     finally:
         db.close()
