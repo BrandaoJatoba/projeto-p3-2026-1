@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from rotas import auth
+from rotas import semestre
 
 app = FastAPI(title="API PPGI")
 
@@ -23,8 +24,9 @@ app.add_middleware(
 def home():
     return {"status": "API PPGI rodando com sucesso!"}
 
-# Inclui o roteador de autenticação
+# Inclui o roteador de rotas
 app.include_router(auth.router)
+app.include_router(semestre.router)
 
 
 
