@@ -5,7 +5,7 @@ from argon2.exceptions import VerifyMismatchError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from db import models
+import models
 
 ph = PasswordHasher()
 
@@ -32,7 +32,7 @@ def criar_usuario(db_connection: Session, email: str, senha: str) -> Optional[mo
     Recebe um email e uma senha e cria e salva um usuário no banco de dados. Se o email já está salvo no banco de dados, ocorre um erro e nada é salvo.
     """
     senha_transformada = ph.hash(senha)
-    novo_usuario = db_connection.models.Usuario(email=email, senha_hash=senha_transformada)
+    novo_usuario = models.Usuario(email=email, senha_hash=senha_transformada)
 
     try:
         db_connection.add(novo_usuario)
