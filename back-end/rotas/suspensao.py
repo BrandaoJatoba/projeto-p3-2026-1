@@ -7,12 +7,9 @@ from db import suspensao  # Módulo com as funções CRUD geradas anteriormente
 from schemas import SuspensaoCalendarioCreate, SuspensaoCalendarioUpdate, SuspensaoCalendarioResponse
 from security import autorizar
 
-router = APIRouter(
-    prefix="/suspensoes",
-    tags=["Suspensões"]
-)
+router = APIRouter(prefix="/configuracoes/suspensoes", tags=["Suspensoes"])
 
-@router.post("/", response_model=SuspensaoCalendarioResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SuspensaoCalendarioResponse, status_code=status.HTTP_201_CREATED)
 def criar_suspensao(
     dados: SuspensaoCalendarioCreate,
     db: Session = Depends(get_db),
@@ -21,7 +18,7 @@ def criar_suspensao(
     nova_suspensao = suspensao.criar_suspensao_calendario(db=db, **dados.model_dump())
     return nova_suspensao
 
-@router.get("/", response_model=List[SuspensaoCalendarioResponse])
+@router.get("", response_model=List[SuspensaoCalendarioResponse])
 def listar_todas_suspensoes(
     db: Session = Depends(get_db),
     usuario_atual = Depends(autorizar(["ADMIN", "COORDENACAO", "SECRETARIA", "DISCENTE"]))
@@ -42,7 +39,7 @@ def obter_suspensao_por_id(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Suspensão não encontrada.")
     return registro
 
-@router.patch("/{id_suspensao}", response_model=SuspensaoCalendarioResponse)
+@router.put("/{id_suspensao}", response_model=SuspensaoCalendarioResponse)
 def atualizar_suspensao(
     id_suspensao: int,
     dados: SuspensaoCalendarioUpdate,
