@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from rotas import auth
 from rotas import semestre
 from rotas import suspensao
+from rotas import logout
 
 app = FastAPI(title="API PPGI")
 
@@ -29,6 +30,7 @@ def home():
 app.include_router(auth.router)
 app.include_router(semestre.router)
 app.include_router(suspensao.router)
+app.include_router(logout.router)
 
 
 
