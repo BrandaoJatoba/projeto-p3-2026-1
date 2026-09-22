@@ -5,7 +5,7 @@ uvicorn[standard]
 # Banco de Dados & ORM
 sqlmodel
 sqlalchemy
-argon2-cffi
+argon2-cffi #para salvar o password em um hash seguro
 
 # Leitura e Processamento de Arquivos (PDF/CSV)
 pandas
