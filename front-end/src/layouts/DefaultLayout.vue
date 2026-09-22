@@ -53,17 +53,19 @@ const refreshToken = localStorage.getItem('refresh_token')
 <template>
   <div class="min-h-screen bg-gray-50 flex">
     <!-- Menu Lateral (Sidebar) -->
-    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
+    <aside
+      class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex"
+    >
       <div class="p-6">
-        <h2 class="text-xl font-bold text-blue-900 tracking-wide">
-          PPGI - IC
-        </h2>
+        <h2 class="text-xl font-bold text-blue-900 tracking-wide">PPGI - IC</h2>
         <p class="text-xs text-gray-500 mt-1">Acompanhamento de Mestrado</p>
 
         <!-- Navegação (Vazia no momento) -->
         <nav class="mt-8 space-y-2">
           <!-- Seus links do menu entrarão aqui no futuro -->
-          <div class="p-3 border border-dashed border-gray-300 rounded-lg text-center text-xs text-gray-400">
+          <div
+            class="p-3 border border-dashed border-gray-300 rounded-lg text-center text-xs text-gray-400"
+          >
             Menu em construção...
           </div>
         </nav>
