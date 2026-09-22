@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from db.database import get_db
-import db.usuario 
-import db.tokensessao
+from database import get_db
+import crud
 import security
 
 
@@ -24,10 +23,10 @@ class RefreshTokenSchema(BaseModel):
 def login(
     dados_login: UsuarioLogin,
     request: Request,
-    db_connection: Session = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
-    usuario = db.usuario.validar_usuario(
-        db_connection,
+    usuario = crud.validar_usuario(
+        db,
         email=dados_login.email,
         senha=dados_login.senha
     )
@@ -38,8 +37,8 @@ def login(
             detail="E-mail ou senha incorretos."
         )
 
-    perfis = db.usuario.obter_perfis_do_usuario(
-        db_connection,
+    perfis = crud.obter_perfis_do_usuario(
+        db,
         usuario.id_usuario
     )
 
@@ -57,8 +56,8 @@ def login(
         "Desconhecido"
     )
 
-    db.tokensessao.salvar_refresh_token(
-        db_connection,
+    crud.salvar_refresh_token(
+        db=db,
         id_usuario=usuario.id_usuario,
         token=refresh_token,
         dispositivo=dispositivo,
