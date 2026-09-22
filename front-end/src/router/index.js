@@ -55,9 +55,9 @@ router.beforeEach((to, from) => {
   }
 
   // ✅ ADICIONADO: Resgata a lista de perfis do usuário logado na store
-  const perfisUsuario = authStore.perfis || authStore.usuario?.perfis || []
-
-  const temPermissao = perfisUsuario.some((perfil) => perfisPermitidos.includes(perfil))
+  const perfisUsuario = authStore.usuario?.perfis || []
+  
+  const temPermissao = perfisUsuario.some(perfil => perfisPermitidos.includes(perfil))
   if (!temPermissao) {
     return { name: 'acesso-negado' } // autenticado, mas sem permissão → avisa
   }
