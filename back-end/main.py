@@ -4,6 +4,8 @@ from rotas import auth
 from rotas import semestre
 from rotas import suspensao
 from rotas import logout
+from rotas import prazo
+from rotas import gatilho
 
 app = FastAPI(title="API PPGI")
 
@@ -28,9 +30,11 @@ def home():
 
 # Inclui o roteador de rotas
 app.include_router(auth.router)
+app.include_router(logout.router)
 app.include_router(semestre.router)
 app.include_router(suspensao.router)
-app.include_router(logout.router)
+app.include_router(prazo.router)
+app.include_router(gatilho.router)
 
 
 

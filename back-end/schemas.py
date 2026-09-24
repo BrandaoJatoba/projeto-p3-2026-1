@@ -50,3 +50,54 @@ class SuspensaoCalendarioResponse(SuspensaoCalendarioBase):
 
     # Configuração necessária para o Pydantic ler objetos do SQLAlchemy
     model_config = ConfigDict(from_attributes=True)
+
+from pydantic import BaseModel, Field, ConfigDict
+
+
+# Schema base com os campos comuns
+class TipoPrazoBase(BaseModel):
+    codigo_prazo: str = Field(..., max_length=50, example="QUALIFICACAO")
+    nome_prazo: str = Field(..., max_length=100, example="Exame de Qualificação")
+    descricao: Optional[str] = Field(None, max_length=255, example="Prazo para apresentação da qualificação")
+
+
+# Schema para criação (POST)
+class TipoPrazoCreate(TipoPrazoBase):
+    pass
+
+
+# Schema para atualização (PUT)
+class TipoPrazoUpdate(BaseModel):
+    codigo_prazo: Optional[str] = Field(None, max_length=50)
+    nome_prazo: Optional[str] = Field(None, max_length=100)
+    descricao: Optional[str] = Field(None, max_length=255)
+
+
+# Schema para resposta/leitura (GET/POST/PUT)
+class TipoPrazoResponse(TipoPrazoBase):
+    id_tipo_prazo: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+    # ==========================================
+# Schemas para GatilhoAlerta
+# ==========================================
+
+class GatilhoAlertaBase(BaseModel):
+    id_tipo_prazo: int = Field(..., example=1)
+    dias_antecedencia: int = Field(..., gt=0, example=30)
+    mensagem_template: Optional[str] = Field(None, example="Atenção: Faltam {dias} dias para a sua qualificação.")
+    ativo: bool = Field(default=True)
+
+class GatilhoAlertaCreate(GatilhoAlertaBase):
+    pass
+
+class GatilhoAlertaUpdate(BaseModel):
+    dias_antecedencia: Optional[int] = Field(None, gt=0)
+    mensagem_template: Optional[str] = None
+    ativo: Optional[bool] = None
+
+class GatilhoAlertaResponse(GatilhoAlertaBase):
+    id_gatilho: int
+
+    model_config = ConfigDict(from_attributes=True)
