@@ -1,6 +1,15 @@
-from sqlalchemy import Column, Integer, String, Date, Boolean, ForeignKey, DateTime, func
+import enum
+from sqlalchemy import Text, Column, Integer, String, Date, Boolean, ForeignKey, DateTime, Enum as SQLEnum, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from db.database import Base
+
+class StatusEstudanteEnum(str, enum.Enum):
+    ATIVO = "ATIVO"
+    TRANCADO = "TRANCADO"
+    PROCESSO_DESLIGAMENTO = "PROCESSO DE DESLIGAMENTO"
+    DESLIGADO = "DESLIGADO"
+    POS_DEFESA = "PÓS DEFESA"
+    TITULADO = "TITULADO"
 
 # -- Login e Autorizações -- #
 
@@ -101,6 +110,8 @@ class SemestreLetivo(Base):
     data_inicio_real = Column(Date)
     data_fim_real = Column(Date)
     dias_letivos = Column(Integer)
+    # Campo opcional para caso a secretaria precise forçar uma data específica da quinzena (override da regra das 3 semanas)
+    data_quinzena_override = Column(Date, nullable=True) 
 
 class SuspensaoCalendario(Base):
     
@@ -118,22 +129,43 @@ class SuspensaoCalendario(Base):
     data_fim_suspensao = Column(Date, nullable=True)
     dias_suspensos = Column(Integer, nullable=True)
 
-# -- Configurações -- #
+# -- Configurações de Alertas (Redesign Modular) -- #
 
-class ConfiguracaoAlerta(Base):
-
+class TipoPrazo(Base):
     """
-    Parâmetros configuráveis pelo sistema para envio de alertas preventivos
-    conforme a proximidade do vencimento de prazos regimentais.
+    Catálogo das categorias/providências de prazos que podem disparar alertas (ex: QUALIFICACAO, DEFESA, DIPLOMA).
     """
+    __tablename__ = "tipos_prazos"
     
-    __tablename__ = "configuracoes_alertas"
+    id_tipo_prazo = Column(Integer, primary_key=True, autoincrement=True)
+    codigo_prazo = Column(String(50), unique=True, nullable=False)
+    nome_prazo = Column(String(100), nullable=False)
+    descricao = Column(String(255), nullable=True)
 
-    id_config = Column(Integer, primary_key=True, autoincrement=True)
-    tipo_prazo = Column(String(30))
-    dias_alerta_1 = Column(Integer, default=90)
-    dias_alerta_2 = Column(Integer, default=30)
-    dias_alerta_3 = Column(Integer, default=0)
+class GatilhoAlerta(Base):
+    """
+    Configurações específicas (N) de antecedência e mensagens para um (1) Tipo de Prazo.
+    """
+    __tablename__ = "gatilhos_alertas"
+    
+    id_gatilho = Column(Integer, primary_key=True, autoincrement=True)
+    id_tipo_prazo = Column(Integer, ForeignKey("tipos_prazos.id_tipo_prazo"), nullable=False)
+    dias_antecedencia = Column(Integer, nullable=False)
+    mensagem_template = Column(Text, nullable=True)
+    ativo = Column(Boolean, default=True)
+
+class HistoricoAlertaEnviado(Base):
+    """
+    Registro histórico para evitar duplicidade (spam) e auditar os alertas enviados pelo sistema automatizado.
+    """
+    __tablename__ = "historico_alertas_enviados"
+    
+    id_historico_alerta = Column(Integer, primary_key=True, autoincrement=True)
+    id_estudante = Column(Integer, ForeignKey("estudantes.id_estudante"), nullable=False)
+    id_gatilho = Column(Integer, ForeignKey("gatilhos_alertas.id_gatilho"), nullable=False)
+    data_envio = Column(DateTime, server_default=func.now())
+    destinatario_email = Column(String(100), nullable=False)
+    status_envio = Column(String(20), default="SUCESSO")
 
 # -- Discentes -- #
 
@@ -149,7 +181,11 @@ class Estudante(Base):
     id_estudante = Column(Integer, primary_key=True, autoincrement=True)
     matricula = Column(String(20), unique=True, nullable=False)
     nome_discente = Column(String(100), nullable=False)
-    status_atual = Column(String(30), nullable=False, default="ATIVO")
+    status_atual = Column(
+        SQLEnum(StatusEstudanteEnum, name="status_estudante_enum"), 
+        nullable=False, 
+        default=StatusEstudanteEnum.ATIVO
+    )    
     id_semestre = Column(Integer, ForeignKey("semestres_letivos.id_semestre"), nullable=False)
     id_orientador = Column(Integer, ForeignKey("professores.id_professor"), nullable=True)
     eh_bolsista = Column(Boolean, default=False)
@@ -275,11 +311,20 @@ class Defesa(Base):
     id_dissertacao = Column(Integer, ForeignKey("dissertacoes.id_dissertacao"), nullable=False)
     prazo_maximo_defesa = Column(Date, nullable=False)
     prazo_solicitacao_homologacao_banca = Column(Date)
+    
+    # Novos campos para solicitação/homologação de banca
+    data_solicitacao_banca = Column(Date, nullable=True)
+    status_homologacao_banca = Column(String(20), default="PENDENTE")
+    
     status_defesa = Column(String(20))
     retorno_defesa = Column(String(30))
     conceito_defesa = Column(String(30))
     prazo_versao_final = Column(Date)
     data_realizacao = Column(Date, nullable=True)
+    
+    # Novos campos para expedição de Diploma
+    prazo_limite_processo_diploma = Column(Date, nullable=True)
+    status_processo_diploma = Column(String(30), default="PENDENTE")
 
 class ProrrogacaoHistorico(Base):
     
