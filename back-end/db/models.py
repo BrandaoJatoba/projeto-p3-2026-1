@@ -299,33 +299,29 @@ class Qualificacao(Base):
     data_realizacao = Column(Date, nullable=True)
 
 class Defesa(Base):
-    
-    """
-    Gerenciamento do rito final de defesa da dissertação, prevendo homologação
-    de banca, prazos para versão final com correções e conceito obtido.
-    """
-
     __tablename__ = "defesas"
 
+    # PK e FK
     id_defesa = Column(Integer, primary_key=True, autoincrement=True)
     id_dissertacao = Column(Integer, ForeignKey("dissertacoes.id_dissertacao"), nullable=False)
-    prazo_maximo_defesa = Column(Date, nullable=False)
-    prazo_solicitacao_homologacao_banca = Column(Date)
-    
-    # Novos campos para solicitação/homologação de banca
+
+    # --- FASE 1: HOMOLOGAÇÃO DA BANCA ---
+    prazo_solicitacao_homologacao_banca = Column(Date, nullable=True)
     data_solicitacao_banca = Column(Date, nullable=True)
     status_homologacao_banca = Column(String(20), default="PENDENTE")
-    
-    status_defesa = Column(String(20))
-    retorno_defesa = Column(String(30))
-    conceito_defesa = Column(String(30))
-    prazo_versao_final = Column(Date)
+
+    # --- FASE 2: REALIZAÇÃO E CONCEITO DA DEFESA ---
+    prazo_maximo_defesa = Column(Date, nullable=False)
     data_realizacao = Column(Date, nullable=True)
-    
-    # Novos campos para expedição de Diploma
+    status_defesa = Column(String(20), default="PENDENTE")
+    retorno_defesa = Column(String(30), nullable=True)
+    conceito_defesa = Column(String(30), nullable=True)
+    prazo_versao_final = Column(Date, nullable=True)
+
+    # --- FASE 3: EXPEDIÇÃO DE DIPLOMA (PÓS-DEFESA) ---
     prazo_limite_processo_diploma = Column(Date, nullable=True)
     status_processo_diploma = Column(String(30), default="PENDENTE")
-
+    
 class ProrrogacaoHistorico(Base):
     
     """
