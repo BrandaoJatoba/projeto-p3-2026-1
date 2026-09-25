@@ -189,7 +189,8 @@ class Estudante(Base):
     id_semestre = Column(Integer, ForeignKey("semestres_letivos.id_semestre"), nullable=False)
     id_orientador = Column(Integer, ForeignKey("professores.id_professor"), nullable=True)
     eh_bolsista = Column(Boolean, default=False)
-    prazo_conclusao_sigaa = Column(Date, nullable=True)
+    prazo_conclusao_sigaa = Column(Date, nullable=True),
+    email = Column(String(100), unique=True, nullable=True)
 
 # -- REQUISITO 1: Créditos Obtidos -- #
 
