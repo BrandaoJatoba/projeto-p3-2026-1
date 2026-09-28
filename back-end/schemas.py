@@ -267,3 +267,48 @@ class SubmissaoArtigoResponse(SubmissaoArtigoBase):
     id_submissao: int
 
     model_config = ConfigDict(from_attributes=True)
+
+# ==========================================
+# SCHEMAS DE HISTÓRICO DE DISCIPLINAS
+# ==========================================
+
+class HistoricoDisciplinaBase(BaseModel):
+    """Atributos base do histórico de disciplina."""
+    id_estudante: int = Field(..., description="ID do estudante")
+    id_disciplina: int = Field(..., description="ID da disciplina")
+    id_semestre: int = Field(..., description="ID do semestre letivo")
+    conceito: Optional[enumStatus.ConceitoHistorico] = Field(
+        default=None, 
+        description="Conceito obtido pelo discente (A, B, C, D)"
+    )
+    status_disciplina: Optional[enumStatus.StatusDisciplina] = Field(
+        default=enumStatus.StatusDisciplina.PENDENTE,
+        description="Status do histórico na disciplina"
+    )
+    creditos_integralizados: Optional[int] = Field(
+        default=0, 
+        ge=0, 
+        description="Quantidade de créditos obtidos após aprovação"
+    )
+
+
+class HistoricoDisciplinaCreate(HistoricoDisciplinaBase):
+    """Schema para matrícula/registro inicial em uma disciplina (POST)."""
+    pass
+
+
+class HistoricoDisciplinaUpdate(BaseModel):
+    """Schema para atualização de conceito, status ou créditos (PATCH/PUT)."""
+    id_estudante: Optional[int] = None
+    id_disciplina: Optional[int] = None
+    id_semestre: Optional[int] = None
+    conceito: Optional[enumStatus.ConceitoHistorico] = None
+    status_disciplina: Optional[enumStatus.StatusDisciplina] = None
+    creditos_integralizados: Optional[int] = Field(None, ge=0)
+
+
+class HistoricoDisciplinaResponse(HistoricoDisciplinaBase):
+    """Schema de resposta retornado pela API (contém a chave primária id_historico)."""
+    id_historico: int
+
+    model_config = ConfigDict(from_attributes=True)
