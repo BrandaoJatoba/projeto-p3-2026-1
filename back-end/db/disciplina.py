@@ -1,4 +1,3 @@
-from datetime import date
 from sqlalchemy.orm import Session
 from db import models
 from typing import List, Optional, Dict, Any
@@ -12,9 +11,9 @@ def criar_disciplina(
 ) -> models.Disciplina:
     """Cria um novo registro de disciplina."""
     nova_disciplina = models.Disciplina(
-        nome=nome_disciplina,
-        codigo=codigo_disciplina,
-        grupo=grupo_disciplina,
+        nome_disciplina=nome_disciplina,
+        codigo_disciplina=codigo_disciplina,
+        grupo_disciplina=grupo_disciplina,
         creditos=creditos
     )
     db_connection.add(nova_disciplina)
@@ -53,11 +52,11 @@ def atualizar_disciplina(db_connection: Session, id_disciplina: int, dados_atual
 
 def buscar_disciplina_por_codigo(
     db_connection: Session,
-    codigo: str
+    codigo_disciplina: str
 ):
     return (
         db_connection.query(models.Disciplina)
-        .filter(models.Disciplina.codigo_disciplina == codigo)
+        .filter(models.Disciplina.codigo_disciplina == codigo_disciplina)
         .first()
     )  
     
