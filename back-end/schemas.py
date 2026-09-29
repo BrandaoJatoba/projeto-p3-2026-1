@@ -238,6 +238,7 @@ class ProficienciaResponse(ProficienciaBase):
 # ==========================================
 
 class SubmissaoArtigoBase(BaseModel):
+    """Atributos base da submissão de artigo."""
     id_artigo = int = Field(..., description="ID do artigo")
     titulo = str = Field(..., max_length=270, description="Título do artigo")
     id_estudante = int = Field(..., description="ID do estudante")
@@ -312,3 +313,76 @@ class HistoricoDisciplinaResponse(HistoricoDisciplinaBase):
     id_historico: int
 
     model_config = ConfigDict(from_attributes=True)
+
+# ==========================================
+# SCHEMAS DE DISSERTAÇÃO
+# ==========================================
+
+class DissertacaoBase(BaseModel):
+    """Atributos comuns da dissertação."""
+    id_estudante: int = Field(..., description="ID do estudante")
+    titulo: str = Field(..., max_length=255, description="Título da dissertação")
+    data_defesa: Optional[date] = Field(None, description="Data da defesa da dissertação")
+    status_dissertacao: enumStatus.StatusDissertacao = Field(
+        default=enumStatus.StatusDissertacao.EM_ANDAMENTO,
+        description="Status atual da dissertação"
+    )
+
+class DissertacaoCreate(DissertacaoBase):
+    """Schema para cadastro de uma nova dissertação (POST)."""
+    pass
+
+class DissertacaoUpdate(BaseModel):
+    """Schema para atualização parcial de dados da dissertação (PATCH/PUT)."""
+    id_estudante: Optional[int] = None
+    titulo: Optional[str] = Field(None, max_length=255)
+    data_defesa: Optional[date] = None
+    status_dissertacao: Optional[enumStatus.StatusDissertacao] = None
+
+class DissertacaoResponse(DissertacaoBase):
+    """Schema de resposta retornado pela API (contém a chave primária id_dissertacao)."""
+    id_dissertacao: int
+
+    model_config = ConfigDict(from_attributes=True)
+    
+# ==========================================
+# SCHEMAS DE QUALIFICAÇÃO
+# ==========================================
+
+class QualificacaoBase(BaseModel):
+    """Atributos comuns da qualificação."""
+    id_dissertacao: int = Field(..., description="ID da dissertação")
+    prazo_maximo_qualificacao: Optional[date] = Field(None, description="Prazo máximo para a qualificação")
+    status_qualificacao: enumStatus.StatusQualificacao = Field(
+        default=enumStatus.StatusQualificacao.PENDENTE,
+        description="Status atual da qualificação"
+    )
+    retorno_qualificacao: Optional[str] = Field(None, description="Ato do discente após a qualificação (Solicitou Banca ou Solicitou Prorrogação.)")
+    tentativas: Optional[int] = Field(None, description="Número de tentativas realizadas para a qualificação")
+    data_realizacao: Optional[date] = Field(None, description="Data da qualificação")
+    
+class QualificacaoCreate(QualificacaoBase):
+    """Schema para cadastro de uma nova qualificação (POST)."""
+    pass    
+
+class QualificacaoUpdate(BaseModel):
+    """Schema para atualização parcial de dados da qualificação (PATCH/PUT)."""
+    id_dissertacao: Optional[int] = None
+    prazo_maximo_qualificacao: Optional[date] = None
+    status_qualificacao: Optional[enumStatus.StatusQualificacao] = None
+    retorno_qualificacao: Optional[str] = None
+    tentativas: Optional[int] = None
+    data_realizacao: Optional[date] = None
+
+class QualificacaoResponse(QualificacaoBase):
+    """Schema de resposta retornado pela API (contém a chave primária id_qualificacao)."""
+    id_qualificacao: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+# ==========================================
+# SCHEMAS DE DEFESA
+# ==========================================
+
+#class DefesaBase(BaseModel):
+    
