@@ -239,14 +239,14 @@ class ProficienciaResponse(ProficienciaBase):
 
 class SubmissaoArtigoBase(BaseModel):
     """Atributos base da submissão de artigo."""
-    id_artigo = int = Field(..., description="ID do artigo")
-    titulo = str = Field(..., max_length=270, description="Título do artigo")
-    id_estudante = int = Field(..., description="ID do estudante")
-    status_comprovante = enumStatus.StatusComprovanteArtigo = Field(..., description="Status do comprovante de submissão do artigo")
-    data_entrega = Optional[date] = Field(None, description="Data de entrega do comprovante")
-    qualis = Optional[str] = Field(None, max_length=2, description="Qualis do periódico ou conferência")
-    tipo = enumStatus.TipoArtigo = Field(..., description="Tipo do artigo (ex: CONFERENCIA, PERIODICO, CAPITULO_LIVRO)")
-    status_validacao_colegiado = enumStatus.StatusValidacaoColegiadoArtigo = Field(..., description="Status de validação do colegiado")
+    id_artigo : int = Field(..., description="ID do artigo")
+    titulo : str = Field(..., max_length=270, description="Título do artigo")
+    id_estudante : int = Field(..., description="ID do estudante")
+    status_comprovante : enumStatus.StatusComprovanteArtigo = Field(..., description="Status do comprovante de submissão do artigo")
+    data_entrega : Optional[date] = Field(None, description="Data de entrega do comprovante")
+    qualis : Optional[str] = Field(None, max_length=2, description="Qualis do periódico ou conferência")
+    tipo : enumStatus.TipoArtigo = Field(..., description="Tipo do artigo (ex: CONFERENCIA, PERIODICO, CAPITULO_LIVRO)")
+    status_validacao_colegiado : enumStatus.StatusValidacaoColegiadoArtigo = Field(..., description="Status de validação do colegiado")
 
 class SubmissaoArtigoCreate(SubmissaoArtigoBase):
     """Schema para cadastro de uma nova submissão de artigo (POST)."""
@@ -323,7 +323,7 @@ class DissertacaoBase(BaseModel):
     id_estudante: int = Field(..., description="ID do estudante")
     titulo: str = Field(..., max_length=255, description="Título da dissertação")
     data_defesa: Optional[date] = Field(None, description="Data da defesa da dissertação")
-    status_dissertacao: enumStatus.StatusDissertacao = Field(
+    status_dissertacao: enumStatus.Status = Field(
         default=enumStatus.StatusDissertacao.EM_ANDAMENTO,
         description="Status atual da dissertação"
     )
@@ -371,7 +371,7 @@ class QualificacaoUpdate(BaseModel):
     prazo_maximo_qualificacao: Optional[date] = None
     status_qualificacao: Optional[enumStatus.StatusQualificacao] = None
     retorno_qualificacao: Optional[str] = None
-    tentativas: Optional[int] = None
+    tentativa: Optional[int] = None
     data_realizacao: Optional[date] = None
 
 class QualificacaoResponse(QualificacaoBase):
@@ -384,5 +384,73 @@ class QualificacaoResponse(QualificacaoBase):
 # SCHEMAS DE DEFESA
 # ==========================================
 
-#class DefesaBase(BaseModel):
+class DefesaBase(BaseModel):
+    """Atributos Comuns da Defesa"""
     
+    # PK e FK
+    id_defesa : int = Field(..., description="ID da defesa")
+    id_dissertacao : int = Field(..., description="ID da dissertação")
+    
+    # --- Fase 1: Homologação da Banca
+    prazo_solicitacao_homologacao_banca: Optional[date] = Field(None, description="Prazo para solicitação de homologação da banca")
+    data_solicitacao_banca: Optional[date] = Field(None, description="Data de solicitação da banca")
+    status_homologacao_banca: Optional[enumStatus.StatusHomologacaoBanca] = Field(
+        default=enumStatus.StatusHomologacaoBanca.PENDENTE,
+        description="Status da homologação da banca"
+    )
+    
+    # --- Fase 2: Realização e Conceito da Defesa
+    prazo_maximo_defesa: Optional[date] = Field(None, description="Prazo máximo para a defesa")
+    data_realizacao = Optional[date] = Field(None, description="Data de realização da defesa")
+    status_defesa: Optional[enumStatus.StatusDefesa] = Field(
+        default=enumStatus.StatusDefesa.PENDENTE,
+        description="Status da defesa")
+    retorno_defesa: Optional[str] = Field(None, description="Ato do discente após a defesa (Solicitou Banca ou Solicitou Prorrogação.)")
+    conceito_defesa: Optional[enumStatus.ConceitoDefesa] = Field(None, description="Conceito obtido na defesa (Aprovado, Aprovado Condicionalmente ou Reprovado)")
+    prazo_versao_final: Optional[date] = Field(None, description="Prazo para entrega da versão final da dissertação")
+    
+    # --- Fase 3: Processo de Diploma
+    prazo_limite_processo_diploma: Optional[date] = Field(None, description="Prazo máximo para o processo de diploma")
+    status_processo_diploma: Optional[enumStatus.StatusProcessoDiploma] = Field(
+        default=enumStatus.StatusProcessoDiploma.PENDENTE,
+        description="Status do processo de diploma"
+    )
+
+
+# ===========================================
+# SCHEMAS DE PRORROGAÇÃO 
+# ===========================================
+
+class ProrrogacaoBase(BaseModel):
+    """Atributos comuns da prorrogação."""
+    id_qualificacao: int = Field(..., description="ID da qualificação")
+    id_estudante: int = Field(..., description="ID do estudante")
+    tipo_prazo : enumStatus.TipoPrazoProrrogacao = Field(
+        ...,
+        description="Tipo de prazo da prorrogação"
+    )
+    quantidade_meses: int = Field(..., gt=0, description="Quantidade de meses da prorrogação")
+    data_pedido: date = Field(..., description="Data do pedido de prorrogação")
+    resultado_pedido: Optional[enumStatus.ResultadoPedidoProrrogacao] = Field(
+        default=None,
+        description="Resultado do pedido de prorrogação"
+    )
+
+class ProrrogacaoCreate(ProrrogacaoBase):
+    """Schema para cadastro de uma nova prorrogação (POST)."""
+    pass
+
+class ProrrogacaoUpdate(BaseModel):
+    """Schema para atualização parcial de dados da prorrogação (PATCH/PUT)."""
+    id_qualificacao: Optional[int] = None
+    id_estudante: Optional[int] = None
+    tipo_prazao: Optional[enumStatus.TipoPrazoProrrogacao] = None
+    quantidade_meses: Optional[int] = Field(None, gt=0)
+    data_pedido: Optional[date] = None
+    resultado_pedido: Optional[enumStatus.ResultadoPedidoProrrogacao] = None
+
+class ProrrogacaoResponse(ProrrogacaoBase):
+    """Schema de resposta retornado pela API (contém a chave primária id_prorrogacao)."""
+    id_prorrogacao: int
+
+    model_config = ConfigDict(from_attributes=True)

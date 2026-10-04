@@ -197,3 +197,12 @@ class NomePerfil(StrEnum):
     SECRETARIA = "SECRETARIA"
     COORDENACAO = "COORDENACAO"
     DISCENTE = "DISCENTE"
+
+# ==========================================
+# DISSERTACOES
+# ==========================================
+
+class StatusDissertacao(StrEnum):
+    EM_ANDAMENTO = "EM ANDAMENTO"
+    CONCLUIDA = "CONCLUÍDA"
+    CANCELADA = "CANCELADA"
