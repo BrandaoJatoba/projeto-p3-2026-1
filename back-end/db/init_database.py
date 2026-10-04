@@ -60,11 +60,82 @@ PRAZOS_E_GATILHOS_PADRAO = [
     }
 ]
 
+DISCIPLINAS_PADRAO = [
+    # GRUPO 1
+    {"codigo": "PPGI 001", "nome": "Teoria da Computação", "grupo": "BASICAS", "creditos": 4},
+    {"codigo": "PPGI 002", "nome": "Projeto e Análise de Algoritmos", "grupo": "BASICAS", "creditos": 4},
+    {"codigo": "PPGI 026", "nome": "Otimização Contínua e Combinatória", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 031", "nome": "Teoria dos Grafos", "grupo": "ELETIVAS", "creditos": 4},
+
+    # GRUPO 2
+    {"codigo": "PPGI 003", "nome": "Engenharia de Software", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 007", "nome": "Especificação e Verificação Formal de Sistemas", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 008", "nome": "Inteligência Artificial", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 009", "nome": "Computação Gráfica", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 010", "nome": "Processamento de Imagem", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 011", "nome": "Aprendizagem de Máquina", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 016-07", "nome": "Tópicos Especiais em Computação Visual e Inteligente – Visão Computacional", "grupo": "TOPICOS_ESPECIAIS", "creditos": 4},
+    {"codigo": "PPGI 016-10", "nome": "Tópicos Especiais em Engenharia de Sistemas Computacionais – Testes de Software", "grupo": "TOPICOS_ESPECIAIS", "creditos": 4},
+    {"codigo": "PPGI 016-12", "nome": "Tópicos Especiais em Engenharia de Sistemas Computacionais - Técnicas de Otimização Bioinspiradas", "grupo": "TOPICOS_ESPECIAIS", "creditos": 4},
+    {"codigo": "PPGI 017-08", "nome": "Tópicos Especiais em Computação Visual e Inteligente: Exploração e Mineração de Dados", "grupo": "TOPICOS_ESPECIAIS", "creditos": 4},
+    {"codigo": "PPGI 017-10", "nome": "Tópicos Especiais em Computação Visual e Inteligente: Aprendizagem Profunda", "grupo": "TOPICOS_ESPECIAIS", "creditos": 4},
+    {"codigo": "PPGI 028", "nome": "Inteligência Artificial aplicada à Engenharia de Software", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 029", "nome": "Ciência de Dados", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 034", "nome": "Processamento de Linguagem Natural", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 035", "nome": "Qualidade de Software em Metodologias Ágeis", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 038", "nome": "Boas Práticas em Aprendizagem de Máquina", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 039", "nome": "Sistemas Suportados por Aprendizagem de Máquina", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 040", "nome": "Redes Neurais e Aprendizado Profundo", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 041", "nome": "Verificação e Validação de Sistemas Suportados por Aprendizagem de Máquina", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 043", "nome": "Estatística Aplicada à Pesquisa em Computação", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 046", "nome": "Informática na Educação", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 048", "nome": "Fundamentos de Inteligência Artificial Aplicados à Medicina", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 050", "nome": "Redes de Petri", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 051", "nome": "Engenharia de Software Experimental", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 052", "nome": "Visão Computacional", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 058", "nome": "Inteligência Artificial Generativa", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 063", "nome": "Agentes Inteligentes", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 065", "nome": "Sistemas de Controle Inteligente", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 066", "nome": "Inteligência Artificial na Educação", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 067", "nome": "Engenharia de Software Baseada em Evidências", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 069", "nome": "Meta-Aprendizagem", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 070", "nome": "Aprendizado de Máquina para Ambientes Não Estacionários", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 071", "nome": "Aprendizado por Reforço", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 072", "nome": "Fundamentos de Sistemas de Tempo Real", "grupo": "ELETIVAS", "creditos": 4},
+
+    # GRUPO 3
+    {"codigo": "PPGI 027", "nome": "Modelagem Computacional de Sistemas Biológicos", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 030", "nome": "Projeto e Implementação de Redes de Sensores", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 032", "nome": "Gamificação na Educação", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 033", "nome": "Projeto de Simulação e Experimentos em Redes de Sensores Sem Fio", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 036", "nome": "Engenharia de Feixes Acústicos", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 037", "nome": "Tecnologias Digitais Emergentes", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 042", "nome": "Gamificação Experimental", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 049", "nome": "Projeto de Banco de Dados: Fundamentos, Modelos e Tecnologias", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 054", "nome": "Gerência e Processamento de Dados em Larga Escala", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 060", "nome": "System of Systems Design and Architecture", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 064", "nome": "Aprendizagem de Máquina para Dispositivos de Borda", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 068", "nome": "Introdução à Identificação de Sistemas Dinâmicos", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 073", "nome": "Acessibilidade Digital: Fundamentos, Métodos e Tecnologias", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 074", "nome": "Simulação em Tempo Real e Hardware-in-the-Loop", "grupo": "ELETIVAS", "creditos": 4},
+
+    # GRUPO 4
+    {"codigo": "PPGI 016-04", "nome": "Tópicos: Computação Aplicada à Educação", "grupo": "TOPICOS_ESPECIAIS", "creditos": 4},
+    {"codigo": "PPGI 016-11", "nome": "Tópicos Especiais Em Engenharia De Sistemas Computacionais: Navegação De Robôs", "grupo": "TOPICOS_ESPECIAIS", "creditos": 4},
+    {"codigo": "PPGI 017-06", "nome": "Tópicos Especiais em Computação Visual e Inteligente: Bancos de Dados Não-relacionais (NoSQL)", "grupo": "TOPICOS_ESPECIAIS", "creditos": 4},
+    {"codigo": "PPGI 017-11", "nome": "Metodologia Científica", "grupo": "TOPICOS_ESPECIAIS", "creditos": 4},
+    {"codigo": "PPGI 053", "nome": "Metodologia Científica", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 056", "nome": "Introdução a Identificação de Sistemas", "grupo": "ELETIVAS", "creditos": 4},
+    {"codigo": "PPGI 057", "nome": "Revisão Sistemática da Literatura", "grupo": "ELETIVAS", "creditos": 4},
+]
+
+
 def garantir_diretorio_banco():
     pasta_banco = os.path.dirname("./dados/database_ppgi.db")    
     if pasta_banco and not os.path.exists(pasta_banco):
         os.makedirs(pasta_banco, exist_ok=True)
         print(f"Pasta '{pasta_banco}' criada com sucesso!")
+
 
 def inicializar_perfis(db):
     print("Verificando perfis padrão...")
@@ -77,6 +148,7 @@ def inicializar_perfis(db):
             )
             db.add(novo_perfil)
     db.commit()
+
 
 def inicializar_prazos_e_gatilhos(db):
     print("Verificando tipos de prazos e gatilhos de alertas padrão...")
@@ -92,7 +164,6 @@ def inicializar_prazos_e_gatilhos(db):
             db.commit()
             db.refresh(tipo)
             
-            # Adiciona os gatilhos para este tipo de prazo
             for g in item["gatilhos"]:
                 gatilho = models.GatilhoAlerta(
                     id_tipo_prazo=tipo.id_tipo_prazo,
@@ -101,6 +172,32 @@ def inicializar_prazos_e_gatilhos(db):
                 )
                 db.add(gatilho)
             db.commit()
+
+
+def inicializar_disciplinas(db):
+    print("Verificando catálogo de disciplinas padrão...")
+    novas_count = 0
+    for d in DISCIPLINAS_PADRAO:
+        disciplina_existente = db.query(models.Disciplina).filter(
+            models.Disciplina.codigo_disciplina == d["codigo"]
+        ).first()
+
+        if not disciplina_existente:
+            nova_disciplina = models.Disciplina(
+                codigo_disciplina=d["codigo"],
+                nome_disciplina=d["nome"],
+                grupo_disciplina=d["grupo"],
+                creditos=d["creditos"]
+            )
+            db.add(nova_disciplina)
+            novas_count += 1
+
+    if novas_count > 0:
+        db.commit()
+        print(f"{novas_count} disciplinas inseridas no banco com sucesso!")
+    else:
+        print("Todas as disciplinas padrão já estão cadastradas.")
+
 
 def vincular_perfil_usuario(db, id_usuario, nome_perfil):
     perfil = db.query(models.Perfil).filter(models.Perfil.nome_perfil == nome_perfil).first()
@@ -120,6 +217,7 @@ def vincular_perfil_usuario(db, id_usuario, nome_perfil):
         db.add(novo_vinculo)
         db.commit()
 
+
 def criar_banco():
     garantir_diretorio_banco()
     
@@ -129,13 +227,16 @@ def criar_banco():
 
     db = SessionLocal()
     try:
-        # 1. Popula a tabela PERFIS se estiver vazia/incompleta
+        # 1. Popula a tabela PERFIS
         inicializar_perfis(db)
 
-        # 2. Popula os TIPOS DE PRAZOS e GATILHOS se estiverem vazios
+        # 2. Popula os TIPOS DE PRAZOS e GATILHOS
         inicializar_prazos_e_gatilhos(db)
 
-        # 3. Cria um usuário para cada perfil e faz o vínculo
+        # 3. Popula a tabela DISCIPLINAS
+        inicializar_disciplinas(db)
+
+        # 4. Cria um usuário para cada perfil e faz o vínculo
         for perfil_info in PERFIS_PADRAO:
             nome_perfil = perfil_info["nome_perfil"]
             email_usuario = f"{nome_perfil.lower()}.ppgi@ic.ufal.br"
@@ -155,6 +256,7 @@ def criar_banco():
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     criar_banco()

@@ -2,14 +2,7 @@ import enum
 from sqlalchemy import Text, Column, Integer, String, Date, Boolean, ForeignKey, DateTime, Enum as SQLEnum, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from db.database import Base
-
-class StatusEstudanteEnum(str, enum.Enum):
-    ATIVO = "ATIVO"
-    TRANCADO = "TRANCADO"
-    PROCESSO_DESLIGAMENTO = "PROCESSO DE DESLIGAMENTO"
-    DESLIGADO = "DESLIGADO"
-    POS_DEFESA = "PÓS DEFESA"
-    TITULADO = "TITULADO"
+import db.enumStatus
 
 # -- Login e Autorizações -- #
 
@@ -91,7 +84,7 @@ class Disciplina(Base):
     __tablename__ = "disciplinas"
 
     id_disciplina = Column(Integer, primary_key=True, autoincrement=True)
-    codigo_disciplina = Column(String(10), nullable=False)
+    codigo_disciplina = Column(String(20), nullable=False)
     nome_disciplina = Column(String(100), nullable=False)
     grupo_disciplina = Column(String(30), nullable=False)
     creditos = Column(Integer, nullable=False)
@@ -182,14 +175,15 @@ class Estudante(Base):
     matricula = Column(String(20), unique=True, nullable=False)
     nome_discente = Column(String(100), nullable=False)
     status_atual = Column(
-        SQLEnum(StatusEstudanteEnum, name="status_estudante_enum"), 
+        SQLEnum(db.enumStatus.StatusEstudanteEnum, name="status_estudante_enum"), 
         nullable=False, 
-        default=StatusEstudanteEnum.ATIVO
+        default=db.enumStatus.StatusEstudanteEnum.ATIVO
     )    
     id_semestre = Column(Integer, ForeignKey("semestres_letivos.id_semestre"), nullable=False)
     id_orientador = Column(Integer, ForeignKey("professores.id_professor"), nullable=True)
     eh_bolsista = Column(Boolean, default=False)
     prazo_conclusao_sigaa = Column(Date, nullable=True)
+    email = Column(String(100), unique=True, nullable=True)
 
 # -- REQUISITO 1: Créditos Obtidos -- #
 
