@@ -322,8 +322,8 @@ class DissertacaoBase(BaseModel):
     """Atributos comuns da dissertação."""
     id_estudante: int = Field(..., description="ID do estudante")
     titulo: str = Field(..., max_length=255, description="Título da dissertação")
-    data_defesa: Optional[date] = Field(None, description="Data da defesa da dissertação")
-    status_dissertacao: enumStatus.Status = Field(
+    data_inicio: Optional[date] = Field(None, description="Data de início da dissertação")
+    status_dissertacao: enumStatus.StatusDissertacao = Field(
         default=enumStatus.StatusDissertacao.EM_ANDAMENTO,
         description="Status atual da dissertação"
     )
@@ -358,7 +358,7 @@ class QualificacaoBase(BaseModel):
         description="Status atual da qualificação"
     )
     retorno_qualificacao: Optional[str] = Field(None, description="Ato do discente após a qualificação (Solicitou Banca ou Solicitou Prorrogação.)")
-    tentativas: Optional[int] = Field(None, description="Número de tentativas realizadas para a qualificação")
+    tentativa: Optional[int] = Field(None, description="Número de tentativas realizadas para a qualificação")
     data_realizacao: Optional[date] = Field(None, description="Data da qualificação")
     
 class QualificacaoCreate(QualificacaoBase):
@@ -401,7 +401,7 @@ class DefesaBase(BaseModel):
     
     # --- Fase 2: Realização e Conceito da Defesa
     prazo_maximo_defesa: Optional[date] = Field(None, description="Prazo máximo para a defesa")
-    data_realizacao = Optional[date] = Field(None, description="Data de realização da defesa")
+    data_realizacao: Optional[date] = Field(None, description="Data de realização da defesa")
     status_defesa: Optional[enumStatus.StatusDefesa] = Field(
         default=enumStatus.StatusDefesa.PENDENTE,
         description="Status da defesa")
@@ -423,7 +423,6 @@ class DefesaBase(BaseModel):
 
 class ProrrogacaoBase(BaseModel):
     """Atributos comuns da prorrogação."""
-    id_qualificacao: int = Field(..., description="ID da qualificação")
     id_estudante: int = Field(..., description="ID do estudante")
     tipo_prazo : enumStatus.TipoPrazoProrrogacao = Field(
         ...,
@@ -442,9 +441,8 @@ class ProrrogacaoCreate(ProrrogacaoBase):
 
 class ProrrogacaoUpdate(BaseModel):
     """Schema para atualização parcial de dados da prorrogação (PATCH/PUT)."""
-    id_qualificacao: Optional[int] = None
     id_estudante: Optional[int] = None
-    tipo_prazao: Optional[enumStatus.TipoPrazoProrrogacao] = None
+    tipo_prazo: Optional[enumStatus.TipoPrazoProrrogacao] = None
     quantidade_meses: Optional[int] = Field(None, gt=0)
     data_pedido: Optional[date] = None
     resultado_pedido: Optional[enumStatus.ResultadoPedidoProrrogacao] = None

@@ -4,8 +4,7 @@ from typing import List, Optional, Dict, Any
 from datetime import date
 
 def criar_qualificacao(
-    db_connection: Session, 
-    id_qualificacao: int,
+    db_connection: Session,
     id_dissertacao: int,
     prazo_maximo_qualificacao: date,
     status_qualificacao: str,
@@ -15,7 +14,6 @@ def criar_qualificacao(
 ) -> models.Qualificacao:
     """Cria um novo registro de qualificação."""
     nova_qualificacao = models.Qualificacao(
-        id_qualificacao=id_qualificacao,
         id_dissertacao=id_dissertacao,
         prazo_maximo_qualificacao=prazo_maximo_qualificacao,
         status_qualificacao=status_qualificacao,
