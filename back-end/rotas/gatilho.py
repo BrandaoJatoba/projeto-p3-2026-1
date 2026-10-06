@@ -9,6 +9,7 @@ from schemas import (
 )
 from db.database import get_db
 from db import prazo as crud_prazo
+from db import gatilho as crud_gatilho
 
 # Importações de segurança conforme seu padrão
 from security import autorizar, obter_usuario_atual
@@ -37,7 +38,7 @@ def listar_gatilhos_por_tipo_prazo(
             detail=f"Tipo de prazo com ID {id_tipo_prazo} não encontrado."
         )
 
-    gatilhos = crud_prazo.listar_gatilhos_por_tipo_prazo(
+    gatilhos = crud_gatilho.listar_gatilhos_por_tipo_prazo(
         db_connection=db_connection,
         id_tipo_prazo=id_tipo_prazo,
         apenas_ativos=apenas_ativos
@@ -54,7 +55,7 @@ def obter_gatilho_por_id(
     """
     Busca os detalhes de um gatilho de alerta específico pelo ID.
     """
-    gatilho = crud_prazo.obter_gatilho_alerta_por_id(db_connection, id_gatilho)
+    gatilho = crud_gatilho.obter_gatilho_alerta_por_id(db_connection, id_gatilho)
     if not gatilho:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -80,7 +81,7 @@ def cadastrar_gatilho_alerta(
             detail=f"Tipo de prazo com ID {dados_gatilho.id_tipo_prazo} não foi encontrado."
         )
 
-    novo_gatilho = crud_prazo.criar_gatilho_alerta(
+    novo_gatilho = crud_gatilho.criar_gatilho_alerta(
         db_connection=db_connection,
         id_tipo_prazo=dados_gatilho.id_tipo_prazo,
         dias_antecedencia=dados_gatilho.dias_antecedencia,
@@ -100,7 +101,7 @@ def atualizar_gatilho_alerta(
     """
     Atualiza as configurações de um gatilho de alerta existente.
     """
-    gatilho_atualizado = crud_prazo.atualizar_gatilho_alerta(
+    gatilho_atualizado = crud_gatilho.atualizar_gatilho_alerta(
         db_connection=db_connection,
         id_gatilho=id_gatilho,
         dias_antecedencia=dados_atualizacao.dias_antecedencia,
@@ -126,7 +127,7 @@ def deletar_gatilho_alerta(
     """
     Remove um gatilho de alerta (Restrito apenas a usuários ADMIN).
     """
-    sucesso = crud_prazo.deletar_gatilho_alerta(db_connection=db_connection, id_gatilho=id_gatilho)
+    sucesso = crud_gatilho.deletar_gatilho_alerta(db_connection=db_connection, id_gatilho=id_gatilho)
     if not sucesso:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
