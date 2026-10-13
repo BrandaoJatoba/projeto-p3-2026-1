@@ -86,7 +86,7 @@ class TipoPrazoResponse(TipoPrazoBase):
 
 class GatilhoAlertaBase(BaseModel):
     id_tipo_prazo: int = Field(..., example=1)
-    dias_antecedencia: int = Field(..., gt=0, example=30)
+    dias_antecedencia: int = Field(..., ge=0, example=30)
     mensagem_template: Optional[str] = Field(None, example="Atenção: Faltam {dias} dias para a sua qualificação.")
     ativo: bool = Field(default=True)
 
