@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/auth'
 import ConfiguracoesView from '../views/ConfiguracoesView.vue'
 import SemestresView from '../views/SemestresView.vue'
 import SuspensoesView from '../views/SuspensoesView.vue'
+import ProfessoresView from '../views/ProfessoresView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,6 +38,12 @@ const router = createRouter({
       path: '/suspensoes',
       name: 'suspensoes',
       component: SuspensoesView,
+      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
+    },
+    {
+      path: '/professores',
+      name: 'professores',
+      component: ProfessoresView,
       meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
     },
   ],
