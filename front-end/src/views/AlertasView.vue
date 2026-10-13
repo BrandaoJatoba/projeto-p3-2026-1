@@ -2,12 +2,24 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
+import BaseButton from '../components/BaseButton.vue'
 
 const authStore = useAuthStore()
 const prazos = ref([])
 const erroPrazos = ref(false)
 const gatilhosPorPrazo = ref({})
 const erroPorPrazo = ref({})
+const alterando = ref({})
+const aviso = ref(null)
+let temporizadorAviso = null
+
+function mostrarAviso(texto, tipo) {
+  aviso.value = { texto, tipo }
+  clearTimeout(temporizadorAviso)
+  temporizadorAviso = setTimeout(() => {
+    aviso.value = null
+  }, 3000)
+}
 
 async function buscarPrazos() {
   try {
@@ -54,6 +66,36 @@ async function carregarTudo() {
   }
 }
 
+async function alternarAtivo(gatilho) {
+  alterando.value[gatilho.id_gatilho] = true
+
+  try {
+    const resposta = await fetch(
+      `http://localhost:8000/configuracoes/gatilhos/${gatilho.id_gatilho}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        body: JSON.stringify({ ativo: !gatilho.ativo }),
+      },
+    )
+
+    if (!resposta.ok) {
+      mostrarAviso('Não foi possível alterar o estado do gatilho.', 'erro')
+      return
+    }
+
+    Object.assign(gatilho, await resposta.json())
+    mostrarAviso(gatilho.ativo ? 'Gatilho ativado.' : 'Gatilho desativado.', 'sucesso')
+  } catch (erro) {
+    mostrarAviso('Não foi possível conectar ao servidor.', 'erro')
+  } finally {
+    alterando.value[gatilho.id_gatilho] = false
+  }
+}
+
 onMounted(() => {
   carregarTudo()
 })
@@ -61,6 +103,14 @@ onMounted(() => {
 
 <template>
   <DefaultLayout>
+    <div
+      v-if="aviso"
+      class="aviso-flutuante"
+      :class="aviso.tipo === 'sucesso' ? 'aviso-sucesso' : 'aviso-erro'"
+    >
+      {{ aviso.texto }}
+    </div>
+
     <div class="page-header">
       <h1>Réguas e Gatilhos de Alertas</h1>
     </div>
@@ -95,6 +145,7 @@ onMounted(() => {
             <th>Antecedência</th>
             <th>Mensagem</th>
             <th>Estado</th>
+            <th class="coluna-acoes">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -105,6 +156,16 @@ onMounted(() => {
               <span class="badge" :class="gatilho.ativo ? 'badge-ativo' : 'badge-inativo'">
                 {{ gatilho.ativo ? 'Ativo' : 'Inativo' }}
               </span>
+            </td>
+            <td class="coluna-acoes">
+              <BaseButton
+                type="button"
+                variant="secondary"
+                :disabled="alterando[gatilho.id_gatilho]"
+                @click="alternarAtivo(gatilho)"
+              >
+                {{ gatilho.ativo ? 'Desativar' : 'Ativar' }}
+              </BaseButton>
             </td>
           </tr>
         </tbody>
@@ -158,6 +219,22 @@ onMounted(() => {
   font-size: 0.95rem;
   margin: 0;
 }
+.aviso-sucesso {
+  padding: 12px 16px;
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  margin: 0;
+}
+.aviso-flutuante {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 50;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
 .aviso-vazio {
   color: #6b7280;
   font-style: italic;
@@ -186,6 +263,10 @@ td {
 }
 tbody tr:last-child td {
   border-bottom: none;
+}
+.coluna-acoes {
+  text-align: right;
+  width: 140px;
 }
 
 .badge {
