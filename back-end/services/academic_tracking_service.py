@@ -1,29 +1,47 @@
-# services/academic_tracking_service.py
+import calendar
+from dataclasses import dataclass
+from datetime import date
 
-''' ideias para o futuro
+MESES_PARA_QUALIFICACAO = 18
+MESES_PARA_DEFESA = 24
+
+
+def somar_meses(data_base: date, meses: int) -> date:
+    """
+    Soma meses a uma data respeitando o último dia do mês.
+
+    Por que não timedelta(days=30 * meses)? Porque meses têm tamanhos
+    diferentes: 18 * 30 = 540 dias erra a data final em vários dias.
+
+    Caso de borda: 31/08/2026 + 18 meses -> fevereiro/2028 não tem dia 31,
+    então o resultado é 29/02/2028 (2028 é bissexto).
+    """
+    indice_mes = data_base.month - 1 + meses
+    ano = data_base.year + indice_mes // 12
+    mes = indice_mes % 12 + 1
+    ultimo_dia_do_mes = calendar.monthrange(ano, mes)[1]
+    return date(ano, mes, min(data_base.day, ultimo_dia_do_mes))
+
+
+@dataclass(frozen=True)
+class PrazosRegimentais:
+    """Objeto imutável com os prazos calculados (mais seguro que um dict solto)."""
+    prazo_maximo_qualificacao: date
+    prazo_maximo_defesa: date
+
 
 class AcademicTrackingService:
 
     @staticmethod
-    def recalcular_prazo(tipo_prazo_codigo: str, estudante_id: int, db: Session):
-        
-        # CASO 1: Âncora é o Ingresso (Defesa Final / Qualificação)
-        if tipo_prazo_codigo == "DEFESA":
-            data_ancora = obter_data_ingresso(estudante_id, db)
-            # +24 meses + greves + prorrogações
-            return calcular_prazo_defesa(data_ancora, estudante_id, db)
+    def calcular_prazos_iniciais(data_inicio: date) -> PrazosRegimentais:
+        """
+        Prazos padrão a partir do início real do semestre de ingresso:
+        +18 meses para qualificação e +24 meses para defesa.
 
-        # CASO 2: Âncora é a Data Prevista/Agendada para a Banca
-        elif tipo_prazo_codigo == "HOMOLOGACAO_BANCA":
-            defesa = db.query(Defesa).filter_by(id_estudante=estudante_id).first()
-            if not defesa.data_agendada:
-                return None # Prazo ainda não existe pois não agendou
-            return defesa.data_agendada - timedelta(days=30)
-
-        # CASO 3: Âncora é o Evento Concluído (Pós-Defesa / Diploma)
-        elif tipo_prazo_codigo == "DIPLOMA_POS_DEFESA":
-            defesa = db.query(Defesa).filter_by(id_estudante=estudante_id).first()
-            if defesa.status_defesa != "Defendida" or not defesa.data_realizacao:
-                return None # Só começa a contar após defender
-            return defesa.data_realizacao + timedelta(days=60)
-'''
+        Ainda NÃO desconta suspensões de calendário (greves) nem prorrogações:
+        isso fica para o recálculo descrito nas ideias abaixo.
+        """
+        return PrazosRegimentais(
+            prazo_maximo_qualificacao=somar_meses(data_inicio, MESES_PARA_QUALIFICACAO),
+            prazo_maximo_defesa=somar_meses(data_inicio, MESES_PARA_DEFESA),
+        )

@@ -452,3 +452,90 @@ class ProrrogacaoResponse(ProrrogacaoBase):
     id_prorrogacao: int
 
     model_config = ConfigDict(from_attributes=True)
+
+# ===========================================
+# SCHEMAS DE ESTUDANTE
+# ===========================================
+
+class EstudanteCriacao(BaseModel):
+    """Corpo do POST /estudantes."""
+    matricula: str = Field(..., min_length=1, max_length=20, examples=["2026100123"])
+    nome_discente: str = Field(..., min_length=2, max_length=100, examples=["Maria da Silva"])
+    id_semestre: int = Field(..., gt=0, description="Semestre de ingresso")
+    eh_bolsista: bool = Field(default=False)
+    email: Optional[str] = Field(None, max_length=100)
+
+
+class EstudanteAtualizacao(BaseModel):
+    """
+    Corpo do PUT /estudantes/{id}. Todos os campos são opcionais.
+    A rota usa model_dump(exclude_unset=True) para diferenciar
+    "campo não enviado" de "campo enviado como null"
+    (ex.: {"id_orientador": null} DESVINCULA o orientador).
+
+    matricula e id_semestre ficam de fora de propósito: trocar o semestre de
+    ingresso invalidaria os prazos já gravados em QUALIFICACOES/DEFESAS.
+    """
+    nome_discente: Optional[str] = Field(None, min_length=2, max_length=100)
+    email: Optional[str] = Field(None, max_length=100)
+    id_orientador: Optional[int] = Field(None, gt=0)
+    eh_bolsista: Optional[bool] = None
+    prazo_conclusao_sigaa: Optional[date] = None
+    status_atual: Optional[enumStatus.StatusEstudanteEnum] = None
+
+
+class EstudanteResposta(BaseModel):
+    """Dados cadastrais (usado na listagem, mais leve)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id_estudante: int
+    matricula: str
+    nome_discente: str
+    email: Optional[str]
+    id_semestre: int
+    id_orientador: Optional[int]
+    status_atual: enumStatus.StatusEstudanteEnum
+    eh_bolsista: Optional[bool]
+    prazo_conclusao_sigaa: Optional[date]
+
+
+class DissertacaoResumo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id_dissertacao: int
+    titulo: Optional[str]
+    data_inicio: date
+
+
+class QualificacaoResumo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id_qualificacao: int
+    prazo_maximo_qualificacao: date
+    status_qualificacao: Optional[str]
+    tentativa: Optional[int]
+    data_realizacao: Optional[date]
+
+
+class DefesaResumo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id_defesa: int
+    prazo_maximo_defesa: date
+    status_defesa: Optional[str]
+    data_realizacao: Optional[date]
+
+
+class EstudanteDetalhado(EstudanteResposta):
+    """Perfil completo: cadastro + marcos de acompanhamento."""
+    dissertacao: Optional[DissertacaoResumo] = None
+    qualificacao: Optional[QualificacaoResumo] = None
+    defesa: Optional[DefesaResumo] = None
+
+
+class EstudantePaginado(BaseModel):
+    """Resposta do GET /estudantes: o front precisa do total para montar a paginação."""
+    total: int
+    skip: int
+    limit: int
+    itens: list[EstudanteResposta]
