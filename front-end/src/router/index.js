@@ -8,6 +8,7 @@ import ConfiguracoesView from '../views/ConfiguracoesView.vue'
 import SemestresView from '../views/SemestresView.vue'
 import SuspensoesView from '../views/SuspensoesView.vue'
 import ProfessoresView from '../views/ProfessoresView.vue'
+import DisciplinasView from '../views/DisciplinasView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -44,6 +45,12 @@ const router = createRouter({
       path: '/professores',
       name: 'professores',
       component: ProfessoresView,
+      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
+    },
+    {
+      path: '/disciplinas',
+      name: 'disciplinas',
+      component: DisciplinasView,
       meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
     },
   ],
