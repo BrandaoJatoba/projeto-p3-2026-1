@@ -26,6 +26,10 @@ const editandoId = ref(null)
 const erroForm = ref('')
 const salvando = ref(false)
 const excluindo = ref({})
+const podeExcluir = computed(() => {
+  const perfis = authStore.usuario?.perfis ?? []
+  return perfis.includes('ADMIN') || perfis.includes('SECRETARIA')
+})
 
 const textoBusca = ref('')
 const colunaOrdenacao = ref('nome_professor')
@@ -303,6 +307,7 @@ onMounted(() => {
                   Editar
                 </BaseButton>
                 <BaseButton
+                  v-if="podeExcluir"
                   type="button"
                   variant="danger"
                   :disabled="excluindo[professor.id_professor]"
