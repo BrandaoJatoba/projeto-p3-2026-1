@@ -145,6 +145,8 @@ def listar_estudantes_filtrados(
     busca: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
+    ordenar_por: str = "nome_discente",
+    ordem_desc: bool = False
 ) -> Tuple[int, List[models.Estudante]]:
     """
     Listagem paginada com filtros COMBINÁVEIS.
@@ -176,10 +178,23 @@ def listar_estudantes_filtrados(
                 models.Estudante.matricula.ilike(termo),
             )
         )
+        
+    # Dicionário de segurança para garantir apenas colunas permitidas
+    colunas_validas = {
+        "nome_discente": models.Estudante.nome_discente,
+        "matricula": models.Estudante.matricula,
+        "status_atual": models.Estudante.status_atual
+    }
+    
+    coluna = colunas_validas.get(ordenar_por, models.Estudante.nome_discente)
 
+    if ordem_desc:
+        query = query.order_by(coluna.desc())
+    else:
+        query = query.order_by(coluna.asc())
     total = query.count()  # conta ANTES de paginar
     itens = (
-        query.order_by(models.Estudante.nome_discente)
+        query
         .offset(skip)
         .limit(limit)
         .all()
