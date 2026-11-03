@@ -209,7 +209,6 @@ class EstagioDocenciaResponse(EstagioDocenciaBase):
 
 class ProficienciaBase(BaseModel):
     """Atributos comuns da proficiência."""
-    id_proficiencia: int = Field(..., description="ID da proficiência")
     id_estudante: int = Field(..., description="ID do estudante")
     status_certificado: enumStatus.StatusCertificadoProficiencia = Field(..., max_length=20, description="Status do certificado")
     data_entrega_certificado: Optional[date] = Field(None, description="Data de entrega do certificado")
@@ -230,7 +229,6 @@ class ProficienciaUpdate(BaseModel):
 class ProficienciaResponse(ProficienciaBase):
     """Schema de resposta retornado pela API (contém a chave primária)."""
     id_proficiencia: int
-
     model_config = ConfigDict(from_attributes=True)
 
 # ==========================================
@@ -239,7 +237,6 @@ class ProficienciaResponse(ProficienciaBase):
 
 class SubmissaoArtigoBase(BaseModel):
     """Atributos base da submissão de artigo."""
-    id_artigo : int = Field(..., description="ID do artigo")
     titulo : str = Field(..., max_length=270, description="Título do artigo")
     id_estudante : int = Field(..., description="ID do estudante")
     status_comprovante : enumStatus.StatusComprovanteArtigo = Field(..., description="Status do comprovante de submissão do artigo")
@@ -265,7 +262,7 @@ class SubmissaoArtigoUpdate(BaseModel):
 
 class SubmissaoArtigoResponse(SubmissaoArtigoBase):
     """Schema de resposta retornado pela API (contém a chave primária)."""
-    id_submissao: int
+    id_artigo: int
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -388,7 +385,6 @@ class DefesaBase(BaseModel):
     """Atributos Comuns da Defesa"""
     
     # PK e FK
-    id_defesa : int = Field(..., description="ID da defesa")
     id_dissertacao : int = Field(..., description="ID da dissertação")
     
     # --- Fase 1: Homologação da Banca
@@ -416,6 +412,30 @@ class DefesaBase(BaseModel):
         description="Status do processo de diploma"
     )
 
+class DefesaCreate(DefesaBase):
+    """Schema para cadastro de uma nova defesa (POST)."""
+    pass
+
+class DefesaUpdate(BaseModel):
+    """Schema para atualização parcial de dados da defesa (PATCH/PUT)."""
+    id_dissertacao: Optional[int] = None
+    prazo_solicitacao_homologacao_banca: Optional[date] = None
+    data_solicitacao_banca: Optional[date] = None
+    status_homologacao_banca: Optional[enumStatus.StatusHomologacaoBanca] = None
+    prazo_maximo_defesa: Optional[date] = None
+    data_realizacao: Optional[date] = None
+    status_defesa: Optional[enumStatus.StatusDefesa] = None
+    retorno_defesa: Optional[str] = None
+    conceito_defesa: Optional[enumStatus.ConceitoDefesa] = None
+    prazo_versao_final: Optional[date] = None
+    prazo_limite_processo_diploma: Optional[date] = None
+    status_processo_diploma: Optional[enumStatus.StatusProcessoDiploma] = None
+
+class DefesaResponse(DefesaBase):
+    """Schema de resposta retornado pela API (contém a chave primária id_defesa)."""
+    id_defesa: int
+
+    model_config = ConfigDict(from_attributes=True)
 
 # ===========================================
 # SCHEMAS DE PRORROGAÇÃO 
@@ -539,3 +559,26 @@ class EstudantePaginado(BaseModel):
     skip: int
     limit: int
     itens: list[EstudanteResposta]
+
+# ==========================
+# SCHEMA DE PROFESSOR
+# ==========================
+class ProfessorBase(BaseModel):
+    """Atributos comuns do professor."""
+    nome: str = Field(..., min_length=2, max_length=100, description="Nome completo do professor")
+
+class ProfessorCriacao(BaseModel):
+    pass
+
+class ProfessorAtualizacao(BaseModel):
+    nome: Optional[str] = Field(None, min_length=2, max_length=100)
+
+class ProfessorResposta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id_professor: int
+    nome: str
+
+class ProfessorDetalhado(ProfessorResposta):
+    """Perfil completo do professor, incluindo os estudantes orientados."""
+    estudantes_orientados: list[EstudanteResposta] = []

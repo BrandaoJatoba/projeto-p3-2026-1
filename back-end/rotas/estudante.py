@@ -129,6 +129,8 @@ def listar_estudantes(
     busca: Optional[str] = Query(None, min_length=1, max_length=100, description="Trecho do nome ou matrícula"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    ordenar_por: str = Query("nome_discente", description="Coluna para ordenação (ex: nome_discente, matricula)"),
+    ordem_desc: bool = Query(False, description="Ordem decrescente (True) ou crescente (False)"),
     db_connection: Session = Depends(get_db),
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
@@ -141,10 +143,10 @@ def listar_estudantes(
         busca=busca,
         skip=skip,
         limit=limit,
+        ordenar_por=ordenar_por,
+        ordem_desc=ordem_desc
     )
     return EstudantePaginado(total=total, skip=skip, limit=limit, itens=itens)
-
-
 # --------------------------------------------------------------------------
 # GET /estudantes/{id_estudante} — perfil detalhado
 # --------------------------------------------------------------------------
