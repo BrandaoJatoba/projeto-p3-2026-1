@@ -1,11 +1,147 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
+import { useAuthStore } from '../stores/auth'
+
+const authStore = useAuthStore()
+
+const estudantes = ref([])
+const total = ref(0)
+const carregando = ref(false)
+const erro = ref('')
+
+async function buscarEstudantes() {
+  carregando.value = true
+  erro.value = ''
+  try {
+    const resposta = await fetch('http://localhost:8000/estudantes', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    if (!resposta.ok) {
+      if (resposta.status === 401) {
+        erro.value = 'Sua sessão expirou. Saia e entre de novo.'
+      } else {
+        erro.value = `Não foi possível carregar os estudantes (erro ${resposta.status}).`
+      }
+      return
+    }
+    const dados = await resposta.json()
+    estudantes.value = dados.itens
+    total.value = dados.total
+  } catch {
+    erro.value = 'Não foi possível conectar ao servidor. Verifique se o backend está ligado.'
+  } finally {
+    carregando.value = false
+  }
+}
+
+onMounted(buscarEstudantes)
 </script>
 
 <template>
   <DefaultLayout>
-    <h1>Estudantes</h1>
+    <div class="page-header">
+      <h1>Estudantes</h1>
+    </div>
+
+    <div v-if="carregando" class="estado">Carregando estudantes...</div>
+
+    <div v-else-if="erro" class="aviso-erro">{{ erro }}</div>
+
+    <div v-else-if="estudantes.length === 0" class="estado">Nenhum estudante cadastrado.</div>
+
+    <div v-else class="tabela-card">
+      <p class="contagem">
+        {{ total }} {{ total === 1 ? 'estudante encontrado' : 'estudantes encontrados' }}
+      </p>
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Matrícula</th>
+            <th>Semestre</th>
+            <th>E-mail</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="estudante in estudantes" :key="estudante.id_estudante">
+            <td>{{ estudante.nome_discente }}</td>
+            <td>{{ estudante.matricula }}</td>
+            <td>{{ estudante.id_semestre }}</td>
+            <td>{{ estudante.email }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </DefaultLayout>
 </template>
 
-<style scoped></style>
+<style scoped>
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.estado {
+  padding: 24px;
+  color: #4b5563;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.aviso-erro {
+  padding: 16px;
+  color: #b91c1c;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+}
+
+.tabela-card {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.contagem {
+  margin: 0;
+  padding: 16px 24px;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabela th {
+  text-align: left;
+  padding: 12px 24px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tabela td {
+  padding: 12px 24px;
+  font-size: 0.95rem;
+  color: #111827;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tabela tbody tr:last-child td {
+  border-bottom: none;
+}
+</style>
