@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
+import BaseButton from '../components/BaseButton.vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
@@ -12,6 +13,18 @@ const erro = ref('')
 
 const colunaOrdenacao = ref('nome_discente')
 const ordemDesc = ref(false)
+
+const opcoesPorPagina = [10, 25, 50]
+const porPagina = ref(10)
+const paginaAtual = ref(1)
+
+const totalPaginas = computed(() => Math.max(1, Math.ceil(total.value / porPagina.value)))
+const inicioIntervalo = computed(() =>
+  total.value === 0 ? 0 : (paginaAtual.value - 1) * porPagina.value + 1,
+)
+const fimIntervalo = computed(
+  () => (paginaAtual.value - 1) * porPagina.value + estudantes.value.length,
+)
 
 const classesStatus = {
   ATIVO: 'status-ativo',
@@ -41,6 +54,7 @@ function ordenarPor(coluna) {
     colunaOrdenacao.value = coluna
     ordemDesc.value = false
   }
+  paginaAtual.value = 1
   buscarEstudantes()
 }
 
@@ -49,12 +63,25 @@ function indicadorOrdenacao(coluna) {
   return ordemDesc.value ? '▼' : '▲'
 }
 
+function irParaPagina(numero) {
+  if (numero < 1 || numero > totalPaginas.value) return
+  paginaAtual.value = numero
+  buscarEstudantes()
+}
+
+function mudarPorPagina() {
+  paginaAtual.value = 1
+  buscarEstudantes()
+}
+
 async function buscarEstudantes() {
   carregando.value = true
   erro.value = ''
   const parametros = new URLSearchParams({
     ordenar_por: colunaOrdenacao.value,
     ordem_desc: String(ordemDesc.value),
+    skip: String((paginaAtual.value - 1) * porPagina.value),
+    limit: String(porPagina.value),
   })
   try {
     const resposta = await fetch(`http://localhost:8000/estudantes?${parametros}`, {
@@ -139,6 +166,39 @@ onMounted(buscarEstudantes)
           </tr>
         </tbody>
       </table>
+
+      <div class="paginacao">
+        <span class="paginacao-info">
+          Mostrando {{ inicioIntervalo }}–{{ fimIntervalo }} de {{ total }}
+        </span>
+        <div class="paginacao-controles">
+          <label class="por-pagina">
+            Por página
+            <select v-model.number="porPagina" class="seletor" @change="mudarPorPagina">
+              <option v-for="opcao in opcoesPorPagina" :key="opcao" :value="opcao">
+                {{ opcao }}
+              </option>
+            </select>
+          </label>
+          <BaseButton
+            type="button"
+            variant="secondary"
+            :disabled="paginaAtual === 1 || carregando"
+            @click="irParaPagina(paginaAtual - 1)"
+          >
+            Anterior
+          </BaseButton>
+          <span class="paginacao-pagina">Página {{ paginaAtual }} de {{ totalPaginas }}</span>
+          <BaseButton
+            type="button"
+            variant="secondary"
+            :disabled="paginaAtual === totalPaginas || carregando"
+            @click="irParaPagina(paginaAtual + 1)"
+          >
+            Próxima
+          </BaseButton>
+        </div>
+      </div>
     </div>
   </DefaultLayout>
 </template>
@@ -311,5 +371,49 @@ onMounted(buscarEstudantes)
 .status-titulado {
   background-color: #f5f3ff;
   color: #5b21b6;
+}
+
+.paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.paginacao-info,
+.paginacao-pagina,
+.por-pagina {
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.paginacao-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.por-pagina {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seletor {
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: #ffffff;
+}
+
+.seletor:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 </style>
