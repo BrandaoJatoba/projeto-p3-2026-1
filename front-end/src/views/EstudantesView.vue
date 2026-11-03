@@ -10,6 +10,27 @@ const total = ref(0)
 const carregando = ref(false)
 const erro = ref('')
 
+const classesStatus = {
+  ATIVO: 'status-ativo',
+  TRANCADO: 'status-trancado',
+  'PROCESSO DE DESLIGAMENTO': 'status-desligamento',
+  DESLIGADO: 'status-desligado',
+  'PÓS DEFESA': 'status-pos-defesa',
+  TITULADO: 'status-titulado',
+}
+
+function classeDoStatus(status) {
+  return classesStatus[status] || 'status-desligado'
+}
+
+function iniciais(nome) {
+  const partes = (nome || '').trim().split(/\s+/).filter(Boolean)
+  if (partes.length === 0) return '?'
+  const primeira = partes[0][0]
+  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ''
+  return (primeira + ultima).toUpperCase()
+}
+
 async function buscarEstudantes() {
   carregando.value = true
   erro.value = ''
@@ -60,14 +81,26 @@ onMounted(buscarEstudantes)
             <th>Nome</th>
             <th>Matrícula</th>
             <th>Semestre</th>
+            <th>Status</th>
             <th>E-mail</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="estudante in estudantes" :key="estudante.id_estudante">
-            <td>{{ estudante.nome_discente }}</td>
+            <td>
+              <div class="celula-nome">
+                <span class="avatar">{{ iniciais(estudante.nome_discente) }}</span>
+                <span>{{ estudante.nome_discente }}</span>
+                <span v-if="estudante.eh_bolsista" class="selo-bolsista">Bolsista</span>
+              </div>
+            </td>
             <td>{{ estudante.matricula }}</td>
             <td>{{ estudante.id_semestre }}</td>
+            <td>
+              <span class="badge" :class="classeDoStatus(estudante.status_atual)">
+                {{ estudante.status_atual }}
+              </span>
+            </td>
             <td>{{ estudante.email }}</td>
           </tr>
         </tbody>
@@ -143,5 +176,74 @@ onMounted(buscarEstudantes)
 
 .tabela tbody tr:last-child td {
   border-bottom: none;
+}
+
+.celula-nome {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background-color: #dbeafe;
+  color: #1e40af;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.selo-bolsista {
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid #99f6e4;
+  background-color: #f0fdfa;
+  color: #115e59;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-ativo {
+  background-color: #ecfdf5;
+  color: #065f46;
+}
+
+.status-trancado {
+  background-color: #fffbeb;
+  color: #92400e;
+}
+
+.status-desligamento {
+  background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+.status-desligado {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.status-pos-defesa {
+  background-color: #eff6ff;
+  color: #1e40af;
+}
+
+.status-titulado {
+  background-color: #f5f3ff;
+  color: #5b21b6;
 }
 </style>
