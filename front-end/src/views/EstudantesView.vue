@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
 import BaseButton from '../components/BaseButton.vue'
 import { useAuthStore } from '../stores/auth'
@@ -18,6 +18,10 @@ const opcoesPorPagina = [10, 25, 50]
 const porPagina = ref(10)
 const paginaAtual = ref(1)
 
+const termoBusca = ref('')
+let temporizadorBusca = null
+let ultimaRequisicao = 0
+
 const totalPaginas = computed(() => Math.max(1, Math.ceil(total.value / porPagina.value)))
 const inicioIntervalo = computed(() =>
   total.value === 0 ? 0 : (paginaAtual.value - 1) * porPagina.value + 1,
@@ -25,6 +29,7 @@ const inicioIntervalo = computed(() =>
 const fimIntervalo = computed(
   () => (paginaAtual.value - 1) * porPagina.value + estudantes.value.length,
 )
+const termoBuscaLimpo = computed(() => termoBusca.value.trim())
 
 const classesStatus = {
   ATIVO: 'status-ativo',
@@ -74,7 +79,16 @@ function mudarPorPagina() {
   buscarEstudantes()
 }
 
+watch(termoBusca, () => {
+  clearTimeout(temporizadorBusca)
+  temporizadorBusca = setTimeout(() => {
+    paginaAtual.value = 1
+    buscarEstudantes()
+  }, 400)
+})
+
 async function buscarEstudantes() {
+  const numeroRequisicao = ++ultimaRequisicao
   carregando.value = true
   erro.value = ''
   const parametros = new URLSearchParams({
@@ -83,10 +97,14 @@ async function buscarEstudantes() {
     skip: String((paginaAtual.value - 1) * porPagina.value),
     limit: String(porPagina.value),
   })
+  if (termoBuscaLimpo.value) {
+    parametros.set('busca', termoBuscaLimpo.value)
+  }
   try {
     const resposta = await fetch(`http://localhost:8000/estudantes?${parametros}`, {
       headers: { Authorization: `Bearer ${authStore.token}` },
     })
+    if (numeroRequisicao !== ultimaRequisicao) return
     if (!resposta.ok) {
       if (resposta.status === 401) {
         erro.value = 'Sua sessão expirou. Saia e entre de novo.'
@@ -96,16 +114,24 @@ async function buscarEstudantes() {
       return
     }
     const dados = await resposta.json()
+    if (numeroRequisicao !== ultimaRequisicao) return
     estudantes.value = dados.itens
     total.value = dados.total
   } catch {
+    if (numeroRequisicao !== ultimaRequisicao) return
     erro.value = 'Não foi possível conectar ao servidor. Verifique se o backend está ligado.'
   } finally {
-    carregando.value = false
+    if (numeroRequisicao === ultimaRequisicao) {
+      carregando.value = false
+    }
   }
 }
 
 onMounted(buscarEstudantes)
+
+onBeforeUnmount(() => {
+  clearTimeout(temporizadorBusca)
+})
 </script>
 
 <template>
@@ -114,11 +140,27 @@ onMounted(buscarEstudantes)
       <h1>Estudantes</h1>
     </div>
 
+    <div class="barra-ferramentas">
+      <input
+        v-model="termoBusca"
+        type="search"
+        class="campo-busca"
+        placeholder="Buscar por nome ou matrícula"
+        aria-label="Buscar por nome ou matrícula"
+        maxlength="100"
+      />
+    </div>
+
     <div v-if="carregando && estudantes.length === 0" class="estado">Carregando estudantes...</div>
 
     <div v-else-if="erro" class="aviso-erro">{{ erro }}</div>
 
-    <div v-else-if="estudantes.length === 0" class="estado">Nenhum estudante cadastrado.</div>
+    <div v-else-if="estudantes.length === 0" class="estado">
+      <template v-if="termoBuscaLimpo">
+        Nenhum estudante encontrado para "{{ termoBuscaLimpo }}".
+      </template>
+      <template v-else>Nenhum estudante cadastrado.</template>
+    </div>
 
     <div v-else class="tabela-card" :class="{ atualizando: carregando }">
       <p class="contagem">
@@ -213,6 +255,33 @@ onMounted(buscarEstudantes)
   font-weight: 700;
   color: #111827;
   margin: 0;
+}
+
+.barra-ferramentas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.campo-busca {
+  flex: 1;
+  min-width: 240px;
+  max-width: 420px;
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  background-color: #ffffff;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.campo-busca:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .estado {
