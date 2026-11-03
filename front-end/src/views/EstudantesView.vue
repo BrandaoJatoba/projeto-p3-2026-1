@@ -47,6 +47,12 @@ const semestres = ref([])
 const diasParaAvisoPrazo = 180
 const statusSemAvisoPrazo = ['TITULADO', 'DESLIGADO']
 
+const chaveVisaoCompacta = 'estudantes_visao_compacta'
+const visaoCompacta = ref(lerVisaoCompacta())
+
+const aviso = ref(null)
+let temporizadorAviso = null
+
 const totalPaginas = computed(() => Math.max(1, Math.ceil(total.value / porPagina.value)))
 const inicioIntervalo = computed(() =>
   total.value === 0 ? 0 : (paginaAtual.value - 1) * porPagina.value + 1,
@@ -134,6 +140,54 @@ function avisoDoPrazo(estudante) {
     return { classe: 'prazo-proximo', texto: `Faltam ${textoDias(dias)} para o prazo` }
   }
   return null
+}
+
+// ---------- Aviso flutuante ----------
+
+function mostrarAviso(texto, tipo) {
+  aviso.value = { texto, tipo }
+  clearTimeout(temporizadorAviso)
+  temporizadorAviso = setTimeout(() => {
+    aviso.value = null
+  }, 3000)
+}
+
+// ---------- Ações por linha ----------
+
+async function copiarTexto(texto, mensagemSucesso, mensagemErro) {
+  try {
+    await navigator.clipboard.writeText(texto)
+    mostrarAviso(mensagemSucesso, 'sucesso')
+  } catch {
+    mostrarAviso(mensagemErro, 'erro')
+  }
+}
+
+function copiarEmail(estudante) {
+  copiarTexto(estudante.email, 'E-mail copiado!', 'Não foi possível copiar o e-mail.')
+}
+
+function copiarMatricula(estudante) {
+  copiarTexto(estudante.matricula, 'Matrícula copiada!', 'Não foi possível copiar a matrícula.')
+}
+
+// ---------- Visão compacta ----------
+
+function lerVisaoCompacta() {
+  try {
+    return localStorage.getItem(chaveVisaoCompacta) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function alternarVisaoCompacta() {
+  visaoCompacta.value = !visaoCompacta.value
+  try {
+    localStorage.setItem(chaveVisaoCompacta, String(visaoCompacta.value))
+  } catch {
+    // Se o navegador não deixar salvar, a escolha vale só até recarregar.
+  }
 }
 
 // ---------- URL (query params) ----------
@@ -335,11 +389,21 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearTimeout(temporizadorBusca)
+  clearTimeout(temporizadorAviso)
 })
 </script>
 
 <template>
   <DefaultLayout>
+    <div
+      v-if="aviso"
+      class="aviso-flutuante"
+      :class="aviso.tipo === 'erro' ? 'aviso-flutuante-erro' : 'aviso-flutuante-sucesso'"
+      role="status"
+    >
+      {{ aviso.texto }}
+    </div>
+
     <div class="page-header">
       <h1>Estudantes</h1>
     </div>
@@ -413,10 +477,21 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-else class="tabela-card" :class="{ atualizando: carregando }">
-      <p class="contagem">
-        {{ total }} {{ total === 1 ? 'estudante encontrado' : 'estudantes encontrados' }}
-      </p>
-      <table class="tabela">
+      <div class="cabecalho-tabela">
+        <p class="contagem">
+          {{ total }} {{ total === 1 ? 'estudante encontrado' : 'estudantes encontrados' }}
+        </p>
+        <button
+          type="button"
+          class="botao-compacta"
+          :class="{ ativo: visaoCompacta }"
+          :aria-pressed="visaoCompacta"
+          @click="alternarVisaoCompacta"
+        >
+          Visão compacta
+        </button>
+      </div>
+      <table class="tabela" :class="{ compacta: visaoCompacta }">
         <thead>
           <tr>
             <th>
@@ -437,6 +512,7 @@ onBeforeUnmount(() => {
             <th>Status</th>
             <th>Prazo (SIGAA)</th>
             <th>E-mail</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -444,7 +520,9 @@ onBeforeUnmount(() => {
             <td>
               <div class="celula-nome">
                 <span class="avatar">{{ iniciais(estudante.nome_discente) }}</span>
-                <span>{{ estudante.nome_discente }}</span>
+                <RouterLink :to="`/estudantes/${estudante.id_estudante}`" class="link-nome">
+                  {{ estudante.nome_discente }}
+                </RouterLink>
                 <span v-if="estudante.eh_bolsista" class="selo-bolsista">Bolsista</span>
               </div>
             </td>
@@ -471,6 +549,26 @@ onBeforeUnmount(() => {
               </div>
             </td>
             <td>{{ estudante.email }}</td>
+            <td>
+              <div class="celula-acoes">
+                <button
+                  type="button"
+                  class="botao-acao"
+                  :aria-label="`Copiar e-mail de ${estudante.nome_discente}`"
+                  @click="copiarEmail(estudante)"
+                >
+                  Copiar e-mail
+                </button>
+                <button
+                  type="button"
+                  class="botao-acao"
+                  :aria-label="`Copiar matrícula de ${estudante.nome_discente}`"
+                  @click="copiarMatricula(estudante)"
+                >
+                  Copiar matrícula
+                </button>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -521,6 +619,29 @@ onBeforeUnmount(() => {
   font-weight: 700;
   color: #111827;
   margin: 0;
+}
+
+.aviso-flutuante {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 50;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.aviso-flutuante-sucesso {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.aviso-flutuante-erro {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
 }
 
 .barra-ferramentas {
@@ -590,11 +711,47 @@ onBeforeUnmount(() => {
   opacity: 0.6;
 }
 
+.cabecalho-tabela {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 24px;
+}
+
 .contagem {
   margin: 0;
-  padding: 16px 24px;
   font-size: 0.9rem;
   color: #4b5563;
+}
+
+.botao-compacta {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #374151;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.botao-compacta:hover {
+  background-color: #f9fafb;
+}
+
+.botao-compacta.ativo {
+  background-color: #eff6ff;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.botao-compacta:focus-visible,
+.botao-acao:focus-visible,
+.link-nome:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 .tabela {
@@ -621,6 +778,21 @@ onBeforeUnmount(() => {
 
 .tabela tbody tr:last-child td {
   border-bottom: none;
+}
+
+.tabela.compacta th {
+  padding: 8px 16px;
+}
+
+.tabela.compacta td {
+  padding: 6px 16px;
+  font-size: 0.875rem;
+}
+
+.tabela.compacta .avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 0.65rem;
 }
 
 .botao-ordenar {
@@ -654,6 +826,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.link-nome {
+  color: #1d4ed8;
+  text-decoration: none;
+  border-radius: 2px;
+}
+
+.link-nome:hover {
+  text-decoration: underline;
 }
 
 .avatar {
@@ -749,6 +931,29 @@ onBeforeUnmount(() => {
   background-color: #fee2e2;
   color: #b91c1c;
   border: 1px solid #fca5a5;
+}
+
+.celula-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.botao-acao {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #374151;
+  font: inherit;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.botao-acao:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
 }
 
 .paginacao {
