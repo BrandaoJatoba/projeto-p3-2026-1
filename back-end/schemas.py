@@ -567,7 +567,7 @@ class ProfessorBase(BaseModel):
     """Atributos comuns do professor."""
     nome: str = Field(..., min_length=2, max_length=100, description="Nome completo do professor")
 
-class ProfessorCriacao(BaseModel):
+class ProfessorCriacao(ProfessorBase):
     pass
 
 class ProfessorAtualizacao(BaseModel):
