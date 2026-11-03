@@ -22,6 +22,20 @@ const termoBusca = ref('')
 let temporizadorBusca = null
 let ultimaRequisicao = 0
 
+const opcoesStatus = [
+  'ATIVO',
+  'TRANCADO',
+  'PROCESSO DE DESLIGAMENTO',
+  'DESLIGADO',
+  'PÓS DEFESA',
+  'TITULADO',
+]
+const filtroStatus = ref('')
+const filtroSemestre = ref('')
+const filtroBolsa = ref('')
+
+const semestres = ref([])
+
 const totalPaginas = computed(() => Math.max(1, Math.ceil(total.value / porPagina.value)))
 const inicioIntervalo = computed(() =>
   total.value === 0 ? 0 : (paginaAtual.value - 1) * porPagina.value + 1,
@@ -30,6 +44,16 @@ const fimIntervalo = computed(
   () => (paginaAtual.value - 1) * porPagina.value + estudantes.value.length,
 )
 const termoBuscaLimpo = computed(() => termoBusca.value.trim())
+const temFiltroAtivo = computed(
+  () => filtroStatus.value !== '' || filtroSemestre.value !== '' || filtroBolsa.value !== '',
+)
+const codigosSemestres = computed(() => {
+  const mapa = {}
+  for (const semestre of semestres.value) {
+    mapa[semestre.id_semestre] = semestre.codigo_semestre
+  }
+  return mapa
+})
 
 const classesStatus = {
   ATIVO: 'status-ativo',
@@ -42,6 +66,10 @@ const classesStatus = {
 
 function classeDoStatus(status) {
   return classesStatus[status] || 'status-desligado'
+}
+
+function codigoDoSemestre(idSemestre) {
+  return codigosSemestres.value[idSemestre] || idSemestre
 }
 
 function iniciais(nome) {
@@ -79,6 +107,18 @@ function mudarPorPagina() {
   buscarEstudantes()
 }
 
+function aplicarFiltros() {
+  paginaAtual.value = 1
+  buscarEstudantes()
+}
+
+function limparFiltros() {
+  filtroStatus.value = ''
+  filtroSemestre.value = ''
+  filtroBolsa.value = ''
+  aplicarFiltros()
+}
+
 watch(termoBusca, () => {
   clearTimeout(temporizadorBusca)
   temporizadorBusca = setTimeout(() => {
@@ -86,6 +126,18 @@ watch(termoBusca, () => {
     buscarEstudantes()
   }, 400)
 })
+
+async function buscarSemestres() {
+  try {
+    const resposta = await fetch('http://localhost:8000/configuracoes/semestres', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    if (!resposta.ok) return
+    semestres.value = await resposta.json()
+  } catch {
+    // Sem a lista de semestres, a tabela mostra o número do semestre.
+  }
+}
 
 async function buscarEstudantes() {
   const numeroRequisicao = ++ultimaRequisicao
@@ -99,6 +151,15 @@ async function buscarEstudantes() {
   })
   if (termoBuscaLimpo.value) {
     parametros.set('busca', termoBuscaLimpo.value)
+  }
+  if (filtroStatus.value !== '') {
+    parametros.set('status_atual', filtroStatus.value)
+  }
+  if (filtroSemestre.value !== '') {
+    parametros.set('id_semestre', String(filtroSemestre.value))
+  }
+  if (filtroBolsa.value !== '') {
+    parametros.set('eh_bolsista', filtroBolsa.value)
   }
   try {
     const resposta = await fetch(`http://localhost:8000/estudantes?${parametros}`, {
@@ -127,7 +188,10 @@ async function buscarEstudantes() {
   }
 }
 
-onMounted(buscarEstudantes)
+onMounted(() => {
+  buscarSemestres()
+  buscarEstudantes()
+})
 
 onBeforeUnmount(() => {
   clearTimeout(temporizadorBusca)
@@ -149,6 +213,49 @@ onBeforeUnmount(() => {
         aria-label="Buscar por nome ou matrícula"
         maxlength="100"
       />
+
+      <select
+        v-model="filtroStatus"
+        class="seletor-filtro"
+        aria-label="Filtrar por status"
+        @change="aplicarFiltros"
+      >
+        <option value="">Todos os status</option>
+        <option v-for="status in opcoesStatus" :key="status" :value="status">
+          {{ status }}
+        </option>
+      </select>
+
+      <select
+        v-model="filtroSemestre"
+        class="seletor-filtro"
+        aria-label="Filtrar por semestre"
+        @change="aplicarFiltros"
+      >
+        <option value="">Todos os semestres</option>
+        <option
+          v-for="semestre in semestres"
+          :key="semestre.id_semestre"
+          :value="semestre.id_semestre"
+        >
+          {{ semestre.codigo_semestre }}
+        </option>
+      </select>
+
+      <select
+        v-model="filtroBolsa"
+        class="seletor-filtro"
+        aria-label="Filtrar por bolsa"
+        @change="aplicarFiltros"
+      >
+        <option value="">Bolsistas e não bolsistas</option>
+        <option value="true">Só bolsistas</option>
+        <option value="false">Só não bolsistas</option>
+      </select>
+
+      <BaseButton v-if="temFiltroAtivo" type="button" variant="secondary" @click="limparFiltros">
+        Limpar filtros
+      </BaseButton>
     </div>
 
     <div v-if="carregando && estudantes.length === 0" class="estado">Carregando estudantes...</div>
@@ -156,7 +263,10 @@ onBeforeUnmount(() => {
     <div v-else-if="erro" class="aviso-erro">{{ erro }}</div>
 
     <div v-else-if="estudantes.length === 0" class="estado">
-      <template v-if="termoBuscaLimpo">
+      <template v-if="temFiltroAtivo"
+        >Nenhum estudante encontrado com os filtros escolhidos.</template
+      >
+      <template v-else-if="termoBuscaLimpo">
         Nenhum estudante encontrado para "{{ termoBuscaLimpo }}".
       </template>
       <template v-else>Nenhum estudante cadastrado.</template>
@@ -198,7 +308,7 @@ onBeforeUnmount(() => {
               </div>
             </td>
             <td>{{ estudante.matricula }}</td>
-            <td>{{ estudante.id_semestre }}</td>
+            <td>{{ codigoDoSemestre(estudante.id_semestre) }}</td>
             <td>
               <span class="badge" :class="classeDoStatus(estudante.status_atual)">
                 {{ estudante.status_atual }}
@@ -260,6 +370,7 @@ onBeforeUnmount(() => {
 .barra-ferramentas {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -278,10 +389,20 @@ onBeforeUnmount(() => {
     box-shadow 0.2s;
 }
 
-.campo-busca:focus {
+.campo-busca:focus,
+.seletor-filtro:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.seletor-filtro {
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  color: #111827;
+  background-color: #ffffff;
 }
 
 .estado {
