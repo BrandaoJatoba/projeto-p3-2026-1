@@ -10,6 +10,9 @@ const total = ref(0)
 const carregando = ref(false)
 const erro = ref('')
 
+const colunaOrdenacao = ref('nome_discente')
+const ordemDesc = ref(false)
+
 const classesStatus = {
   ATIVO: 'status-ativo',
   TRANCADO: 'status-trancado',
@@ -31,11 +34,30 @@ function iniciais(nome) {
   return (primeira + ultima).toUpperCase()
 }
 
+function ordenarPor(coluna) {
+  if (colunaOrdenacao.value === coluna) {
+    ordemDesc.value = !ordemDesc.value
+  } else {
+    colunaOrdenacao.value = coluna
+    ordemDesc.value = false
+  }
+  buscarEstudantes()
+}
+
+function indicadorOrdenacao(coluna) {
+  if (colunaOrdenacao.value !== coluna) return ''
+  return ordemDesc.value ? '▼' : '▲'
+}
+
 async function buscarEstudantes() {
   carregando.value = true
   erro.value = ''
+  const parametros = new URLSearchParams({
+    ordenar_por: colunaOrdenacao.value,
+    ordem_desc: String(ordemDesc.value),
+  })
   try {
-    const resposta = await fetch('http://localhost:8000/estudantes', {
+    const resposta = await fetch(`http://localhost:8000/estudantes?${parametros}`, {
       headers: { Authorization: `Bearer ${authStore.token}` },
     })
     if (!resposta.ok) {
@@ -65,22 +87,34 @@ onMounted(buscarEstudantes)
       <h1>Estudantes</h1>
     </div>
 
-    <div v-if="carregando" class="estado">Carregando estudantes...</div>
+    <div v-if="carregando && estudantes.length === 0" class="estado">Carregando estudantes...</div>
 
     <div v-else-if="erro" class="aviso-erro">{{ erro }}</div>
 
     <div v-else-if="estudantes.length === 0" class="estado">Nenhum estudante cadastrado.</div>
 
-    <div v-else class="tabela-card">
+    <div v-else class="tabela-card" :class="{ atualizando: carregando }">
       <p class="contagem">
         {{ total }} {{ total === 1 ? 'estudante encontrado' : 'estudantes encontrados' }}
       </p>
       <table class="tabela">
         <thead>
           <tr>
-            <th>Nome</th>
-            <th>Matrícula</th>
-            <th>Semestre</th>
+            <th>
+              <button type="button" class="botao-ordenar" @click="ordenarPor('nome_discente')">
+                Nome <span class="indicador">{{ indicadorOrdenacao('nome_discente') }}</span>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="botao-ordenar" @click="ordenarPor('matricula')">
+                Matrícula <span class="indicador">{{ indicadorOrdenacao('matricula') }}</span>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="botao-ordenar" @click="ordenarPor('id_semestre')">
+                Semestre <span class="indicador">{{ indicadorOrdenacao('id_semestre') }}</span>
+              </button>
+            </th>
             <th>Status</th>
             <th>E-mail</th>
           </tr>
@@ -143,6 +177,11 @@ onMounted(buscarEstudantes)
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  transition: opacity 0.15s;
+}
+
+.tabela-card.atualizando {
+  opacity: 0.6;
 }
 
 .contagem {
@@ -176,6 +215,33 @@ onMounted(buscarEstudantes)
 
 .tabela tbody tr:last-child td {
   border-bottom: none;
+}
+
+.botao-ordenar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.botao-ordenar:hover {
+  color: #111827;
+}
+
+.botao-ordenar:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.indicador {
+  font-size: 0.7rem;
+  min-width: 10px;
 }
 
 .celula-nome {
