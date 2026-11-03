@@ -435,7 +435,7 @@ onBeforeUnmount(() => {
               </button>
             </th>
             <th>Status</th>
-            <th>Prazo</th>
+            <th>Prazo (SIGAA)</th>
             <th>E-mail</th>
           </tr>
         </thead>
