@@ -15,14 +15,14 @@ def criar_professor(
     db_connection.refresh(novo_professor)
     return novo_professor
 
-def listar_professores(db_connection: Session, skip: int = 0) -> List[models.Professor]:
+def listar_professores(db_connection: Session, skip: int = 0, limit: int = 100) -> List[models.Professor]:
     """Retorna uma lista paginada de todos os professores."""
-    return db_connection.query(models.Professor).offset(skip).all()
+    return db_connection.query(models.Professor).offset(skip).limit(limit).all()
 
 def buscar_professor_por_id(
     db_connection: Session,
     id_professor: int
-):
+) -> Optional[models.Professor]:
     return (
         db_connection.query(models.Professor)
         .filter(models.Professor.id_professor == id_professor)
