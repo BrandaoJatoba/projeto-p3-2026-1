@@ -44,6 +44,9 @@ const filtroBolsa = ref('')
 
 const semestres = ref([])
 
+const diasParaAvisoPrazo = 180
+const statusSemAvisoPrazo = ['TITULADO', 'DESLIGADO']
+
 const totalPaginas = computed(() => Math.max(1, Math.ceil(total.value / porPagina.value)))
 const inicioIntervalo = computed(() =>
   total.value === 0 ? 0 : (paginaAtual.value - 1) * porPagina.value + 1,
@@ -62,6 +65,12 @@ const codigosSemestres = computed(() => {
   }
   return mapa
 })
+const linhas = computed(() =>
+  estudantes.value.map((estudante) => ({
+    ...estudante,
+    avisoPrazo: avisoDoPrazo(estudante),
+  })),
+)
 
 const classesStatus = {
   ATIVO: 'status-ativo',
@@ -86,6 +95,45 @@ function iniciais(nome) {
   const primeira = partes[0][0]
   const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ''
   return (primeira + ultima).toUpperCase()
+}
+
+// ---------- Prazo ----------
+
+function formatarData(texto) {
+  if (!texto) return '—'
+  const [ano, mes, dia] = texto.slice(0, 10).split('-')
+  if (!ano || !mes || !dia) return texto
+  return `${dia}/${mes}/${ano}`
+}
+
+function diasAtePrazo(texto) {
+  if (!texto) return null
+  const [ano, mes, dia] = texto.slice(0, 10).split('-').map(Number)
+  if (!ano || !mes || !dia) return null
+  const prazo = new Date(ano, mes - 1, dia)
+  const agora = new Date()
+  const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate())
+  return Math.round((prazo - hoje) / (1000 * 60 * 60 * 24))
+}
+
+function textoDias(quantidade) {
+  return quantidade === 1 ? '1 dia' : `${quantidade} dias`
+}
+
+function avisoDoPrazo(estudante) {
+  if (statusSemAvisoPrazo.includes(estudante.status_atual)) return null
+  const dias = diasAtePrazo(estudante.prazo_conclusao_sigaa)
+  if (dias === null) return null
+  if (dias < 0) {
+    return { classe: 'prazo-vencido', texto: `Prazo vencido há ${textoDias(-dias)}` }
+  }
+  if (dias === 0) {
+    return { classe: 'prazo-proximo', texto: 'O prazo termina hoje' }
+  }
+  if (dias <= diasParaAvisoPrazo) {
+    return { classe: 'prazo-proximo', texto: `Faltam ${textoDias(dias)} para o prazo` }
+  }
+  return null
 }
 
 // ---------- URL (query params) ----------
@@ -387,11 +435,12 @@ onBeforeUnmount(() => {
               </button>
             </th>
             <th>Status</th>
+            <th>Prazo</th>
             <th>E-mail</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="estudante in estudantes" :key="estudante.id_estudante">
+          <tr v-for="estudante in linhas" :key="estudante.id_estudante">
             <td>
               <div class="celula-nome">
                 <span class="avatar">{{ iniciais(estudante.nome_discente) }}</span>
@@ -405,6 +454,21 @@ onBeforeUnmount(() => {
               <span class="badge" :class="classeDoStatus(estudante.status_atual)">
                 {{ estudante.status_atual }}
               </span>
+            </td>
+            <td>
+              <div class="celula-prazo">
+                <span>{{ formatarData(estudante.prazo_conclusao_sigaa) }}</span>
+                <span
+                  v-if="estudante.avisoPrazo"
+                  class="alerta-prazo"
+                  :class="estudante.avisoPrazo.classe"
+                  role="img"
+                  :title="estudante.avisoPrazo.texto"
+                  :aria-label="estudante.avisoPrazo.texto"
+                >
+                  !
+                </span>
+              </div>
             </td>
             <td>{{ estudante.email }}</td>
           </tr>
@@ -653,6 +717,38 @@ onBeforeUnmount(() => {
 .status-titulado {
   background-color: #f5f3ff;
   color: #5b21b6;
+}
+
+.celula-prazo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.alerta-prazo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: help;
+}
+
+.prazo-proximo {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.prazo-vencido {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
 }
 
 .paginacao {
