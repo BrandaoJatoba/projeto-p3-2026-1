@@ -1,26 +1,34 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
 import BaseButton from '../components/BaseButton.vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 
 const estudantes = ref([])
 const total = ref(0)
 const carregando = ref(false)
 const erro = ref('')
 
-const colunaOrdenacao = ref('nome_discente')
+const colunasOrdenaveis = ['nome_discente', 'matricula', 'id_semestre']
+const colunaPadrao = 'nome_discente'
+const colunaOrdenacao = ref(colunaPadrao)
 const ordemDesc = ref(false)
 
 const opcoesPorPagina = [10, 25, 50]
-const porPagina = ref(10)
+const porPaginaPadrao = 10
+const porPagina = ref(porPaginaPadrao)
 const paginaAtual = ref(1)
 
 const termoBusca = ref('')
 let temporizadorBusca = null
 let ultimaRequisicao = 0
+let ultimaBuscaEnviada = ''
+let ultimaQueryEscrita = ''
 
 const opcoesStatus = [
   'ATIVO',
@@ -80,6 +88,68 @@ function iniciais(nome) {
   return (primeira + ultima).toUpperCase()
 }
 
+// ---------- URL (query params) ----------
+
+function lerTexto(valor) {
+  const primeiro = Array.isArray(valor) ? valor[0] : valor
+  return typeof primeiro === 'string' ? primeiro : ''
+}
+
+function lerInteiroPositivo(valor) {
+  const texto = lerTexto(valor)
+  if (!/^\d+$/.test(texto)) return null
+  const numero = Number(texto)
+  return numero >= 1 ? numero : null
+}
+
+function lerEstadoDaUrl() {
+  const query = route.query
+
+  termoBusca.value = lerTexto(query.busca).slice(0, 100)
+
+  const status = lerTexto(query.status)
+  filtroStatus.value = opcoesStatus.includes(status) ? status : ''
+
+  const semestre = lerInteiroPositivo(query.semestre)
+  filtroSemestre.value = semestre === null ? '' : semestre
+
+  const bolsa = lerTexto(query.bolsa)
+  filtroBolsa.value = bolsa === 'true' || bolsa === 'false' ? bolsa : ''
+
+  const quantidade = lerInteiroPositivo(query.por_pagina)
+  porPagina.value = opcoesPorPagina.includes(quantidade) ? quantidade : porPaginaPadrao
+
+  paginaAtual.value = lerInteiroPositivo(query.pagina) || 1
+
+  const coluna = lerTexto(query.ordenar)
+  colunaOrdenacao.value = colunasOrdenaveis.includes(coluna) ? coluna : colunaPadrao
+
+  ordemDesc.value = lerTexto(query.desc) === 'true'
+}
+
+function montarQuery() {
+  const query = {}
+  if (termoBuscaLimpo.value) query.busca = termoBuscaLimpo.value
+  if (filtroStatus.value !== '') query.status = filtroStatus.value
+  if (filtroSemestre.value !== '') query.semestre = String(filtroSemestre.value)
+  if (filtroBolsa.value !== '') query.bolsa = filtroBolsa.value
+  if (paginaAtual.value !== 1) query.pagina = String(paginaAtual.value)
+  if (porPagina.value !== porPaginaPadrao) query.por_pagina = String(porPagina.value)
+  if (colunaOrdenacao.value !== colunaPadrao) query.ordenar = colunaOrdenacao.value
+  if (ordemDesc.value) query.desc = 'true'
+  return query
+}
+
+function atualizarUrl() {
+  const query = montarQuery()
+  ultimaQueryEscrita = JSON.stringify(query)
+  if (ultimaQueryEscrita !== JSON.stringify(route.query)) {
+    router.replace({ query })
+  }
+}
+
+// ---------- Ações da tela ----------
+
 function ordenarPor(coluna) {
   if (colunaOrdenacao.value === coluna) {
     ordemDesc.value = !ordemDesc.value
@@ -122,10 +192,23 @@ function limparFiltros() {
 watch(termoBusca, () => {
   clearTimeout(temporizadorBusca)
   temporizadorBusca = setTimeout(() => {
+    if (termoBuscaLimpo.value === ultimaBuscaEnviada) return
     paginaAtual.value = 1
     buscarEstudantes()
   }, 400)
 })
+
+watch(
+  () => route.query,
+  (novaQuery) => {
+    if (route.name !== 'estudantes') return
+    if (JSON.stringify(novaQuery) === ultimaQueryEscrita) return
+    lerEstadoDaUrl()
+    buscarEstudantes()
+  },
+)
+
+// ---------- Pedidos à API ----------
 
 async function buscarSemestres() {
   try {
@@ -141,6 +224,8 @@ async function buscarSemestres() {
 
 async function buscarEstudantes() {
   const numeroRequisicao = ++ultimaRequisicao
+  ultimaBuscaEnviada = termoBuscaLimpo.value
+  atualizarUrl()
   carregando.value = true
   erro.value = ''
   const parametros = new URLSearchParams({
@@ -176,6 +261,11 @@ async function buscarEstudantes() {
     }
     const dados = await resposta.json()
     if (numeroRequisicao !== ultimaRequisicao) return
+    if (dados.itens.length === 0 && dados.total > 0 && paginaAtual.value > 1) {
+      paginaAtual.value = Math.max(1, Math.ceil(dados.total / porPagina.value))
+      buscarEstudantes()
+      return
+    }
     estudantes.value = dados.itens
     total.value = dados.total
   } catch {
@@ -187,6 +277,8 @@ async function buscarEstudantes() {
     }
   }
 }
+
+lerEstadoDaUrl()
 
 onMounted(() => {
   buscarSemestres()
