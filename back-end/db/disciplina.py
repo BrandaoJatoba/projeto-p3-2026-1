@@ -21,14 +21,14 @@ def criar_disciplina(
     db_connection.refresh(nova_disciplina)
     return nova_disciplina
 
-def listar_disciplinas(db_connection: Session, skip: int = 0) -> List[models.Disciplina]:
+def listar_disciplinas(db_connection: Session, skip: int = 0, limit: int = 100) -> List[models.Disciplina]:
     """Retorna uma lista paginada de todas as disciplinas."""
-    return db_connection.query(models.Disciplina).offset(skip).all()
+    return db_connection.query(models.Disciplina).offset(skip).limit(limit).all()
 
 def buscar_disciplina_por_id(
     db_connection: Session,
     id_disciplina: int
-):
+ ) -> Optional[models.Disciplina]:
     return (
         db_connection.query(models.Disciplina)
         .filter(models.Disciplina.id_disciplina == id_disciplina)
@@ -36,7 +36,7 @@ def buscar_disciplina_por_id(
     )
 
 def atualizar_disciplina(db_connection: Session, id_disciplina: int, dados_atualizacao: Dict[str, Any]) -> Optional[models.Disciplina]:
-    """Atualiza campos específicos de uma disciplina existente."""
+    """Atualiza campos especificos de uma disciplina existente."""
     disciplina = buscar_disciplina_por_id(db_connection, id_disciplina)
     if not disciplina:
         return None
@@ -53,7 +53,7 @@ def atualizar_disciplina(db_connection: Session, id_disciplina: int, dados_atual
 def buscar_disciplina_por_codigo(
     db_connection: Session,
     codigo_disciplina: str
-):
+) -> Optional[models.Disciplina]:
     return (
         db_connection.query(models.Disciplina)
         .filter(models.Disciplina.codigo_disciplina == codigo_disciplina)

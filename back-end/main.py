@@ -7,6 +7,7 @@ from rotas import logout
 from rotas import prazo
 from rotas import gatilho
 from rotas import estudante
+from rotas import professor, disciplina, proficiencia, prorrogacoes, estagio, artigo
 
 app = FastAPI(title="API PPGI")
 
@@ -37,6 +38,13 @@ app.include_router(suspensao.router)
 app.include_router(prazo.router)
 app.include_router(gatilho.router)
 app.include_router(estudante.router)
+app.include_router(professor.router)
+app.include_router(disciplina.router)
+app.include_router(proficiencia.router)
+app.include_router(prorrogacoes.router)
+app.include_router(estagio.router)
+app.include_router(artigo.router)
+
 
 
 
