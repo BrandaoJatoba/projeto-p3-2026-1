@@ -26,7 +26,7 @@ def cadastrar_professor(
         # CORREÇÃO: Passando o atributo específico (nome) em vez do objeto inteiro
         professor = crud_professor.criar_professor(
             db_connection=db_connection, 
-            nome_professor=dados.nome 
+            nome_professor=dados.nome_professor 
         )
         return ProfessorResposta.model_validate(professor)
     except IntegrityError:
