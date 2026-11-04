@@ -55,6 +55,20 @@ const visaoCompacta = ref(lerVisaoCompacta())
 const aviso = ref(null)
 let temporizadorAviso = null
 
+// ---------- Estado do Cadastro ----------
+const exibirModalCadastro = ref(false)
+const salvandoEstudante = ref(false)
+const dadosIniciaisCadastro = {
+  nome_discente: '',
+  matricula: '',
+  id_semestre: '',
+  email: '',
+  id_orientador: '',
+  eh_bolsista: false,
+  prazo_conclusao_sigaa: ''
+}
+const novoEstudante = ref({ ...dadosIniciaisCadastro })
+
 const totalPaginas = computed(() => Math.max(1, Math.ceil(total.value / porPagina.value)))
 const inicioIntervalo = computed(() =>
   total.value === 0 ? 0 : (paginaAtual.value - 1) * porPagina.value + 1,
@@ -170,6 +184,57 @@ function mostrarAviso(texto, tipo) {
   temporizadorAviso = setTimeout(() => {
     aviso.value = null
   }, 3000)
+}
+
+// ---------- Modal de Cadastro ----------
+
+function abrirModalCadastro() {
+  novoEstudante.value = { ...dadosIniciaisCadastro }
+  exibirModalCadastro.value = true
+}
+
+function fecharModalCadastro() {
+  exibirModalCadastro.value = false
+}
+
+async function cadastrarEstudante() {
+  salvandoEstudante.value = true
+  
+  // Limpando campos vazios opcionais para envio
+  const payload = {
+    nome_discente: novoEstudante.value.nome_discente.trim(),
+    matricula: novoEstudante.value.matricula.trim(),
+    id_semestre: novoEstudante.value.id_semestre,
+    eh_bolsista: novoEstudante.value.eh_bolsista,
+  }
+  
+  if (novoEstudante.value.email.trim()) payload.email = novoEstudante.value.email.trim()
+  if (novoEstudante.value.id_orientador) payload.id_orientador = novoEstudante.value.id_orientador
+  if (novoEstudante.value.prazo_conclusao_sigaa) payload.prazo_conclusao_sigaa = novoEstudante.value.prazo_conclusao_sigaa
+
+  try {
+    const resposta = await fetch('http://localhost:8000/estudantes/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify(payload)
+    })
+    
+    if (!resposta.ok) {
+      const data = await resposta.json()
+      throw new Error(data.detail || 'Erro ao cadastrar discente.')
+    }
+    
+    mostrarAviso('Discente cadastrado com sucesso!', 'sucesso')
+    fecharModalCadastro()
+    buscarEstudantes() // Recarrega a tabela
+  } catch (error) {
+    mostrarAviso(error.message, 'erro')
+  } finally {
+    salvandoEstudante.value = false
+  }
 }
 
 // ---------- Ações por linha ----------
@@ -445,8 +510,11 @@ onBeforeUnmount(() => {
       {{ aviso.texto }}
     </div>
 
-    <div class="page-header">
+    <div class="page-header header-com-acao">
       <h1>Estudantes</h1>
+      <BaseButton variant="primary" @click="abrirModalCadastro">
+        + Cadastrar Discente
+      </BaseButton>
     </div>
 
     <div class="barra-ferramentas">
@@ -706,12 +774,84 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
+
+    <!-- Modal de Cadastro -->
+    <div v-if="exibirModalCadastro" class="modal-overlay" @click.self="fecharModalCadastro">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h2>Cadastrar Novo Discente</h2>
+          <button class="botao-fechar" @click="fecharModalCadastro" aria-label="Fechar modal">&times;</button>
+        </div>
+        
+        <form @submit.prevent="cadastrarEstudante" class="modal-body">
+          <div class="form-grid">
+            <div class="form-group span-full">
+              <label for="nome_discente">Nome Completo *</label>
+              <input id="nome_discente" v-model="novoEstudante.nome_discente" type="text" required placeholder="Ex: João da Silva" />
+            </div>
+
+            <div class="form-group">
+              <label for="matricula">Matrícula *</label>
+              <input id="matricula" v-model="novoEstudante.matricula" type="text" required placeholder="Ex: 202410001" />
+            </div>
+
+            <div class="form-group">
+              <label for="id_semestre">Semestre de Ingresso *</label>
+              <select id="id_semestre" v-model="novoEstudante.id_semestre" required>
+                <option value="" disabled>Selecione um semestre</option>
+                <option v-for="semestre in semestres" :key="semestre.id_semestre" :value="semestre.id_semestre">
+                  {{ semestre.codigo_semestre }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group span-full">
+              <label for="email">E-mail</label>
+              <input id="email" v-model="novoEstudante.email" type="email" placeholder="E-mail institucional ou pessoal (Opcional)" />
+            </div>
+
+            <div class="form-group">
+              <label for="id_orientador">Orientador</label>
+              <select id="id_orientador" v-model="novoEstudante.id_orientador">
+                <option value="">Sem orientador definido (Opcional)</option>
+                <option v-for="professor in professoresOrdenados" :key="professor.id_professor" :value="professor.id_professor">
+                  {{ professor.nome_professor }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="prazo_sigaa">Prazo de Conclusão (SIGAA)</label>
+              <input id="prazo_sigaa" v-model="novoEstudante.prazo_conclusao_sigaa" type="date" />
+            </div>
+            
+            <div class="form-group-checkbox span-full">
+              <input id="eh_bolsista" v-model="novoEstudante.eh_bolsista" type="checkbox" />
+              <label for="eh_bolsista">Estudante Bolsista</label>
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <BaseButton type="button" variant="secondary" @click="fecharModalCadastro">Cancelar</BaseButton>
+            <BaseButton type="submit" variant="primary" :disabled="salvandoEstudante">
+              {{ salvandoEstudante ? 'Salvando...' : 'Salvar Discente' }}
+            </BaseButton>
+          </div>
+        </form>
+      </div>
+    </div>
   </DefaultLayout>
 </template>
 
 <style scoped>
 .page-header {
   margin-bottom: 24px;
+}
+
+.header-com-acao {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .page-header h1 {
@@ -1139,5 +1279,118 @@ onBeforeUnmount(() => {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Modais de Cadastro */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(17, 24, 39, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-container {
+  background-color: #ffffff;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.botao-fechar {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.botao-fechar:hover {
+  color: #111827;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.span-full {
+  grid-column: 1 / -1;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-group input,
+.form-group select {
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.form-group-checkbox label {
+  font-size: 0.9rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
 }
 </style>
