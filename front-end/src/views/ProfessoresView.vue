@@ -4,18 +4,6 @@ import { useAuthStore } from '../stores/auth'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
 import BaseButton from '../components/BaseButton.vue'
 
-// ATENÇÃO: enquanto a API de professores não existe, a tela usa dados de exemplo.
-// Trocar para false quando o GET /professores estiver disponível na dev.
-const usarDadosDeExemplo = true
-
-const dadosDeExemplo = [
-  { id_professor: 1, nome_professor: 'Ana Beatriz Lima' },
-  { id_professor: 2, nome_professor: 'José Carlos Almeida' },
-  { id_professor: 3, nome_professor: 'Marina Souza' },
-  { id_professor: 4, nome_professor: 'Rafael Tenório' },
-  { id_professor: 5, nome_professor: 'Beatriz Nogueira' },
-]
-
 const authStore = useAuthStore()
 const professores = ref([])
 const carregando = ref(true)
@@ -85,14 +73,8 @@ async function buscarProfessores() {
   carregando.value = true
   erro.value = false
 
-  if (usarDadosDeExemplo) {
-    professores.value = [...dadosDeExemplo]
-    carregando.value = false
-    return
-  }
-
   try {
-    const resposta = await fetch('http://localhost:8000/professores', {
+    const resposta = await fetch('http://localhost:8000/professores?limit=200', {
       headers: { Authorization: `Bearer ${authStore.token}` },
     })
 
@@ -102,7 +84,7 @@ async function buscarProfessores() {
     }
 
     professores.value = await resposta.json()
-  } catch (e) {
+  } catch {
     erro.value = true
   } finally {
     carregando.value = false
@@ -132,20 +114,6 @@ async function salvarProfessor() {
   erroForm.value = ''
   const editando = editandoId.value !== null
 
-  if (usarDadosDeExemplo) {
-    if (editando) {
-      const professor = professores.value.find((p) => p.id_professor === editandoId.value)
-      professor.nome_professor = nome
-    } else {
-      const maiorId = Math.max(0, ...professores.value.map((p) => p.id_professor))
-      professores.value.push({ id_professor: maiorId + 1, nome_professor: nome })
-    }
-    textoBusca.value = ''
-    mostrarAviso(editando ? 'Professor atualizado.' : 'Professor cadastrado.', 'sucesso')
-    cancelarEdicao()
-    return
-  }
-
   salvando.value = true
   const url = editando
     ? `http://localhost:8000/professores/${editandoId.value}`
@@ -170,7 +138,7 @@ async function salvarProfessor() {
     textoBusca.value = ''
     mostrarAviso(editando ? 'Professor atualizado.' : 'Professor cadastrado.', 'sucesso')
     cancelarEdicao()
-  } catch (e) {
+  } catch {
     erroForm.value = 'Não foi possível conectar ao servidor.'
   } finally {
     salvando.value = false
@@ -182,13 +150,6 @@ async function excluirProfessor(professor) {
     `Excluir o professor ${professor.nome_professor}? Essa ação não pode ser desfeita.`,
   )
   if (!confirmar) return
-
-  if (usarDadosDeExemplo) {
-    professores.value = professores.value.filter((p) => p.id_professor !== professor.id_professor)
-    if (editandoId.value === professor.id_professor) cancelarEdicao()
-    mostrarAviso('Professor excluído.', 'sucesso')
-    return
-  }
 
   excluindo.value[professor.id_professor] = true
 
@@ -214,7 +175,7 @@ async function excluirProfessor(professor) {
     if (editandoId.value === professor.id_professor) cancelarEdicao()
     await buscarProfessores()
     mostrarAviso('Professor excluído.', 'sucesso')
-  } catch (e) {
+  } catch {
     mostrarAviso('Não foi possível conectar ao servidor.', 'erro')
   } finally {
     excluindo.value[professor.id_professor] = false
@@ -239,10 +200,6 @@ onMounted(() => {
     <div class="page-header">
       <h1>Professores</h1>
     </div>
-
-    <p v-if="usarDadosDeExemplo" class="aviso-exemplo">
-      Dados de exemplo: a API de professores ainda não está conectada.
-    </p>
 
     <div class="form-card">
       <h2>{{ editandoId ? 'Editar professor' : 'Novo professor' }}</h2>
@@ -329,16 +286,6 @@ onMounted(() => {
   font-size: 1.8rem;
   color: #111827;
   margin-bottom: 24px;
-}
-
-.aviso-exemplo {
-  padding: 12px 16px;
-  background-color: #fffbeb;
-  color: #92400e;
-  border: 1px solid #fde68a;
-  border-radius: 6px;
-  font-size: 0.95rem;
-  margin: 0 0 16px 0;
 }
 
 .form-card {
