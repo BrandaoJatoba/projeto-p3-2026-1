@@ -548,94 +548,130 @@ onBeforeUnmount(() => {
           Visão compacta
         </button>
       </div>
-      <table class="tabela" :class="{ compacta: visaoCompacta }">
-        <thead>
-          <tr>
-            <th>
-              <button type="button" class="botao-ordenar" @click="ordenarPor('nome_discente')">
-                Nome <span class="indicador">{{ indicadorOrdenacao('nome_discente') }}</span>
-              </button>
-            </th>
-            <th>
-              <button type="button" class="botao-ordenar" @click="ordenarPor('matricula')">
-                Matrícula <span class="indicador">{{ indicadorOrdenacao('matricula') }}</span>
-              </button>
-            </th>
-            <th>Orientador</th>
-            <th>
-              <button type="button" class="botao-ordenar" @click="ordenarPor('id_semestre')">
-                Semestre <span class="indicador">{{ indicadorOrdenacao('id_semestre') }}</span>
-              </button>
-            </th>
-            <th>Status</th>
-            <th>Prazo (SIGAA)</th>
-            <th>E-mail</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="estudante in linhas" :key="estudante.id_estudante">
-            <td>
-              <div class="celula-nome">
-                <span class="avatar">{{ iniciais(estudante.nome_discente) }}</span>
-                <RouterLink :to="`/estudantes/${estudante.id_estudante}`" class="link-nome">
-                  {{ estudante.nome_discente }}
-                </RouterLink>
-                <span v-if="estudante.eh_bolsista" class="selo-bolsista">Bolsista</span>
-              </div>
-            </td>
-            <td>{{ estudante.matricula }}</td>
-            <td>
-              <span v-if="estudante.id_orientador">
-                {{ nomeDoOrientador(estudante.id_orientador) }}
-              </span>
-              <span v-else class="sem-orientador">Sem orientador</span>
-            </td>
-            <td>{{ codigoDoSemestre(estudante.id_semestre) }}</td>
-            <td>
-              <span class="badge" :class="classeDoStatus(estudante.status_atual)">
-                {{ estudante.status_atual }}
-              </span>
-            </td>
-            <td>
-              <div class="celula-prazo">
-                <span>{{ formatarData(estudante.prazo_conclusao_sigaa) }}</span>
-                <span
-                  v-if="estudante.avisoPrazo"
-                  class="alerta-prazo"
-                  :class="estudante.avisoPrazo.classe"
-                  role="img"
-                  :title="estudante.avisoPrazo.texto"
-                  :aria-label="estudante.avisoPrazo.texto"
-                >
-                  !
+
+      <div class="tabela-rolagem">
+        <table class="tabela" :class="{ compacta: visaoCompacta }">
+          <thead>
+            <tr>
+              <th>
+                <button type="button" class="botao-ordenar" @click="ordenarPor('nome_discente')">
+                  Estudante
+                  <span class="indicador">{{ indicadorOrdenacao('nome_discente') }}</span>
+                </button>
+              </th>
+              <th>
+                <button type="button" class="botao-ordenar" @click="ordenarPor('matricula')">
+                  Matrícula <span class="indicador">{{ indicadorOrdenacao('matricula') }}</span>
+                </button>
+              </th>
+              <th>Orientador</th>
+              <th>
+                <button type="button" class="botao-ordenar" @click="ordenarPor('id_semestre')">
+                  Semestre <span class="indicador">{{ indicadorOrdenacao('id_semestre') }}</span>
+                </button>
+              </th>
+              <th>Status</th>
+              <th>Prazo (SIGAA)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="estudante in linhas" :key="estudante.id_estudante">
+              <td>
+                <div class="celula-estudante">
+                  <span class="avatar">{{ iniciais(estudante.nome_discente) }}</span>
+                  <div class="info-estudante">
+                    <div class="linha-nome">
+                      <RouterLink :to="`/estudantes/${estudante.id_estudante}`" class="link-nome">
+                        {{ estudante.nome_discente }}
+                      </RouterLink>
+                      <span v-if="estudante.eh_bolsista" class="selo-bolsista">Bolsista</span>
+                    </div>
+                    <div class="linha-email">
+                      <span class="email-estudante">{{ estudante.email }}</span>
+                      <button
+                        type="button"
+                        class="botao-copiar"
+                        title="Copiar e-mail"
+                        :aria-label="`Copiar e-mail de ${estudante.nome_discente}`"
+                        @click="copiarEmail(estudante)"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="14"
+                          height="14"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <rect x="9" y="9" width="11" height="11" rx="2" />
+                          <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="celula-copiavel">
+                  <span>{{ estudante.matricula }}</span>
+                  <button
+                    type="button"
+                    class="botao-copiar"
+                    title="Copiar matrícula"
+                    :aria-label="`Copiar matrícula de ${estudante.nome_discente}`"
+                    @click="copiarMatricula(estudante)"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect x="9" y="9" width="11" height="11" rx="2" />
+                      <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+              <td>
+                <span v-if="estudante.id_orientador">
+                  {{ nomeDoOrientador(estudante.id_orientador) }}
                 </span>
-              </div>
-            </td>
-            <td>{{ estudante.email }}</td>
-            <td>
-              <div class="celula-acoes">
-                <button
-                  type="button"
-                  class="botao-acao"
-                  :aria-label="`Copiar e-mail de ${estudante.nome_discente}`"
-                  @click="copiarEmail(estudante)"
-                >
-                  Copiar e-mail
-                </button>
-                <button
-                  type="button"
-                  class="botao-acao"
-                  :aria-label="`Copiar matrícula de ${estudante.nome_discente}`"
-                  @click="copiarMatricula(estudante)"
-                >
-                  Copiar matrícula
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                <span v-else class="sem-orientador">Sem orientador</span>
+              </td>
+              <td>{{ codigoDoSemestre(estudante.id_semestre) }}</td>
+              <td>
+                <span class="badge" :class="classeDoStatus(estudante.status_atual)">
+                  {{ estudante.status_atual }}
+                </span>
+              </td>
+              <td>
+                <div class="celula-prazo">
+                  <span>{{ formatarData(estudante.prazo_conclusao_sigaa) }}</span>
+                  <span
+                    v-if="estudante.avisoPrazo"
+                    class="alerta-prazo"
+                    :class="estudante.avisoPrazo.classe"
+                    role="img"
+                    :title="estudante.avisoPrazo.texto"
+                    :aria-label="estudante.avisoPrazo.texto"
+                  >
+                    !
+                  </span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <div class="paginacao">
         <span class="paginacao-info">
@@ -781,7 +817,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 24px;
+  padding: 12px 16px;
 }
 
 .contagem {
@@ -812,10 +848,14 @@ onBeforeUnmount(() => {
 }
 
 .botao-compacta:focus-visible,
-.botao-acao:focus-visible,
+.botao-copiar:focus-visible,
 .link-nome:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
+}
+
+.tabela-rolagem {
+  overflow-x: auto;
 }
 
 .tabela {
@@ -825,31 +865,38 @@ onBeforeUnmount(() => {
 
 .tabela th {
   text-align: left;
-  padding: 12px 24px;
+  padding: 12px 16px;
   font-size: 0.85rem;
   font-weight: 600;
   color: #374151;
   background-color: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
 }
 
 .tabela td {
-  padding: 12px 24px;
+  padding: 12px 16px;
   font-size: 0.95rem;
   color: #111827;
   border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .tabela tbody tr:last-child td {
   border-bottom: none;
 }
 
+.tabela tbody tr:hover td {
+  background-color: #f9fafb;
+}
+
 .tabela.compacta th {
-  padding: 8px 16px;
+  padding: 8px 12px;
 }
 
 .tabela.compacta td {
-  padding: 6px 16px;
+  padding: 6px 12px;
   font-size: 0.875rem;
 }
 
@@ -857,6 +904,10 @@ onBeforeUnmount(() => {
   width: 24px;
   height: 24px;
   font-size: 0.65rem;
+}
+
+.tabela.compacta .email-estudante {
+  font-size: 0.75rem;
 }
 
 .botao-ordenar {
@@ -886,20 +937,65 @@ onBeforeUnmount(() => {
   min-width: 10px;
 }
 
-.celula-nome {
+.celula-estudante {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+.info-estudante {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.linha-nome,
+.linha-email,
+.celula-copiavel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.linha-nome {
+  gap: 8px;
+}
+
+.email-estudante {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
 .link-nome {
   color: #1d4ed8;
+  font-weight: 500;
   text-decoration: none;
   border-radius: 2px;
 }
 
 .link-nome:hover {
   text-decoration: underline;
+}
+
+.botao-copiar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.botao-copiar:hover {
+  color: #374151;
+  background-color: #f3f4f6;
+  border-color: #e5e7eb;
 }
 
 .sem-orientador {
@@ -974,7 +1070,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  white-space: nowrap;
 }
 
 .alerta-prazo {
@@ -1002,36 +1097,13 @@ onBeforeUnmount(() => {
   border: 1px solid #fca5a5;
 }
 
-.celula-acoes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.botao-acao {
-  padding: 4px 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background-color: #ffffff;
-  color: #374151;
-  font: inherit;
-  font-size: 0.8rem;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.botao-acao:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
-}
-
 .paginacao {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 24px;
+  padding: 16px;
   border-top: 1px solid #e5e7eb;
 }
 
