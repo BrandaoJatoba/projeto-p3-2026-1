@@ -565,19 +565,19 @@ class EstudantePaginado(BaseModel):
 # ==========================
 class ProfessorBase(BaseModel):
     """Atributos comuns do professor."""
-    nome: str = Field(..., min_length=2, max_length=100, description="Nome completo do professor")
+    nome_professor: str = Field(..., min_length=2, max_length=100, description="Nome completo do professor")
 
 class ProfessorCriacao(ProfessorBase):
     pass
 
 class ProfessorAtualizacao(BaseModel):
-    nome: Optional[str] = Field(None, min_length=2, max_length=100)
+    nome_professor: Optional[str] = Field(None, min_length=2, max_length=100)
 
 class ProfessorResposta(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id_professor: int
-    nome: str
+    nome_professor: str
 
 class ProfessorDetalhado(ProfessorResposta):
     """Perfil completo do professor, incluindo os estudantes orientados."""

@@ -8,7 +8,7 @@ def criar_professor(
 ) -> models.Professor:
     """Cria um novo registro de professor."""
     novo_professor = models.Professor(
-        nome=nome_professor
+        nome_professor=nome_professor
         )
     db_connection.add(novo_professor)
     db_connection.commit()
