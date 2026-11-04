@@ -10,6 +10,7 @@ import SuspensoesView from '../views/SuspensoesView.vue'
 import ProfessoresView from '../views/ProfessoresView.vue'
 import DisciplinasView from '../views/DisciplinasView.vue'
 import AlertasView from '../views/AlertasView.vue'
+import EstudantesView from '../views/EstudantesView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -42,11 +43,17 @@ const router = createRouter({
       component: SuspensoesView,
       meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
     },
-        {
+    {
       path: '/alertas',
       name: 'alertas',
       component: AlertasView,
       meta: { perfisPermitidos: ['SECRETARIA', 'ADMIN'] },
+    },
+    {
+      path: '/estudantes',
+      name: 'estudantes',
+      component: EstudantesView,
+      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
     },
     {
       path: '/professores',

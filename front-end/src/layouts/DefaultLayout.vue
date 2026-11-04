@@ -73,6 +73,19 @@ const handleLogout = async () => {
             <span>Dashboard</span>
           </router-link>
 
+          <!-- Item Principal: Estudantes -->
+          <router-link
+            to="/estudantes"
+            class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-900 transition-colors"
+            active-class="bg-blue-50 text-blue-900 font-semibold"
+          >
+            <!-- Ícone de Pessoas (Estudantes) -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <span>Estudantes</span>
+          </router-link>
+
           <!-- Item Principal: Configurações (Dropdown) -->
           <div>
             <button 
