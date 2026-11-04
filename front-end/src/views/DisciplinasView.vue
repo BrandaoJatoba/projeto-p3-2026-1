@@ -54,6 +54,13 @@ function normalizar(texto) {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+// Para comparar códigos: sem espaços e em maiúsculas ("ppgi 001" = "PPGI001").
+function normalizarCodigo(texto) {
+  return String(texto ?? '')
+    .replace(/\s+/g, '')
+    .toUpperCase()
+}
+
 function rotuloGrupo(valor) {
   const grupo = gruposDisponiveis.find((g) => g.valor === valor)
   return grupo ? grupo.rotulo : valor
@@ -126,6 +133,14 @@ async function buscarDisciplinas() {
 
 function validarFormulario() {
   if (!codigoForm.value.trim()) return 'Informe o código da disciplina.'
+
+  const codigoNovo = normalizarCodigo(codigoForm.value)
+  const repetida = disciplinas.value.find(
+    (d) =>
+      d.id_disciplina !== editandoId.value && normalizarCodigo(d.codigo_disciplina) === codigoNovo,
+  )
+  if (repetida) return `Já existe uma disciplina com o código ${repetida.codigo_disciplina}.`
+
   if (!nomeForm.value.trim()) return 'Informe o nome da disciplina.'
   if (!grupoForm.value) return 'Escolha o grupo da disciplina.'
 
