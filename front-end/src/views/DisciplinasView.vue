@@ -4,56 +4,7 @@ import { useAuthStore } from '../stores/auth'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
 import BaseButton from '../components/BaseButton.vue'
 
-// ATENÇÃO: enquanto a API de disciplinas não existe, a tela usa dados de exemplo.
-// Trocar para false quando o GET /disciplinas estiver disponível na dev.
-const usarDadosDeExemplo = true
-
-const dadosDeExemplo = [
-  {
-    id_disciplina: 1,
-    codigo_disciplina: 'PPGI001',
-    nome_disciplina: 'Metodologia de Pesquisa',
-    grupo_disciplina: 'BASICAS',
-    creditos: 4,
-  },
-  {
-    id_disciplina: 2,
-    codigo_disciplina: 'PPGI002',
-    nome_disciplina: 'Redes de Computadores',
-    grupo_disciplina: 'ELETIVAS',
-    creditos: 4,
-  },
-  {
-    id_disciplina: 3,
-    codigo_disciplina: 'PPGI003',
-    nome_disciplina: 'Banco de Dados Avançado',
-    grupo_disciplina: 'ELETIVAS',
-    creditos: 4,
-  },
-  {
-    id_disciplina: 4,
-    codigo_disciplina: 'PPGI004',
-    nome_disciplina: 'Tópicos em Inteligência Artificial',
-    grupo_disciplina: 'TOPICOS_ESPECIAIS',
-    creditos: 4,
-  },
-  {
-    id_disciplina: 5,
-    codigo_disciplina: 'PPGI005',
-    nome_disciplina: 'Estudo Dirigido I',
-    grupo_disciplina: 'ESTUDO_DIRIGIDO',
-    creditos: 2,
-  },
-  {
-    id_disciplina: 6,
-    codigo_disciplina: 'PPGI006',
-    nome_disciplina: 'Estágio em Docência',
-    grupo_disciplina: 'DOCENCIA',
-    creditos: 2,
-  },
-]
-
-// Valores do grupo conforme o documento de design (confirmar no /docs quando a API existir).
+// Valores iguais aos do GrupoDisciplina no backend (back-end/db/enumStatus.py).
 const gruposDisponiveis = [
   { valor: 'BASICAS', rotulo: 'Básicas' },
   { valor: 'ELETIVAS', rotulo: 'Eletivas' },
@@ -155,14 +106,8 @@ async function buscarDisciplinas() {
   carregando.value = true
   erro.value = false
 
-  if (usarDadosDeExemplo) {
-    disciplinas.value = dadosDeExemplo.map((d) => ({ ...d }))
-    carregando.value = false
-    return
-  }
-
   try {
-    const resposta = await fetch('http://localhost:8000/disciplinas', {
+    const resposta = await fetch('http://localhost:8000/disciplinas?limit=200', {
       headers: { Authorization: `Bearer ${authStore.token}` },
     })
 
@@ -172,7 +117,7 @@ async function buscarDisciplinas() {
     }
 
     disciplinas.value = await resposta.json()
-  } catch (e) {
+  } catch {
     erro.value = true
   } finally {
     carregando.value = false
@@ -223,20 +168,6 @@ async function salvarDisciplina() {
     creditos: Number(creditosForm.value),
   }
 
-  if (usarDadosDeExemplo) {
-    if (editando) {
-      const disciplina = disciplinas.value.find((d) => d.id_disciplina === editandoId.value)
-      Object.assign(disciplina, dados)
-    } else {
-      const maiorId = Math.max(0, ...disciplinas.value.map((d) => d.id_disciplina))
-      disciplinas.value.push({ id_disciplina: maiorId + 1, ...dados })
-    }
-    textoBusca.value = ''
-    mostrarAviso(editando ? 'Disciplina atualizada.' : 'Disciplina cadastrada.', 'sucesso')
-    cancelarEdicao()
-    return
-  }
-
   salvando.value = true
   const url = editando
     ? `http://localhost:8000/disciplinas/${editandoId.value}`
@@ -261,7 +192,7 @@ async function salvarDisciplina() {
     textoBusca.value = ''
     mostrarAviso(editando ? 'Disciplina atualizada.' : 'Disciplina cadastrada.', 'sucesso')
     cancelarEdicao()
-  } catch (e) {
+  } catch {
     erroForm.value = 'Não foi possível conectar ao servidor.'
   } finally {
     salvando.value = false
@@ -273,15 +204,6 @@ async function excluirDisciplina(disciplina) {
     `Excluir a disciplina ${disciplina.nome_disciplina}? Essa ação não pode ser desfeita.`,
   )
   if (!confirmar) return
-
-  if (usarDadosDeExemplo) {
-    disciplinas.value = disciplinas.value.filter(
-      (d) => d.id_disciplina !== disciplina.id_disciplina,
-    )
-    if (editandoId.value === disciplina.id_disciplina) cancelarEdicao()
-    mostrarAviso('Disciplina excluída.', 'sucesso')
-    return
-  }
 
   excluindo.value[disciplina.id_disciplina] = true
 
@@ -307,7 +229,7 @@ async function excluirDisciplina(disciplina) {
     if (editandoId.value === disciplina.id_disciplina) cancelarEdicao()
     await buscarDisciplinas()
     mostrarAviso('Disciplina excluída.', 'sucesso')
-  } catch (e) {
+  } catch {
     mostrarAviso('Não foi possível conectar ao servidor.', 'erro')
   } finally {
     excluindo.value[disciplina.id_disciplina] = false
@@ -332,10 +254,6 @@ onMounted(() => {
     <div class="page-header">
       <h1>Disciplinas</h1>
     </div>
-
-    <p v-if="usarDadosDeExemplo" class="aviso-exemplo">
-      Dados de exemplo: a API de disciplinas ainda não está conectada.
-    </p>
 
     <div class="form-card">
       <h2>{{ editandoId ? 'Editar disciplina' : 'Nova disciplina' }}</h2>
@@ -465,16 +383,6 @@ onMounted(() => {
   font-size: 1.8rem;
   color: #111827;
   margin-bottom: 24px;
-}
-
-.aviso-exemplo {
-  padding: 12px 16px;
-  background-color: #fffbeb;
-  color: #92400e;
-  border: 1px solid #fde68a;
-  border-radius: 6px;
-  font-size: 0.95rem;
-  margin: 0 0 16px 0;
 }
 
 .form-card {
