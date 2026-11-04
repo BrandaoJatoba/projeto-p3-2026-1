@@ -47,7 +47,7 @@ const router = createRouter({
       component: AlertasView,
       meta: { perfisPermitidos: ['SECRETARIA', 'ADMIN'] },
     },
-        {
+    {
       path: '/estudantes',
       name: 'estudantes',
       component: EstudantesView,
