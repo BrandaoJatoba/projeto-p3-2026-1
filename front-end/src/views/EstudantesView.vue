@@ -40,9 +40,11 @@ const opcoesStatus = [
 ]
 const filtroStatus = ref('')
 const filtroSemestre = ref('')
+const filtroOrientador = ref('')
 const filtroBolsa = ref('')
 
 const semestres = ref([])
+const professores = ref([])
 
 const diasParaAvisoPrazo = 180
 const statusSemAvisoPrazo = ['TITULADO', 'DESLIGADO']
@@ -62,7 +64,11 @@ const fimIntervalo = computed(
 )
 const termoBuscaLimpo = computed(() => termoBusca.value.trim())
 const temFiltroAtivo = computed(
-  () => filtroStatus.value !== '' || filtroSemestre.value !== '' || filtroBolsa.value !== '',
+  () =>
+    filtroStatus.value !== '' ||
+    filtroSemestre.value !== '' ||
+    filtroOrientador.value !== '' ||
+    filtroBolsa.value !== '',
 )
 const codigosSemestres = computed(() => {
   const mapa = {}
@@ -71,6 +77,16 @@ const codigosSemestres = computed(() => {
   }
   return mapa
 })
+const nomesProfessores = computed(() => {
+  const mapa = {}
+  for (const professor of professores.value) {
+    mapa[professor.id_professor] = professor.nome_professor
+  }
+  return mapa
+})
+const professoresOrdenados = computed(() =>
+  [...professores.value].sort((a, b) => a.nome_professor.localeCompare(b.nome_professor, 'pt-BR')),
+)
 const linhas = computed(() =>
   estudantes.value.map((estudante) => ({
     ...estudante,
@@ -93,6 +109,10 @@ function classeDoStatus(status) {
 
 function codigoDoSemestre(idSemestre) {
   return codigosSemestres.value[idSemestre] || idSemestre
+}
+
+function nomeDoOrientador(idOrientador) {
+  return nomesProfessores.value[idOrientador] || `Professor ${idOrientador}`
 }
 
 function iniciais(nome) {
@@ -215,6 +235,9 @@ function lerEstadoDaUrl() {
   const semestre = lerInteiroPositivo(query.semestre)
   filtroSemestre.value = semestre === null ? '' : semestre
 
+  const orientador = lerInteiroPositivo(query.orientador)
+  filtroOrientador.value = orientador === null ? '' : orientador
+
   const bolsa = lerTexto(query.bolsa)
   filtroBolsa.value = bolsa === 'true' || bolsa === 'false' ? bolsa : ''
 
@@ -234,6 +257,7 @@ function montarQuery() {
   if (termoBuscaLimpo.value) query.busca = termoBuscaLimpo.value
   if (filtroStatus.value !== '') query.status = filtroStatus.value
   if (filtroSemestre.value !== '') query.semestre = String(filtroSemestre.value)
+  if (filtroOrientador.value !== '') query.orientador = String(filtroOrientador.value)
   if (filtroBolsa.value !== '') query.bolsa = filtroBolsa.value
   if (paginaAtual.value !== 1) query.pagina = String(paginaAtual.value)
   if (porPagina.value !== porPaginaPadrao) query.por_pagina = String(porPagina.value)
@@ -287,6 +311,7 @@ function aplicarFiltros() {
 function limparFiltros() {
   filtroStatus.value = ''
   filtroSemestre.value = ''
+  filtroOrientador.value = ''
   filtroBolsa.value = ''
   aplicarFiltros()
 }
@@ -324,6 +349,18 @@ async function buscarSemestres() {
   }
 }
 
+async function buscarProfessores() {
+  try {
+    const resposta = await fetch('http://localhost:8000/professores?limit=200', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    if (!resposta.ok) return
+    professores.value = await resposta.json()
+  } catch {
+    // Sem a lista de professores, a tabela mostra "Professor" e o número.
+  }
+}
+
 async function buscarEstudantes() {
   const numeroRequisicao = ++ultimaRequisicao
   ultimaBuscaEnviada = termoBuscaLimpo.value
@@ -344,6 +381,9 @@ async function buscarEstudantes() {
   }
   if (filtroSemestre.value !== '') {
     parametros.set('id_semestre', String(filtroSemestre.value))
+  }
+  if (filtroOrientador.value !== '') {
+    parametros.set('id_orientador', String(filtroOrientador.value))
   }
   if (filtroBolsa.value !== '') {
     parametros.set('eh_bolsista', filtroBolsa.value)
@@ -384,6 +424,7 @@ lerEstadoDaUrl()
 
 onMounted(() => {
   buscarSemestres()
+  buscarProfessores()
   buscarEstudantes()
 })
 
@@ -447,6 +488,22 @@ onBeforeUnmount(() => {
       </select>
 
       <select
+        v-model="filtroOrientador"
+        class="seletor-filtro"
+        aria-label="Filtrar por orientador"
+        @change="aplicarFiltros"
+      >
+        <option value="">Todos os orientadores</option>
+        <option
+          v-for="professor in professoresOrdenados"
+          :key="professor.id_professor"
+          :value="professor.id_professor"
+        >
+          {{ professor.nome_professor }}
+        </option>
+      </select>
+
+      <select
         v-model="filtroBolsa"
         class="seletor-filtro"
         aria-label="Filtrar por bolsa"
@@ -504,6 +561,7 @@ onBeforeUnmount(() => {
                 Matrícula <span class="indicador">{{ indicadorOrdenacao('matricula') }}</span>
               </button>
             </th>
+            <th>Orientador</th>
             <th>
               <button type="button" class="botao-ordenar" @click="ordenarPor('id_semestre')">
                 Semestre <span class="indicador">{{ indicadorOrdenacao('id_semestre') }}</span>
@@ -527,6 +585,12 @@ onBeforeUnmount(() => {
               </div>
             </td>
             <td>{{ estudante.matricula }}</td>
+            <td>
+              <span v-if="estudante.id_orientador">
+                {{ nomeDoOrientador(estudante.id_orientador) }}
+              </span>
+              <span v-else class="sem-orientador">Sem orientador</span>
+            </td>
             <td>{{ codigoDoSemestre(estudante.id_semestre) }}</td>
             <td>
               <span class="badge" :class="classeDoStatus(estudante.status_atual)">
@@ -836,6 +900,11 @@ onBeforeUnmount(() => {
 
 .link-nome:hover {
   text-decoration: underline;
+}
+
+.sem-orientador {
+  color: #9ca3af;
+  font-style: italic;
 }
 
 .avatar {
