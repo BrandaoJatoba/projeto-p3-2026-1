@@ -1,7 +1,9 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
+import BaseButton from '../components/BaseButton.vue'
+import BaseModal from '../components/BaseModal.vue'
 import { useAuthStore } from '../stores/auth'
 
 const api = 'http://localhost:8000'
@@ -15,8 +17,22 @@ const codigoSemestre = ref('')
 const carregando = ref(true)
 const erro = ref('')
 
+const professores = ref([])
+
+const aviso = ref(null)
+let temporizadorAviso = null
+
 const diasParaAvisoPrazo = 180
 const statusSemAvisoPrazo = ['TITULADO', 'DESLIGADO']
+
+const opcoesStatus = [
+  'ATIVO',
+  'TRANCADO',
+  'PROCESSO DE DESLIGAMENTO',
+  'DESLIGADO',
+  'PÓS DEFESA',
+  'TITULADO',
+]
 
 const classesStatus = {
   ATIVO: 'status-ativo',
@@ -26,6 +42,16 @@ const classesStatus = {
   'PÓS DEFESA': 'status-pos-defesa',
   TITULADO: 'status-titulado',
 }
+
+// ---------- Modal: Editar perfil ----------
+const modalPerfilAberto = ref(false)
+const salvandoPerfil = ref(false)
+const erroPerfil = ref('')
+const formPerfil = ref({})
+
+const professoresOrdenados = computed(() =>
+  [...professores.value].sort((a, b) => a.nome_professor.localeCompare(b.nome_professor, 'pt-BR')),
+)
 
 const iniciaisEstudante = computed(() => {
   const partes = (estudante.value?.nome_discente || '').trim().split(/\s+/).filter(Boolean)
@@ -77,6 +103,14 @@ function cabecalho() {
   return { Authorization: `Bearer ${authStore.token}` }
 }
 
+function mostrarAviso(texto, tipo) {
+  aviso.value = { texto, tipo }
+  clearTimeout(temporizadorAviso)
+  temporizadorAviso = setTimeout(() => {
+    aviso.value = null
+  }, 3000)
+}
+
 function voltar() {
   // Se veio de outra tela do sistema (ex.: a listagem com filtros), volta para ela.
   if (window.history.state?.back) {
@@ -85,6 +119,8 @@ function voltar() {
     router.push('/estudantes')
   }
 }
+
+// ---------- Pedidos à API ----------
 
 async function buscarOrientador(idOrientador) {
   if (!idOrientador) return
@@ -109,6 +145,16 @@ async function buscarSemestre(idSemestre) {
     codigoSemestre.value = semestre.codigo_semestre
   } catch {
     // Sem o código, a tela mostra o número do semestre.
+  }
+}
+
+async function buscarProfessores() {
+  try {
+    const resposta = await fetch(`${api}/professores?limit=200`, { headers: cabecalho() })
+    if (!resposta.ok) return
+    professores.value = await resposta.json()
+  } catch {
+    // Sem a lista, o campo de orientador mostra só "Sem orientador".
   }
 }
 
@@ -150,11 +196,106 @@ async function carregarEstudante() {
   }
 }
 
+// ---------- Modal: Editar perfil ----------
+
+function abrirModalPerfil() {
+  formPerfil.value = {
+    nome_discente: estudante.value.nome_discente || '',
+    email: estudante.value.email || '',
+    id_orientador: estudante.value.id_orientador || '',
+    status_atual: estudante.value.status_atual,
+    prazo_conclusao_sigaa: (estudante.value.prazo_conclusao_sigaa || '').slice(0, 10),
+    eh_bolsista: Boolean(estudante.value.eh_bolsista),
+  }
+  erroPerfil.value = ''
+  if (professores.value.length === 0) buscarProfessores()
+  modalPerfilAberto.value = true
+}
+
+function fecharModalPerfil() {
+  if (salvandoPerfil.value) return
+  modalPerfilAberto.value = false
+}
+
+async function lerMensagemDeErro(resposta) {
+  try {
+    const dados = await resposta.json()
+    if (typeof dados.detail === 'string') return dados.detail
+  } catch {
+    // A resposta não veio em JSON.
+  }
+  return ''
+}
+
+async function salvarPerfil() {
+  const nome = formPerfil.value.nome_discente.trim()
+  if (!nome) {
+    erroPerfil.value = 'Informe o nome do estudante.'
+    return
+  }
+
+  const dados = {
+    nome_discente: nome,
+    email: formPerfil.value.email.trim() || null,
+    id_orientador: formPerfil.value.id_orientador || null,
+    eh_bolsista: formPerfil.value.eh_bolsista,
+    prazo_conclusao_sigaa: formPerfil.value.prazo_conclusao_sigaa || null,
+    status_atual: formPerfil.value.status_atual,
+  }
+
+  erroPerfil.value = ''
+  salvandoPerfil.value = true
+  try {
+    const resposta = await fetch(`${api}/estudantes/${estudante.value.id_estudante}`, {
+      method: 'PUT',
+      headers: { ...cabecalho(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    })
+
+    if (!resposta.ok) {
+      const detalhe = await lerMensagemDeErro(resposta)
+      if (resposta.status === 401) {
+        erroPerfil.value = 'Sua sessão expirou. Saia e entre de novo.'
+      } else if (resposta.status === 403) {
+        erroPerfil.value = 'Você não tem permissão para editar este estudante.'
+      } else {
+        erroPerfil.value = detalhe || 'Não foi possível salvar. Confira os dados.'
+      }
+      return
+    }
+
+    // Atualiza o card na hora, sem recarregar a página.
+    estudante.value = { ...estudante.value, ...dados }
+    const professor = professores.value.find((p) => p.id_professor === dados.id_orientador)
+    nomeOrientador.value = professor ? professor.nome_professor : ''
+
+    modalPerfilAberto.value = false
+    mostrarAviso('Perfil atualizado.', 'sucesso')
+  } catch {
+    erroPerfil.value = 'Não foi possível conectar ao servidor.'
+  } finally {
+    salvandoPerfil.value = false
+  }
+}
+
 watch(() => route.params.id, carregarEstudante, { immediate: true })
+
+onBeforeUnmount(() => {
+  clearTimeout(temporizadorAviso)
+})
 </script>
 
 <template>
   <DefaultLayout>
+    <div
+      v-if="aviso"
+      class="aviso-flutuante"
+      :class="aviso.tipo === 'erro' ? 'aviso-flutuante-erro' : 'aviso-flutuante-sucesso'"
+      role="status"
+    >
+      {{ aviso.texto }}
+    </div>
+
     <button type="button" class="link-voltar" @click="voltar">← Voltar para estudantes</button>
 
     <div v-if="carregando" class="estado">Carregando estudante...</div>
@@ -164,16 +305,21 @@ watch(() => route.params.id, carregarEstudante, { immediate: true })
     <template v-else-if="estudante">
       <section class="card">
         <div class="perfil-topo">
-          <span class="avatar">{{ iniciaisEstudante }}</span>
-          <div>
-            <h1>{{ estudante.nome_discente }}</h1>
-            <div class="perfil-selos">
-              <span class="badge" :class="classeDoStatus(estudante.status_atual)">
-                {{ estudante.status_atual }}
-              </span>
-              <span v-if="estudante.eh_bolsista" class="selo-bolsista">Bolsista</span>
+          <div class="perfil-identidade">
+            <span class="avatar">{{ iniciaisEstudante }}</span>
+            <div>
+              <h1>{{ estudante.nome_discente }}</h1>
+              <div class="perfil-selos">
+                <span class="badge" :class="classeDoStatus(estudante.status_atual)">
+                  {{ estudante.status_atual }}
+                </span>
+                <span v-if="estudante.eh_bolsista" class="selo-bolsista">Bolsista</span>
+              </div>
             </div>
           </div>
+          <BaseButton type="button" variant="secondary" @click="abrirModalPerfil">
+            Editar perfil
+          </BaseButton>
         </div>
 
         <dl class="dados-grid">
@@ -183,7 +329,8 @@ watch(() => route.params.id, carregarEstudante, { immediate: true })
           </div>
           <div>
             <dt>E-mail</dt>
-            <dd>{{ estudante.email }}</dd>
+            <dd v-if="estudante.email">{{ estudante.email }}</dd>
+            <dd v-else class="texto-vazio">Sem e-mail</dd>
           </div>
           <div>
             <dt>Orientador</dt>
@@ -285,11 +432,106 @@ watch(() => route.params.id, carregarEstudante, { immediate: true })
           </div>
         </div>
       </section>
+
+      <BaseModal :aberto="modalPerfilAberto" titulo="Editar perfil" @fechar="fecharModalPerfil">
+        <form id="form-editar-perfil" class="form-grid" @submit.prevent="salvarPerfil">
+          <div class="form-group span-full">
+            <label for="perfil-nome">Nome completo *</label>
+            <input id="perfil-nome" v-model="formPerfil.nome_discente" type="text" required />
+          </div>
+
+          <div class="form-group span-full">
+            <label for="perfil-email">E-mail</label>
+            <input id="perfil-email" v-model="formPerfil.email" type="email" />
+          </div>
+
+          <div class="form-group">
+            <label for="perfil-orientador">Orientador</label>
+            <select id="perfil-orientador" v-model="formPerfil.id_orientador">
+              <option value="">Sem orientador</option>
+              <option
+                v-for="professor in professoresOrdenados"
+                :key="professor.id_professor"
+                :value="professor.id_professor"
+              >
+                {{ professor.nome_professor }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="perfil-status">Status *</label>
+            <select id="perfil-status" v-model="formPerfil.status_atual" required>
+              <option v-for="status in opcoesStatus" :key="status" :value="status">
+                {{ status }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="perfil-prazo">Prazo de conclusão (SIGAA)</label>
+            <input id="perfil-prazo" v-model="formPerfil.prazo_conclusao_sigaa" type="date" />
+          </div>
+
+          <div class="form-group-checkbox">
+            <input id="perfil-bolsista" v-model="formPerfil.eh_bolsista" type="checkbox" />
+            <label for="perfil-bolsista">Estudante bolsista</label>
+          </div>
+
+          <p class="dica span-full">
+            Matrícula ({{ estudante.matricula }}) e semestre de ingresso não podem ser alterados.
+          </p>
+
+          <p v-if="erroPerfil" class="aviso-erro span-full">{{ erroPerfil }}</p>
+        </form>
+
+        <template #rodape>
+          <BaseButton
+            type="button"
+            variant="secondary"
+            :disabled="salvandoPerfil"
+            @click="fecharModalPerfil"
+          >
+            Cancelar
+          </BaseButton>
+          <BaseButton
+            type="submit"
+            form="form-editar-perfil"
+            variant="primary"
+            :disabled="salvandoPerfil"
+          >
+            {{ salvandoPerfil ? 'Salvando...' : 'Salvar' }}
+          </BaseButton>
+        </template>
+      </BaseModal>
     </template>
   </DefaultLayout>
 </template>
 
 <style scoped>
+.aviso-flutuante {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 150;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.aviso-flutuante-sucesso {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.aviso-flutuante-erro {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
 .link-voltar {
   margin-bottom: 16px;
   padding: 0;
@@ -320,7 +562,8 @@ watch(() => route.params.id, carregarEstudante, { immediate: true })
 }
 
 .aviso-erro {
-  padding: 16px;
+  margin: 0;
+  padding: 12px 16px;
   color: #b91c1c;
   background-color: #fef2f2;
   border: 1px solid #fecaca;
@@ -346,12 +589,20 @@ watch(() => route.params.id, carregarEstudante, { immediate: true })
 
 .perfil-topo {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
   margin-bottom: 24px;
 }
 
-.perfil-topo h1 {
+.perfil-identidade {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.perfil-identidade h1 {
   margin: 0 0 8px 0;
   font-size: 1.8rem;
   color: #111827;
@@ -521,5 +772,64 @@ watch(() => route.params.id, carregarEstudante, { immediate: true })
   background-color: #fee2e2;
   color: #b91c1c;
   border: 1px solid #fca5a5;
+}
+
+/* Formulários dentro dos modais (mesmo visual do modal de cadastro) */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.span-full {
+  grid-column: 1 / -1;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-group input,
+.form-group select {
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: end;
+  padding-bottom: 10px;
+}
+
+.form-group-checkbox label {
+  font-size: 0.9rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+.dica {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
 }
 </style>
