@@ -484,6 +484,8 @@ class EstudanteCriacao(BaseModel):
     id_semestre: int = Field(..., gt=0, description="Semestre de ingresso")
     eh_bolsista: bool = Field(default=False)
     email: Optional[str] = Field(None, max_length=100)
+    id_orientador: Optional[int] = Field(None, gt=0, description="ID do professor orientador (opcional)")
+    prazo_conclusao_sigaa: Optional[date] = None
 
 
 class EstudanteAtualizacao(BaseModel):

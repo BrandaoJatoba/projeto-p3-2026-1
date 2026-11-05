@@ -17,31 +17,25 @@ def criar_estudante_com_marcos(
     matricula: str,
     nome_discente: str,
     semestre: models.SemestreLetivo,
+    id_orientador: Optional[int] = None,  # Adicione o parâmetro aqui
     eh_bolsista: bool = False,
+    prazo_conclusao_sigaa: Optional[date] = None, # <--- 1. Adicione o parâmetro aqui
     email: Optional[str] = None,
 ) -> models.Estudante:
     """
     Cria, em UMA única transação, o estudante e seus registros de
     acompanhamento: DISSERTACOES, QUALIFICACOES e DEFESAS.
-
-    Por que não reaproveitar criar_estudante(), criar_qualificacao() etc.?
-    Porque cada uma delas faz o seu próprio commit(). Se a 3ª falhasse,
-    as duas primeiras já estariam gravadas -> aluno "pela metade" no banco.
-    Aqui usamos flush() entre os passos e um único commit() no final.
-
-    Analogia: flush() é escrever a lápis (o banco já gera os IDs, mas ainda
-    dá para apagar); commit() é passar a caneta. rollback() é a borracha.
     """
     try:
-        # 1. Estudante (valores padrão definidos pela regra de negócio)
+        # 1. Estudante
         novo_estudante = models.Estudante(
             matricula=matricula,
             nome_discente=nome_discente,
             id_semestre=semestre.id_semestre,
             status_atual=StatusEstudanteEnum.ATIVO,
             eh_bolsista=eh_bolsista,
-            id_orientador=None,
-            prazo_conclusao_sigaa=None,
+            id_orientador=id_orientador,  # Repasse a variável em vez de 'None'
+            prazo_conclusao_sigaa=prazo_conclusao_sigaa,
             email=email,
         )
         db_connection.add(novo_estudante)

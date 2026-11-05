@@ -105,8 +105,10 @@ def cadastrar_estudante(
             matricula=dados.matricula,
             nome_discente=dados.nome_discente,
             semestre=semestre,
+            id_orientador=dados.id_orientador,
             eh_bolsista=dados.eh_bolsista,
             email=dados.email,
+            prazo_conclusao_sigaa=dados.prazo_conclusao_sigaa
         )
     except IntegrityError:
         raise HTTPException(
