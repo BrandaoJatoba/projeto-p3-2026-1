@@ -87,3 +87,7 @@ def obter_qualificacoes_por_filtro(
 def obter_qualificacao_por_data_realizacao(db_connection: Session, data_realizacao) -> List[models.Qualificacao]:
     """Obtém qualificações realizadas em uma data específica."""
     return db_connection.query(models.Qualificacao).filter(models.Qualificacao.data_realizacao == data_realizacao).all()
+
+def listar_qualificacoes_por_aluno(db_connection: Session, id_aluno: int) -> List[models.Qualificacao]:
+    """Lista todas as qualificações de um aluno específico."""
+    return db_connection.query(models.Qualificacao).join(models.Dissertacao).filter(models.Dissertacao.id_aluno == id_aluno).all()
