@@ -49,8 +49,36 @@ const salvandoPerfil = ref(false)
 const erroPerfil = ref('')
 const formPerfil = ref({})
 
+// ---------- Prorrogações ----------
+// Valores iguais aos do backend (back-end/db/enumStatus.py).
+const tiposPrazoProrrogacao = [
+  { valor: 'QUALIFICACAO', rotulo: 'Qualificação' },
+  { valor: 'DEFESA', rotulo: 'Defesa' },
+]
+const resultadosProrrogacao = [
+  { valor: 'EM ANÁLISE', rotulo: 'Em análise', classe: 'resultado-analise' },
+  { valor: 'DEFERIDO', rotulo: 'Deferido', classe: 'resultado-deferido' },
+  { valor: 'INDEFERIDO', rotulo: 'Indeferido', classe: 'resultado-indeferido' },
+]
+
+const prorrogacoes = ref([])
+const carregandoProrrogacoes = ref(false)
+const erroProrrogacoes = ref('')
+
+const modalProrrogacaoAberto = ref(false)
+const salvandoProrrogacao = ref(false)
+const erroProrrogacao = ref('')
+const editandoProrrogacaoId = ref(null)
+const formProrrogacao = ref({})
+
 const professoresOrdenados = computed(() =>
   [...professores.value].sort((a, b) => a.nome_professor.localeCompare(b.nome_professor, 'pt-BR')),
+)
+
+const prorrogacoesOrdenadas = computed(() =>
+  [...prorrogacoes.value].sort((a, b) =>
+    String(b.data_pedido || '').localeCompare(String(a.data_pedido || '')),
+  ),
 )
 
 const iniciaisEstudante = computed(() => {
@@ -99,6 +127,30 @@ function textoDias(quantidade) {
   return quantidade === 1 ? '1 dia' : `${quantidade} dias`
 }
 
+function textoMeses(quantidade) {
+  return Number(quantidade) === 1 ? '1 mês' : `${quantidade} meses`
+}
+
+function dataDeHoje() {
+  const agora = new Date()
+  const mes = String(agora.getMonth() + 1).padStart(2, '0')
+  const dia = String(agora.getDate()).padStart(2, '0')
+  return `${agora.getFullYear()}-${mes}-${dia}`
+}
+
+function rotuloTipoPrazo(valor) {
+  return tiposPrazoProrrogacao.find((t) => t.valor === valor)?.rotulo || valor || '—'
+}
+
+function rotuloResultado(valor) {
+  if (!valor) return 'Sem resultado'
+  return resultadosProrrogacao.find((r) => r.valor === valor)?.rotulo || valor
+}
+
+function classeResultado(valor) {
+  return resultadosProrrogacao.find((r) => r.valor === valor)?.classe || 'badge-neutro'
+}
+
 function cabecalho() {
   return { Authorization: `Bearer ${authStore.token}` }
 }
@@ -109,6 +161,16 @@ function mostrarAviso(texto, tipo) {
   temporizadorAviso = setTimeout(() => {
     aviso.value = null
   }, 3000)
+}
+
+async function lerMensagemDeErro(resposta) {
+  try {
+    const dados = await resposta.json()
+    if (typeof dados.detail === 'string') return dados.detail
+  } catch {
+    // A resposta não veio em JSON.
+  }
+  return ''
 }
 
 function voltar() {
@@ -158,10 +220,34 @@ async function buscarProfessores() {
   }
 }
 
+async function buscarProrrogacoes(idEstudante) {
+  carregandoProrrogacoes.value = true
+  erroProrrogacoes.value = ''
+  try {
+    const resposta = await fetch(`${api}/prorrogacoes/estudante/${idEstudante}`, {
+      headers: cabecalho(),
+    })
+    if (resposta.status === 404) {
+      prorrogacoes.value = []
+      return
+    }
+    if (!resposta.ok) {
+      erroProrrogacoes.value = 'Não foi possível carregar as prorrogações.'
+      return
+    }
+    prorrogacoes.value = await resposta.json()
+  } catch {
+    erroProrrogacoes.value = 'Não foi possível carregar as prorrogações.'
+  } finally {
+    carregandoProrrogacoes.value = false
+  }
+}
+
 async function carregarEstudante() {
   estudante.value = null
   nomeOrientador.value = ''
   codigoSemestre.value = ''
+  prorrogacoes.value = []
   erro.value = ''
 
   const id = Number(route.params.id)
@@ -188,6 +274,8 @@ async function carregarEstudante() {
     const dados = await resposta.json()
     if (Number(route.params.id) !== id) return
     estudante.value = dados
+    // Os cards dos marcos carregam sozinhos, sem segurar o resto da tela.
+    buscarProrrogacoes(id)
     await Promise.all([buscarOrientador(dados.id_orientador), buscarSemestre(dados.id_semestre)])
   } catch {
     erro.value = 'Não foi possível conectar ao servidor. Verifique se o backend está ligado.'
@@ -215,16 +303,6 @@ function abrirModalPerfil() {
 function fecharModalPerfil() {
   if (salvandoPerfil.value) return
   modalPerfilAberto.value = false
-}
-
-async function lerMensagemDeErro(resposta) {
-  try {
-    const dados = await resposta.json()
-    if (typeof dados.detail === 'string') return dados.detail
-  } catch {
-    // A resposta não veio em JSON.
-  }
-  return ''
 }
 
 async function salvarPerfil() {
@@ -275,6 +353,106 @@ async function salvarPerfil() {
     erroPerfil.value = 'Não foi possível conectar ao servidor.'
   } finally {
     salvandoPerfil.value = false
+  }
+}
+
+// ---------- Modal: Prorrogação ----------
+
+function abrirModalProrrogacao(prorrogacao = null) {
+  editandoProrrogacaoId.value = prorrogacao ? prorrogacao.id_prorrogacao : null
+  formProrrogacao.value = prorrogacao
+    ? {
+        tipo_prazo: prorrogacao.tipo_prazo || '',
+        quantidade_meses: prorrogacao.quantidade_meses ?? '',
+        data_pedido: (prorrogacao.data_pedido || '').slice(0, 10),
+        resultado_pedido: prorrogacao.resultado_pedido || '',
+      }
+    : {
+        tipo_prazo: '',
+        quantidade_meses: '',
+        data_pedido: dataDeHoje(),
+        resultado_pedido: 'EM ANÁLISE',
+      }
+  erroProrrogacao.value = ''
+  modalProrrogacaoAberto.value = true
+}
+
+function fecharModalProrrogacao() {
+  if (salvandoProrrogacao.value) return
+  modalProrrogacaoAberto.value = false
+}
+
+function validarProrrogacao() {
+  if (!formProrrogacao.value.tipo_prazo) return 'Escolha o prazo que será prorrogado.'
+  const meses = Number(formProrrogacao.value.quantidade_meses)
+  if (formProrrogacao.value.quantidade_meses === '' || !Number.isInteger(meses) || meses < 1) {
+    return 'A quantidade de meses precisa ser um número inteiro maior que 0.'
+  }
+  if (!formProrrogacao.value.data_pedido) return 'Informe a data do pedido.'
+  return ''
+}
+
+async function salvarProrrogacao() {
+  erroProrrogacao.value = validarProrrogacao()
+  if (erroProrrogacao.value) return
+
+  const editando = editandoProrrogacaoId.value !== null
+  const dados = {
+    id_estudante: estudante.value.id_estudante,
+    tipo_prazo: formProrrogacao.value.tipo_prazo,
+    quantidade_meses: Number(formProrrogacao.value.quantidade_meses),
+    data_pedido: formProrrogacao.value.data_pedido,
+    resultado_pedido: formProrrogacao.value.resultado_pedido || null,
+  }
+  const url = editando
+    ? `${api}/prorrogacoes/${editandoProrrogacaoId.value}`
+    : `${api}/prorrogacoes`
+
+  salvandoProrrogacao.value = true
+  try {
+    const resposta = await fetch(url, {
+      method: editando ? 'PUT' : 'POST',
+      headers: { ...cabecalho(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    })
+
+    if (!resposta.ok) {
+      const detalhe = await lerMensagemDeErro(resposta)
+      if (resposta.status === 401) {
+        erroProrrogacao.value = 'Sua sessão expirou. Saia e entre de novo.'
+      } else if (resposta.status === 403) {
+        erroProrrogacao.value = 'Você não tem permissão para registrar prorrogações.'
+      } else {
+        erroProrrogacao.value = detalhe || 'Não foi possível salvar. Confira os dados.'
+      }
+      return
+    }
+
+    // Atualiza a tabela na hora com o que a API devolveu.
+    let salva = null
+    try {
+      salva = await resposta.json()
+    } catch {
+      salva = null
+    }
+    if (salva && salva.id_prorrogacao) {
+      if (editando) {
+        prorrogacoes.value = prorrogacoes.value.map((p) =>
+          p.id_prorrogacao === salva.id_prorrogacao ? salva : p,
+        )
+      } else {
+        prorrogacoes.value = [...prorrogacoes.value, salva]
+      }
+    } else {
+      buscarProrrogacoes(estudante.value.id_estudante)
+    }
+
+    modalProrrogacaoAberto.value = false
+    mostrarAviso(editando ? 'Prorrogação atualizada.' : 'Prorrogação registrada.', 'sucesso')
+  } catch {
+    erroProrrogacao.value = 'Não foi possível conectar ao servidor.'
+  } finally {
+    salvandoProrrogacao.value = false
   }
 }
 
@@ -433,6 +611,56 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
+      <section class="card">
+        <div class="card-topo">
+          <h2>Prorrogações</h2>
+          <BaseButton type="button" variant="secondary" @click="abrirModalProrrogacao()">
+            Adicionar prorrogação
+          </BaseButton>
+        </div>
+
+        <p v-if="carregandoProrrogacoes" class="texto-vazio">Carregando prorrogações...</p>
+        <p v-else-if="erroProrrogacoes" class="aviso-erro">{{ erroProrrogacoes }}</p>
+        <p v-else-if="prorrogacoes.length === 0" class="texto-vazio">
+          Nenhum pedido de prorrogação.
+        </p>
+        <div v-else class="tabela-rolagem">
+          <table class="tabela-simples">
+            <thead>
+              <tr>
+                <th>Data do pedido</th>
+                <th>Prazo</th>
+                <th>Meses</th>
+                <th>Resultado</th>
+                <th class="coluna-acoes"><span class="visualmente-oculto">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="prorrogacao in prorrogacoesOrdenadas" :key="prorrogacao.id_prorrogacao">
+                <td>{{ formatarData(prorrogacao.data_pedido) }}</td>
+                <td>{{ rotuloTipoPrazo(prorrogacao.tipo_prazo) }}</td>
+                <td>{{ textoMeses(prorrogacao.quantidade_meses) }}</td>
+                <td>
+                  <span class="badge" :class="classeResultado(prorrogacao.resultado_pedido)">
+                    {{ rotuloResultado(prorrogacao.resultado_pedido) }}
+                  </span>
+                </td>
+                <td class="coluna-acoes">
+                  <button
+                    type="button"
+                    class="botao-tabela"
+                    :aria-label="`Editar prorrogação de ${formatarData(prorrogacao.data_pedido)}`"
+                    @click="abrirModalProrrogacao(prorrogacao)"
+                  >
+                    Editar
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <BaseModal :aberto="modalPerfilAberto" titulo="Editar perfil" @fechar="fecharModalPerfil">
         <form id="form-editar-perfil" class="form-grid" @submit.prevent="salvarPerfil">
           <div class="form-group span-full">
@@ -501,6 +729,81 @@ onBeforeUnmount(() => {
             :disabled="salvandoPerfil"
           >
             {{ salvandoPerfil ? 'Salvando...' : 'Salvar' }}
+          </BaseButton>
+        </template>
+      </BaseModal>
+
+      <BaseModal
+        :aberto="modalProrrogacaoAberto"
+        :titulo="editandoProrrogacaoId ? 'Editar prorrogação' : 'Adicionar prorrogação'"
+        @fechar="fecharModalProrrogacao"
+      >
+        <form id="form-prorrogacao" class="form-grid" @submit.prevent="salvarProrrogacao">
+          <div class="form-group">
+            <label for="prorrogacao-tipo">Prazo prorrogado *</label>
+            <select id="prorrogacao-tipo" v-model="formProrrogacao.tipo_prazo" required>
+              <option value="" disabled>Selecione</option>
+              <option v-for="tipo in tiposPrazoProrrogacao" :key="tipo.valor" :value="tipo.valor">
+                {{ tipo.rotulo }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="prorrogacao-meses">Quantidade de meses *</label>
+            <input
+              id="prorrogacao-meses"
+              v-model="formProrrogacao.quantidade_meses"
+              type="number"
+              min="1"
+              step="1"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="prorrogacao-data">Data do pedido *</label>
+            <input
+              id="prorrogacao-data"
+              v-model="formProrrogacao.data_pedido"
+              type="date"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="prorrogacao-resultado">Resultado</label>
+            <select id="prorrogacao-resultado" v-model="formProrrogacao.resultado_pedido">
+              <option value="">Sem resultado</option>
+              <option
+                v-for="resultado in resultadosProrrogacao"
+                :key="resultado.valor"
+                :value="resultado.valor"
+              >
+                {{ resultado.rotulo }}
+              </option>
+            </select>
+          </div>
+
+          <p v-if="erroProrrogacao" class="aviso-erro span-full">{{ erroProrrogacao }}</p>
+        </form>
+
+        <template #rodape>
+          <BaseButton
+            type="button"
+            variant="secondary"
+            :disabled="salvandoProrrogacao"
+            @click="fecharModalProrrogacao"
+          >
+            Cancelar
+          </BaseButton>
+          <BaseButton
+            type="submit"
+            form="form-prorrogacao"
+            variant="primary"
+            :disabled="salvandoProrrogacao"
+          >
+            {{ salvandoProrrogacao ? 'Salvando...' : 'Salvar' }}
           </BaseButton>
         </template>
       </BaseModal>
@@ -585,6 +888,23 @@ onBeforeUnmount(() => {
   font-size: 1.25rem;
   color: #374151;
   border-bottom: 1px solid #e5e7eb;
+}
+
+.card-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.card-topo h2 {
+  margin: 0;
+  padding: 0;
+  border: none;
 }
 
 .perfil-topo {
@@ -695,6 +1015,75 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
+.tabela-rolagem {
+  overflow-x: auto;
+}
+
+.tabela-simples {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabela-simples th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.tabela-simples td {
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: #111827;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.tabela-simples tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.coluna-acoes {
+  text-align: right;
+}
+
+.botao-tabela {
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #374151;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.botao-tabela:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.botao-tabela:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.visualmente-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .selo-bolsista {
   padding: 2px 8px;
   border-radius: 9999px;
@@ -719,17 +1108,20 @@ onBeforeUnmount(() => {
   color: #374151;
 }
 
-.status-ativo {
+.status-ativo,
+.resultado-deferido {
   background-color: #ecfdf5;
   color: #065f46;
 }
 
-.status-trancado {
+.status-trancado,
+.resultado-analise {
   background-color: #fffbeb;
   color: #92400e;
 }
 
-.status-desligamento {
+.status-desligamento,
+.resultado-indeferido {
   background-color: #fef2f2;
   color: #b91c1c;
 }
