@@ -13,6 +13,8 @@ def criar_submissao_artigo(db: Session, submissao_artigo: SubmissaoArtigoCreate)
 def obter_submissoes_artigos(db: Session, skip: int = 0, limit: int = 100) -> List[models.SubmissaoArtigo]:
     return db.query(models.SubmissaoArtigo).offset(skip).limit(limit).all()
 
+def obter_submissoes_artigos_por_estudante(db: Session, id_estudante: int) -> List[models.SubmissaoArtigo]:
+    return db.query(models.SubmissaoArtigo).filter(models.SubmissaoArtigo.id_estudante == id_estudante).all()
 
 def obter_submissao_artigo_por_id(db: Session, id_artigo: int) -> Optional[models.SubmissaoArtigo]:
     return db.query(models.SubmissaoArtigo).filter(models.SubmissaoArtigo.id_artigo  == id_artigo).first() 

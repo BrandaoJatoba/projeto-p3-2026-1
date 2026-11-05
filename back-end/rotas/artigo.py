@@ -69,6 +69,17 @@ def obter_submissao_artigo(
         )
     return submissao
 
+@router.get(
+    "/estudante/{id_estudante}",
+    response_model=list[SubmissaoArtigoResponse],
+)
+def obter_submissoes_artigos_por_estudante(
+    id_estudante: int,
+    db_connection: Session = Depends(get_db),
+    usuario=Depends(autorizar(PERFIS_GESTAO)),
+):
+    """Obtém todas as submissões de artigos de um estudante específico."""
+    return crud_artigo.obter_submissoes_artigos_por_estudante(db_connection, id_estudante)
 
 @router.put(
     "/{id_artigo}",
