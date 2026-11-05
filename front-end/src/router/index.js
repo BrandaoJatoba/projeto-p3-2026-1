@@ -7,6 +7,8 @@ import { useAuthStore } from '../stores/auth'
 import ConfiguracoesView from '../views/ConfiguracoesView.vue'
 import SemestresView from '../views/SemestresView.vue'
 import SuspensoesView from '../views/SuspensoesView.vue'
+import ProfessoresView from '../views/ProfessoresView.vue'
+import DisciplinasView from '../views/DisciplinasView.vue'
 import AlertasView from '../views/AlertasView.vue'
 import EstudantesView from '../views/EstudantesView.vue'
 
@@ -51,6 +53,18 @@ const router = createRouter({
       path: '/estudantes',
       name: 'estudantes',
       component: EstudantesView,
+      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
+    },
+    {
+      path: '/professores',
+      name: 'professores',
+      component: ProfessoresView,
+      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
+    },
+    {
+      path: '/disciplinas',
+      name: 'disciplinas',
+      component: DisciplinasView,
       meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
     },
   ],
