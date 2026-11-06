@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/auth'
 import CardEstagios from '../components/estudante/CardEstagios.vue'
 import CardProficiencia from '../components/estudante/CardProficiencia.vue'
 import CardArtigos from '../components/estudante/CardArtigos.vue'
+import CardTrabalhoFinal from '../components/estudante/CardTrabalhoFinal.vue'
 
 const api = 'http://localhost:8000'
 const route = useRoute()
@@ -543,76 +544,7 @@ onBeforeUnmount(() => {
           </div>
         </dl>
       </section>
-
-      <section class="card">
-        <h2>Dissertação, qualificação e defesa</h2>
-        <div class="marcos-grid">
-          <div class="marco">
-            <h3>Dissertação</h3>
-            <dl v-if="estudante.dissertacao" class="marco-dados">
-              <div>
-                <dt>Título</dt>
-                <dd>{{ estudante.dissertacao.titulo || '—' }}</dd>
-              </div>
-              <div>
-                <dt>Início</dt>
-                <dd>{{ formatarData(estudante.dissertacao.data_inicio) }}</dd>
-              </div>
-            </dl>
-            <p v-else class="texto-vazio">Nenhuma dissertação registrada.</p>
-          </div>
-
-          <div class="marco">
-            <h3>Qualificação</h3>
-            <dl v-if="estudante.qualificacao" class="marco-dados">
-              <div>
-                <dt>Status</dt>
-                <dd>
-                  <span class="badge badge-neutro">
-                    {{ estudante.qualificacao.status_qualificacao || '—' }}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt>Tentativa</dt>
-                <dd>{{ estudante.qualificacao.tentativa ?? '—' }}</dd>
-              </div>
-              <div>
-                <dt>Prazo máximo</dt>
-                <dd>{{ formatarData(estudante.qualificacao.prazo_maximo_qualificacao) }}</dd>
-              </div>
-              <div>
-                <dt>Realização</dt>
-                <dd>{{ formatarData(estudante.qualificacao.data_realizacao) }}</dd>
-              </div>
-            </dl>
-            <p v-else class="texto-vazio">Nenhuma qualificação registrada.</p>
-          </div>
-
-          <div class="marco">
-            <h3>Defesa</h3>
-            <dl v-if="estudante.defesa" class="marco-dados">
-              <div>
-                <dt>Status</dt>
-                <dd>
-                  <span class="badge badge-neutro">
-                    {{ estudante.defesa.status_defesa || '—' }}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt>Prazo máximo</dt>
-                <dd>{{ formatarData(estudante.defesa.prazo_maximo_defesa) }}</dd>
-              </div>
-              <div>
-                <dt>Realização</dt>
-                <dd>{{ formatarData(estudante.defesa.data_realizacao) }}</dd>
-              </div>
-            </dl>
-            <p v-else class="texto-vazio">Nenhuma defesa registrada.</p>
-          </div>
-        </div>
-      </section>
+     
       <CardProficiencia :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
       <CardArtigos :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
       <CardEstagios
@@ -620,6 +552,7 @@ onBeforeUnmount(() => {
         :id-orientador="estudante.id_orientador"
         @aviso="mostrarAviso"
       />
+      <CardTrabalhoFinal :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
       <section class="card">
         <div class="card-topo">
           <h2>Prorrogações</h2>
