@@ -15,6 +15,15 @@ const emit = defineEmits(['aviso'])
 const api = 'http://localhost:8000'
 const authStore = useAuthStore()
 
+// Texto que o backend usa quando a dissertação ainda não tem título.
+const tituloProvisorio = 'A definir'
+
+function tituloReal(titulo) {
+  const texto = (titulo || '').trim()
+  if (texto.toLowerCase() === tituloProvisorio.toLowerCase()) return ''
+  return texto
+}
+
 // Valores iguais aos do backend (back-end/db/enumStatus.py).
 const opcoesStatusDissertacao = [
   { valor: 'EM ANDAMENTO', rotulo: 'Em andamento', classe: 'situacao-submetida' },
@@ -178,7 +187,7 @@ async function buscarTudo() {
 function abrirModalDissertacao() {
   formDissertacao.value = dissertacao.value
     ? {
-        titulo: dissertacao.value.titulo || '',
+        titulo: tituloReal(dissertacao.value.titulo),
         data_inicio: (dissertacao.value.data_inicio || '').slice(0, 10),
         status_dissertacao: dissertacao.value.status_dissertacao || 'EM ANDAMENTO',
       }
@@ -316,7 +325,7 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
         <dl v-else-if="dissertacao" class="marco-dados">
           <div class="dado-largo">
             <dt>Título</dt>
-            <dd v-if="dissertacao.titulo">{{ dissertacao.titulo }}</dd>
+            <dd v-if="tituloReal(dissertacao.titulo)">{{ tituloReal(dissertacao.titulo) }}</dd>
             <dd v-else class="texto-vazio">Sem título</dd>
           </div>
           <div>
