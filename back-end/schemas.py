@@ -1,6 +1,6 @@
 from datetime import date
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Optional
+from typing import Optional, List
 import db.enumStatus as enumStatus
 
 class SemestreCriacao(BaseModel):
@@ -110,7 +110,7 @@ class GatilhoAlertaResponse(GatilhoAlertaBase):
 # ==========================================
 
 class DisciplinaBase(BaseModel):
-    """Atributos comuns compartilhados entre schemas de disciplina."""
+    """Atributos comuns partilhados entre schemas de disciplina."""
     codigo_disciplina: str = Field(
         ..., 
         max_length=20, 
@@ -119,13 +119,17 @@ class DisciplinaBase(BaseModel):
     )
     nome_disciplina: str = Field(
         ..., 
-        max_length=100, 
+        max_length=150,  # Aumentado para corresponder ao modelo da Base de Dados
         description="Nome da disciplina",
         examples=["Teoria da Computação"]
     )
-    grupo_disciplina: enumStatus.GrupoDisciplina = Field(
+    grupo_pesquisa: enumStatus.GrupoPesquisa = Field(
         ..., 
-        description="Grupo ao qual a disciplina pertence"
+        description="Grupo de pesquisa ao qual a disciplina pertence (ex: GRUPO 1)"
+    )
+    natureza_disciplina: enumStatus.NaturezaDisciplina = Field(
+        ...,
+        description="Natureza da disciplina (ex: BASICAS, ELETIVAS, TOPICOS_ESPECIAIS)"
     )
     creditos: int = Field(
         ..., 
@@ -133,20 +137,23 @@ class DisciplinaBase(BaseModel):
         description="Quantidade de créditos (deve ser maior que zero)",
         examples=[4]
     )
-
+    eh_obrigatoria: bool = Field(
+        default=False,
+        description="Indica se a disciplina é obrigatória"
+    )
 
 class DisciplinaCreate(DisciplinaBase):
     """Schema para criação de disciplina (dados enviados no corpo do POST)."""
     pass
 
-
 class DisciplinaUpdate(BaseModel):
     """Schema para atualização parcial de disciplina (dados do PATCH/PUT)."""
     codigo_disciplina: Optional[str] = Field(None, max_length=20)
-    nome_disciplina: Optional[str] = Field(None, max_length=100)
-    grupo_disciplina: Optional[enumStatus.GrupoDisciplina] = None
+    nome_disciplina: Optional[str] = Field(None, max_length=150)
+    grupo_pesquisa: Optional[enumStatus.GrupoPesquisa] = None
+    natureza_disciplina: Optional[enumStatus.NaturezaDisciplina] = None
     creditos: Optional[int] = Field(None, gt=0)
-
+    eh_obrigatoria: Optional[bool] = None
 
 class DisciplinaResponse(DisciplinaBase):
     """Schema de resposta retornado pela API para o cliente (inclui o ID)."""
@@ -587,3 +594,29 @@ class ProfessorResposta(BaseModel):
 class ProfessorDetalhado(ProfessorResposta):
     """Perfil completo do professor, incluindo os estudantes orientados."""
     estudantes_orientados: list[EstudanteResposta] = []
+
+# ===================================================
+# Endpoint Apto para defesa
+# ==================================================
+
+class DetalheCreditos(BaseModel):
+    total_valido: int
+    basicas: int
+    eletivas: int
+    topicos_especiais: int
+    estudo_dirigido: int
+    requisito_obrigatorias_cumprido: bool
+
+class RequisitosDefesa(BaseModel):
+    creditos: bool
+    proficiencia: bool
+    estagio_docencia: bool
+    qualificacao: bool
+    artigo: bool
+
+class StatusDefesaResponse(BaseModel):
+    id_estudante: int
+    apto_para_defesa: bool
+    detalhe_creditos: DetalheCreditos
+    requisitos: RequisitosDefesa
+    pendencias_detalhadas: List[str]

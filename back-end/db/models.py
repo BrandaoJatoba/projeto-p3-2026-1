@@ -75,19 +75,16 @@ class Professor(Base):
     nome_professor = Column(String(100), nullable=False)
 
 class Disciplina(Base):
-    
-    """
-    Catálogo de disciplinas ofertadas pelo programa de pós-graduação,
-    classificadas por grupo e carga de créditos.
-    """
-
     __tablename__ = "disciplinas"
-
+    
     id_disciplina = Column(Integer, primary_key=True, autoincrement=True)
     codigo_disciplina = Column(String(20), nullable=False)
-    nome_disciplina = Column(String(100), nullable=False)
-    grupo_disciplina = Column(String(30), nullable=False)
-    creditos = Column(Integer, nullable=False)
+    nome_disciplina = Column(String(150), nullable=False) # Aumentado para nomes longos
+    grupo_pesquisa = Column(String(30), nullable=False)   # GRUPO 1, GRUPO 2...
+    natureza_disciplina = Column(String(30), nullable=False) # BASICAS, ELETIVAS...
+    creditos = Column(Integer, nullable=False, default=4)
+    eh_obrigatoria = Column(Boolean, nullable=False, default=False)
+    
 
 class SemestreLetivo(Base):
     
