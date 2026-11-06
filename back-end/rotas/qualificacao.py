@@ -66,16 +66,16 @@ def obter_qualificacao(
     return QualificacaoResponse.model_validate(qualificacao)
 
 @router.get(
-    "/aluno/{id_aluno}",
+    "/aluno/{id_estudante}",
     response_model=list[QualificacaoResponse],
 )
 def listar_qualificacoes_por_aluno(
-    id_aluno: int,
+    id_estudante: int,
     db_connection: Session = Depends(get_db),
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
     """Lista todas as qualificações de um aluno específico."""
-    qualificacoes = crud_qualificacao.listar_qualificacoes_por_aluno(db_connection, id_aluno)
+    qualificacoes = crud_qualificacao.listar_qualificacoes_por_aluno(db_connection, id_estudante)
     return [QualificacaoResponse.model_validate(q) for q in qualificacoes]
 
 @router.put(

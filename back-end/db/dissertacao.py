@@ -43,5 +43,5 @@ def buscar_dissertacoes(db: Session, filtros: Dict[str, Any]) -> List[models.Dis
             query = query.filter(getattr(models.Dissertacao, key) == value)
     return query.all() 
 
-def listar_dissertacoes_por_aluno(db: Session, id_aluno: int) -> List[models.Dissertacao]:
-    return db.query(models.Dissertacao).filter(models.Dissertacao.id_aluno == id_aluno).all()
+def listar_dissertacoes_por_aluno(db: Session, id_estudante: int) -> List[models.Dissertacao]:
+    return db.query(models.Dissertacao).filter(models.Dissertacao.id_estudante == id_estudante).all()
