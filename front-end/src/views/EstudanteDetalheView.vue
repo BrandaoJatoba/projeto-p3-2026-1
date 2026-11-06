@@ -7,6 +7,7 @@ import BaseModal from '../components/BaseModal.vue'
 import { useAuthStore } from '../stores/auth'
 import CardEstagios from '../components/estudante/CardEstagios.vue'
 import CardProficiencia from '../components/estudante/CardProficiencia.vue'
+import CardArtigos from '../components/estudante/CardArtigos.vue'
 
 const api = 'http://localhost:8000'
 const route = useRoute()
@@ -613,6 +614,7 @@ onBeforeUnmount(() => {
         </div>
       </section>
       <CardProficiencia :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
+      <CardArtigos :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
       <CardEstagios
         :id-estudante="estudante.id_estudante"
         :id-orientador="estudante.id_orientador"
