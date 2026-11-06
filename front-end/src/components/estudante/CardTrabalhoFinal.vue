@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import BaseButton from '../BaseButton.vue'
 import BaseModal from '../BaseModal.vue'
 import ModalQualificacao from './ModalQualificacao.vue'
+import ModalDefesa from './ModalDefesa.vue'
 import { useAuthStore } from '../../stores/auth'
 
 const props = defineProps({
@@ -64,6 +65,7 @@ const formDissertacao = ref({})
 
 // Modal da qualificação
 const modalQualificacaoAberto = ref(false)
+const modalDefesaAberto = ref(false)
 
 const qualificacaoAtual = computed(() => maisRecente(qualificacoes.value, 'id_qualificacao'))
 const defesaAtual = computed(() => maisRecente(defesas.value, 'id_defesa'))
@@ -274,6 +276,18 @@ function aoSalvarQualificacao(salva, editando) {
   emit('aviso', editando ? 'Qualificação atualizada.' : 'Qualificação registrada.', 'sucesso')
 }
 
+function aoSalvarDefesa(salva, editando) {
+  if (salva && salva.id_defesa) {
+    defesas.value = editando
+      ? defesas.value.map((d) => (d.id_defesa === salva.id_defesa ? salva : d))
+      : [...defesas.value, salva]
+  } else {
+    buscarTudo()
+  }
+  modalDefesaAberto.value = false
+  emit('aviso', editando ? 'Defesa atualizada.' : 'Defesa registrada.', 'sucesso')
+}
+
 watch(() => props.idEstudante, buscarTudo, { immediate: true })
 </script>
 
@@ -380,6 +394,15 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
       <div class="marco">
         <div class="marco-topo">
           <h3>Defesa</h3>
+          <button
+            v-if="!erroBuscaDefesa"
+            type="button"
+            class="botao-tabela"
+            :disabled="!defesaAtual && !idDissertacao"
+            @click="modalDefesaAberto = true"
+          >
+            {{ defesaAtual ? 'Atualizar' : 'Registrar' }}
+          </button>
         </div>
         <p v-if="erroBuscaDefesa" class="aviso-erro">{{ erroBuscaDefesa }}</p>
         <dl v-else-if="defesaAtual" class="marco-dados">
@@ -502,6 +525,13 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
       :id-dissertacao="idDissertacao"
       @fechar="modalQualificacaoAberto = false"
       @salvo="aoSalvarQualificacao"
+    />
+    <ModalDefesa
+      :aberto="modalDefesaAberto"
+      :defesa="defesaAtual"
+      :id-dissertacao="idDissertacao"
+      @fechar="modalDefesaAberto = false"
+      @salvo="aoSalvarDefesa"
     />
   </section>
 </template>
