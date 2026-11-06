@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import BaseButton from '../BaseButton.vue'
 import BaseModal from '../BaseModal.vue'
+import ModalQualificacao from './ModalQualificacao.vue'
 import { useAuthStore } from '../../stores/auth'
 
 const props = defineProps({
@@ -51,16 +52,31 @@ const dissertacao = ref(null)
 const qualificacoes = ref([])
 const defesas = ref([])
 const carregando = ref(false)
-const erro = ref('')
+const erroBuscaDissertacao = ref('')
+const erroBuscaQualificacao = ref('')
+const erroBuscaDefesa = ref('')
 
 // Modal da dissertação
 const modalDissertacaoAberto = ref(false)
 const salvandoDissertacao = ref(false)
-const erroDissertacao = ref('')
+const erroFormDissertacao = ref('')
 const formDissertacao = ref({})
+
+// Modal da qualificação
+const modalQualificacaoAberto = ref(false)
 
 const qualificacaoAtual = computed(() => maisRecente(qualificacoes.value, 'id_qualificacao'))
 const defesaAtual = computed(() => maisRecente(defesas.value, 'id_defesa'))
+
+// O id da dissertação também vem na qualificação e na defesa:
+// assim conseguimos descobri-lo mesmo se a busca da dissertação falhar.
+const idDissertacao = computed(
+  () =>
+    dissertacao.value?.id_dissertacao ??
+    qualificacaoAtual.value?.id_dissertacao ??
+    defesaAtual.value?.id_dissertacao ??
+    null,
+)
 
 function maisRecente(lista, campoId) {
   if (!lista || lista.length === 0) return null
@@ -120,21 +136,39 @@ async function buscarPorAluno(caminho) {
 
 async function buscarTudo() {
   carregando.value = true
-  erro.value = ''
-  try {
-    const [listaDissertacoes, listaQualificacoes, listaDefesas] = await Promise.all([
-      buscarPorAluno('/dissertacoes'),
-      buscarPorAluno('/qualificacoes'),
-      buscarPorAluno('/defesas'),
-    ])
-    dissertacao.value = maisRecente(listaDissertacoes, 'id_dissertacao')
-    qualificacoes.value = listaQualificacoes
-    defesas.value = listaDefesas
-  } catch {
-    erro.value = 'Não foi possível carregar dissertação, qualificação e defesa.'
-  } finally {
-    carregando.value = false
+  erroBuscaDissertacao.value = ''
+  erroBuscaQualificacao.value = ''
+  erroBuscaDefesa.value = ''
+
+  // allSettled: espera as três buscas e mostra o que deu certo, mesmo se uma falhar.
+  const [resDissertacoes, resQualificacoes, resDefesas] = await Promise.allSettled([
+    buscarPorAluno('/dissertacoes'),
+    buscarPorAluno('/qualificacoes'),
+    buscarPorAluno('/defesas'),
+  ])
+
+  if (resDissertacoes.status === 'fulfilled') {
+    dissertacao.value = maisRecente(resDissertacoes.value, 'id_dissertacao')
+  } else {
+    dissertacao.value = null
+    erroBuscaDissertacao.value = 'Não foi possível carregar a dissertação.'
   }
+
+  if (resQualificacoes.status === 'fulfilled') {
+    qualificacoes.value = resQualificacoes.value
+  } else {
+    qualificacoes.value = []
+    erroBuscaQualificacao.value = 'Não foi possível carregar a qualificação.'
+  }
+
+  if (resDefesas.status === 'fulfilled') {
+    defesas.value = resDefesas.value
+  } else {
+    defesas.value = []
+    erroBuscaDefesa.value = 'Não foi possível carregar a defesa.'
+  }
+
+  carregando.value = false
 }
 
 // ---------- Modal: Dissertação ----------
@@ -151,7 +185,7 @@ function abrirModalDissertacao() {
         data_inicio: dataDeHoje(),
         status_dissertacao: 'EM ANDAMENTO',
       }
-  erroDissertacao.value = ''
+  erroFormDissertacao.value = ''
   modalDissertacaoAberto.value = true
 }
 
@@ -163,12 +197,12 @@ function fecharModalDissertacao() {
 async function salvarDissertacao() {
   const titulo = formDissertacao.value.titulo.trim()
   if (!titulo) {
-    erroDissertacao.value = 'Informe o título da dissertação.'
+    erroFormDissertacao.value = 'Informe o título da dissertação.'
     return
   }
   const editando = dissertacao.value !== null
   if (!editando && !formDissertacao.value.data_inicio) {
-    erroDissertacao.value = 'Informe a data de início.'
+    erroFormDissertacao.value = 'Informe a data de início.'
     return
   }
 
@@ -185,7 +219,7 @@ async function salvarDissertacao() {
     ? `${api}/dissertacoes/${dissertacao.value.id_dissertacao}`
     : `${api}/dissertacoes`
 
-  erroDissertacao.value = ''
+  erroFormDissertacao.value = ''
   salvandoDissertacao.value = true
   try {
     const resposta = await fetch(url, {
@@ -197,11 +231,11 @@ async function salvarDissertacao() {
     if (!resposta.ok) {
       const detalhe = await lerMensagemDeErro(resposta)
       if (resposta.status === 401) {
-        erroDissertacao.value = 'Sua sessão expirou. Saia e entre de novo.'
+        erroFormDissertacao.value = 'Sua sessão expirou. Saia e entre de novo.'
       } else if (resposta.status === 403) {
-        erroDissertacao.value = 'Você não tem permissão para registrar dissertações.'
+        erroFormDissertacao.value = 'Você não tem permissão para registrar dissertações.'
       } else {
-        erroDissertacao.value = detalhe || 'Não foi possível salvar. Confira os dados.'
+        erroFormDissertacao.value = detalhe || 'Não foi possível salvar. Confira os dados.'
       }
       return
     }
@@ -214,17 +248,30 @@ async function salvarDissertacao() {
         buscarTudo()
       }
     } else {
-      // O backend pode criar qualificação e defesa junto: buscamos tudo de novo.
       buscarTudo()
     }
 
     modalDissertacaoAberto.value = false
     emit('aviso', editando ? 'Dissertação atualizada.' : 'Dissertação registrada.', 'sucesso')
   } catch {
-    erroDissertacao.value = 'Não foi possível conectar ao servidor.'
+    erroFormDissertacao.value = 'Não foi possível conectar ao servidor.'
   } finally {
     salvandoDissertacao.value = false
   }
+}
+
+// ---------- Modal: Qualificação ----------
+
+function aoSalvarQualificacao(salva, editando) {
+  if (salva && salva.id_qualificacao) {
+    qualificacoes.value = editando
+      ? qualificacoes.value.map((q) => (q.id_qualificacao === salva.id_qualificacao ? salva : q))
+      : [...qualificacoes.value, salva]
+  } else {
+    buscarTudo()
+  }
+  modalQualificacaoAberto.value = false
+  emit('aviso', editando ? 'Qualificação atualizada.' : 'Qualificação registrada.', 'sucesso')
 }
 
 watch(() => props.idEstudante, buscarTudo, { immediate: true })
@@ -237,20 +284,26 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
     </div>
 
     <p v-if="carregando" class="texto-vazio">Carregando...</p>
-    <p v-else-if="erro" class="aviso-erro">{{ erro }}</p>
     <div v-else class="marcos-grid">
       <!-- Dissertação -->
       <div class="marco">
         <div class="marco-topo">
           <h3>Dissertação</h3>
-          <button type="button" class="botao-tabela" @click="abrirModalDissertacao">
+          <button
+            v-if="!erroBuscaDissertacao"
+            type="button"
+            class="botao-tabela"
+            @click="abrirModalDissertacao"
+          >
             {{ dissertacao ? 'Editar' : 'Registrar' }}
           </button>
         </div>
-        <dl v-if="dissertacao" class="marco-dados">
-          <div>
+        <p v-if="erroBuscaDissertacao" class="aviso-erro">{{ erroBuscaDissertacao }}</p>
+        <dl v-else-if="dissertacao" class="marco-dados">
+          <div class="dado-largo">
             <dt>Título</dt>
-            <dd>{{ dissertacao.titulo || '—' }}</dd>
+            <dd v-if="dissertacao.titulo">{{ dissertacao.titulo }}</dd>
+            <dd v-else class="texto-vazio">Sem título</dd>
           </div>
           <div>
             <dt>Início</dt>
@@ -275,8 +328,18 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
       <div class="marco">
         <div class="marco-topo">
           <h3>Qualificação</h3>
+          <button
+            v-if="!erroBuscaQualificacao"
+            type="button"
+            class="botao-tabela"
+            :disabled="!qualificacaoAtual && !idDissertacao"
+            @click="modalQualificacaoAberto = true"
+          >
+            {{ qualificacaoAtual ? 'Atualizar' : 'Registrar' }}
+          </button>
         </div>
-        <dl v-if="qualificacaoAtual" class="marco-dados">
+        <p v-if="erroBuscaQualificacao" class="aviso-erro">{{ erroBuscaQualificacao }}</p>
+        <dl v-else-if="qualificacaoAtual" class="marco-dados">
           <div>
             <dt>Status</dt>
             <dd>
@@ -309,7 +372,7 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
             <dd>{{ qualificacaoAtual.retorno_qualificacao || '—' }}</dd>
           </div>
         </dl>
-        <p v-else-if="!dissertacao" class="texto-vazio">Registre a dissertação primeiro.</p>
+        <p v-else-if="!idDissertacao" class="texto-vazio">Registre a dissertação primeiro.</p>
         <p v-else class="texto-vazio">Nenhuma qualificação registrada.</p>
       </div>
 
@@ -318,7 +381,8 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
         <div class="marco-topo">
           <h3>Defesa</h3>
         </div>
-        <dl v-if="defesaAtual" class="marco-dados">
+        <p v-if="erroBuscaDefesa" class="aviso-erro">{{ erroBuscaDefesa }}</p>
+        <dl v-else-if="defesaAtual" class="marco-dados">
           <div>
             <dt>Status</dt>
             <dd>
@@ -363,7 +427,7 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
             </dd>
           </div>
         </dl>
-        <p v-else-if="!dissertacao" class="texto-vazio">Registre a dissertação primeiro.</p>
+        <p v-else-if="!idDissertacao" class="texto-vazio">Registre a dissertação primeiro.</p>
         <p v-else class="texto-vazio">Nenhuma defesa registrada.</p>
       </div>
     </div>
@@ -409,7 +473,7 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
           A data de início não pode ser alterada depois do cadastro.
         </p>
 
-        <p v-if="erroDissertacao" class="aviso-erro span-full">{{ erroDissertacao }}</p>
+        <p v-if="erroFormDissertacao" class="aviso-erro span-full">{{ erroFormDissertacao }}</p>
       </form>
 
       <template #rodape>
@@ -431,6 +495,14 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
         </BaseButton>
       </template>
     </BaseModal>
+
+    <ModalQualificacao
+      :aberto="modalQualificacaoAberto"
+      :qualificacao="qualificacaoAtual"
+      :id-dissertacao="idDissertacao"
+      @fechar="modalQualificacaoAberto = false"
+      @salvo="aoSalvarQualificacao"
+    />
   </section>
 </template>
 
@@ -469,11 +541,12 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
   background-color: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: 8px;
+  font-size: 0.9rem;
 }
 
 .marcos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
@@ -500,8 +573,13 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
 
 .marco-dados {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px 24px;
   margin: 0;
+}
+
+.marco-dados .dado-largo {
+  grid-column: 1 / -1;
 }
 
 .marco-dados dt {
