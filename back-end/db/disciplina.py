@@ -6,15 +6,19 @@ def criar_disciplina(
     db_connection: Session, 
     codigo_disciplina: str, 
     nome_disciplina: str, 
-    grupo_disciplina: str, 
-    creditos: int
+    grupo_pesquisa: str,          # Substitui o antigo grupo_disciplina
+    natureza_disciplina: str,     # Novo campo
+    creditos: int,
+    eh_obrigatoria: bool = False  # Novo campo com valor por omissão
 ) -> models.Disciplina:
-    """Cria um novo registro de disciplina."""
+    """Cria um novo registo de disciplina."""
     nova_disciplina = models.Disciplina(
         nome_disciplina=nome_disciplina,
         codigo_disciplina=codigo_disciplina,
-        grupo_disciplina=grupo_disciplina,
-        creditos=creditos
+        grupo_pesquisa=grupo_pesquisa,               # Atualizado
+        natureza_disciplina=natureza_disciplina,     # Atualizado
+        creditos=creditos,
+        eh_obrigatoria=eh_obrigatoria                # Atualizado
     )
     db_connection.add(nova_disciplina)
     db_connection.commit()
