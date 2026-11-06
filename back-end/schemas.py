@@ -1,19 +1,20 @@
 from datetime import date
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional
 import db.enumStatus as enumStatus
-
 
 class SemestreCriacao(BaseModel):
     codigo_semestre: str = Field(max_length=6)
     data_inicio_real: date
     data_fim_real: date
     dias_letivos: int
+    data_quinzena_override: Optional[date] = None
 
 class SemestreAtualizacao(BaseModel):
     data_inicio_real: date
     data_fim_real: date
     dias_letivos: int
+    data_quinzena_override: Optional[date] = None
 
 class SemestreResposta(BaseModel):
 
@@ -24,6 +25,7 @@ class SemestreResposta(BaseModel):
     data_inicio_real: Optional[date]
     data_fim_real: Optional[date]
     dias_letivos: Optional[int]
+    data_quinzena_override: Optional[date] = None
 
 # Schema Base com os campos comuns
 class SuspensaoCalendarioBase(BaseModel):
@@ -318,12 +320,9 @@ class HistoricoDisciplinaResponse(HistoricoDisciplinaBase):
 class DissertacaoBase(BaseModel):
     """Atributos comuns da dissertação."""
     id_estudante: int = Field(..., description="ID do estudante")
-    titulo: str = Field(..., max_length=255, description="Título da dissertação")
-    data_inicio: Optional[date] = Field(None, description="Data de início da dissertação")
-    status_dissertacao: enumStatus.StatusDissertacao = Field(
-        default=enumStatus.StatusDissertacao.EM_ANDAMENTO,
-        description="Status atual da dissertação"
-    )
+    titulo: Optional[str] = Field(None, max_length=255, description="Título da dissertação")
+    data_inicio: date = Field(..., description="Data de início da dissertação")
+
 
 class DissertacaoCreate(DissertacaoBase):
     """Schema para cadastro de uma nova dissertação (POST)."""
@@ -333,14 +332,18 @@ class DissertacaoUpdate(BaseModel):
     """Schema para atualização parcial de dados da dissertação (PATCH/PUT)."""
     id_estudante: Optional[int] = None
     titulo: Optional[str] = Field(None, max_length=255)
-    data_defesa: Optional[date] = None
-    status_dissertacao: Optional[enumStatus.StatusDissertacao] = None
+    data_inicio : Optional[date] = None
 
 class DissertacaoResponse(DissertacaoBase):
     """Schema de resposta retornado pela API (contém a chave primária id_dissertacao)."""
     id_dissertacao: int
-
+    
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('titulo', mode='before')
+    @classmethod
+    def substituir_titulo_nulo(cls, v):
+        return v if v is not None else "A definir"
     
 # ==========================================
 # SCHEMAS DE QUALIFICAÇÃO
@@ -349,13 +352,13 @@ class DissertacaoResponse(DissertacaoBase):
 class QualificacaoBase(BaseModel):
     """Atributos comuns da qualificação."""
     id_dissertacao: int = Field(..., description="ID da dissertação")
-    prazo_maximo_qualificacao: Optional[date] = Field(None, description="Prazo máximo para a qualificação")
+    prazo_maximo_qualificacao: date = Field(..., description="Prazo máximo para a qualificação")
     status_qualificacao: enumStatus.StatusQualificacao = Field(
         default=enumStatus.StatusQualificacao.PENDENTE,
         description="Status atual da qualificação"
     )
     retorno_qualificacao: Optional[str] = Field(None, description="Ato do discente após a qualificação (Solicitou Banca ou Solicitou Prorrogação.)")
-    tentativa: Optional[int] = Field(None, description="Número de tentativas realizadas para a qualificação")
+    tentativa: int = Field(default=1, description="Número de tentativas realizadas para a qualificação")
     data_realizacao: Optional[date] = Field(None, description="Data da qualificação")
     
 class QualificacaoCreate(QualificacaoBase):
@@ -396,7 +399,7 @@ class DefesaBase(BaseModel):
     )
     
     # --- Fase 2: Realização e Conceito da Defesa
-    prazo_maximo_defesa: Optional[date] = Field(None, description="Prazo máximo para a defesa")
+    prazo_maximo_defesa: date = Field(..., description="Prazo máximo para a defesa")
     data_realizacao: Optional[date] = Field(None, description="Data de realização da defesa")
     status_defesa: Optional[enumStatus.StatusDefesa] = Field(
         default=enumStatus.StatusDefesa.PENDENTE,
