@@ -76,6 +76,20 @@ def buscar_proficiencia_por_id(
         )
     return ProficienciaResponse.model_validate(proficiencia)
 
+@router.get(
+    "/estudante/{id_estudante}",
+    response_model=list[ProficienciaResponse],
+    status_code=status.HTTP_200_OK,
+)
+def buscar_proficiencias_por_estudante(
+    id_estudante: int,
+    db_connection: Session = Depends(get_db),
+    usuario=Depends(autorizar(PERFIS_GESTAO)),
+):
+    """Busca todas as proficiências de um estudante específico."""
+    proficiencias = crud_proficiencia.buscar_proficiencias_por_estudante(db_connection, id_estudante)
+    return [ProficienciaResponse.model_validate(p) for p in proficiencias]
+
 @router.put(
     "/{id_proficiencia}",
     response_model=ProficienciaResponse,
