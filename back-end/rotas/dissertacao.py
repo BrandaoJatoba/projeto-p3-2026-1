@@ -68,16 +68,16 @@ def listar_dissertacoes(
     return [DissertacaoResponse.model_validate(d) for d in dissertacoes]
 
 @router.get(
-    "/aluno/{id_aluno}",
+    "/aluno/{id_estudante}",
     response_model=list[DissertacaoResponse],
 )
 def listar_dissertacoes_por_aluno(
-    id_aluno: int,
+    id_estudante: int,
     db_connection: Session = Depends(get_db),
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
     """Lista todas as dissertações de um aluno específico."""
-    dissertacoes = crud_dissertacao.listar_dissertacoes_por_aluno(db_connection, id_aluno)
+    dissertacoes = crud_dissertacao.listar_dissertacoes_por_aluno(db_connection, id_estudante)
     return [DissertacaoResponse.model_validate(d) for d in dissertacoes]
 
 @router.put(

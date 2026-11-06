@@ -83,14 +83,14 @@ def obter_defesa_por_dissertacao(
         )
     return DefesaResponse.model_validate(defesa)
 
-@router.get("/aluno/{id_aluno}", response_model=list[DefesaResponse])
+@router.get("/aluno/{id_estudante}", response_model=list[DefesaResponse])
 def obter_defesas_por_aluno(
-    id_aluno: int,
+    id_estudante: int,
     db_connection: Session = Depends(get_db),
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
     """Obtém todas as defesas associadas a um aluno específico pelo ID do aluno."""
-    defesas = crud_defesa.obter_defesas_por_aluno(db_connection, id_aluno)
+    defesas = crud_defesa.obter_defesas_por_aluno(db_connection, id_estudante)
     return [DefesaResponse.model_validate(defesa) for defesa in defesas]
 
 @router.put(

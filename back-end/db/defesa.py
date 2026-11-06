@@ -73,10 +73,10 @@ def listar_defesas_por_filtro(db: Session, filtro: Dict[str, Any]) -> List[model
         query = query.filter(getattr(models.Defesa, chave) == valor)
     return query.all()
 
-def obter_defesas_por_aluno(db: Session, id_aluno: int) -> List[models.Defesa]:
+def obter_defesas_por_aluno(db: Session, id_estudante: int) -> List[models.Defesa]:
     return (
         db.query(models.Defesa)
         .join(models.Dissertacao, models.Defesa.id_dissertacao == models.Dissertacao.id_dissertacao)
-        .filter(models.Dissertacao.id_aluno == id_aluno)
+        .filter(models.Dissertacao.id_estudante == id_estudante)
         .all()
     )
