@@ -5,6 +5,7 @@ import DefaultLayout from '../layouts/DefaultLayout.vue'
 import BaseButton from '../components/BaseButton.vue'
 import BaseModal from '../components/BaseModal.vue'
 import { useAuthStore } from '../stores/auth'
+import CardEstagios from '../components/estudante/CardEstagios.vue'
 
 const api = 'http://localhost:8000'
 const route = useRoute()
@@ -611,6 +612,11 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
+      <CardEstagios
+        :id-estudante="estudante.id_estudante"
+        :id-orientador="estudante.id_orientador"
+        @aviso="mostrarAviso"
+      />
       <section class="card">
         <div class="card-topo">
           <h2>Prorrogações</h2>
