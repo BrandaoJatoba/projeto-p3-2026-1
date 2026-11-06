@@ -612,8 +612,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </section>
-      <CardProficiencia :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" 
-      />
+      <CardProficiencia :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
       <CardEstagios
         :id-estudante="estudante.id_estudante"
         :id-orientador="estudante.id_orientador"
