@@ -184,12 +184,12 @@ def inicializar_disciplinas(db):
 
         if not disciplina_existente:
             nova_disciplina = models.Disciplina(
-                codigo_disciplina=item["codigo"],
-                nome_disciplina=item["nome"],
-                grupo_pesquisa=item["grupo"],
-                natureza_disciplina=item["natureza"],
-                creditos=item["creditos"],
-                eh_obrigatoria=item["obrigatoria"]
+                    codigo_disciplina=d["codigo"],
+                    nome_disciplina=d["nome"],
+                    grupo_pesquisa=d["grupo"],
+                    natureza_disciplina=d["natureza"],
+                    creditos=d["creditos"],
+                    eh_obrigatoria=d["obrigatoria"]
             )
             db.add(nova_disciplina)
             novas_count += 1
