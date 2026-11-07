@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
-from db.database import get_db  # Importa a tua função que fornece a sessão da BD
-from db.models import Estudante # Importa o modelo do estudante para validação
-from services import calcular_aptidao_defesa # O service que acabaste de criar
+from db.database import get_db
+from db.models import Estudante 
+from services.aptidao_service import calcular_aptidao_defesa 
 from schemas import StatusDefesaResponse
 
 router = APIRouter(prefix="/aptidao", tags=["Aptidão para Defesa"])
