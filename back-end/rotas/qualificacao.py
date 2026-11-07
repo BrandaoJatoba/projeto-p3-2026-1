@@ -27,7 +27,14 @@ def cadastrar_qualificacao(
 ):
     """Cadastra uma nova qualificação no sistema."""
     try:
-        qualificacao = crud_qualificacao.criar_qualificacao(db_connection, dados)
+        qualificacao = crud_qualificacao.criar_qualificacao(db_connection,
+                                                            id_dissertacao=dados.id_dissertacao,
+                                                            prazo_maximo_qualificacao=dados.prazo_maximo_qualificacao,
+                                                            data_realizacao=dados.data_realizacao,
+                                                            status_qualificacao=dados.status_qualificacao,
+                                                            retorno_qualificacao=dados.retorno_qualificacao,
+                                                            tentativa = dados.tentativa,
+                                                            )
         return QualificacaoResponse.model_validate(qualificacao)
     except IntegrityError:
         raise HTTPException(
@@ -66,7 +73,7 @@ def obter_qualificacao(
     return QualificacaoResponse.model_validate(qualificacao)
 
 @router.get(
-    "/aluno/{id_estudante}",
+    "/estudante/{id_estudante}",
     response_model=list[QualificacaoResponse],
 )
 def listar_qualificacoes_por_aluno(
@@ -101,7 +108,7 @@ def atualizar_qualificacao(
 
 @router.delete(
     "/{id_qualificacao}",
-    response_model=QualificacaoResponse,
+    status_code=status.HTTP_204_NO_CONTENT,
 )
 def deletar_qualificacao(
     id_qualificacao: int,
@@ -115,4 +122,3 @@ def deletar_qualificacao(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Qualificação não encontrada para deleção.",
         )
-    return {"message": "Qualificação deletada com sucesso."}

@@ -27,7 +27,19 @@ def cadastrar_defesa(
 ):
     """Cadastra uma nova defesa no sistema."""
     try:
-        defesa = crud_defesa.criar_defesa(db_connection, dados)
+        defesa = crud_defesa.criar_defesa(db_connection,
+                                          id_dissertacao=dados.id_dissertacao,
+                                          prazo_solicitacao_homologacao_banca=dados.prazo_solicitacao_homologacao_banca,
+                                          data_solicitacao_banca=dados.data_solicitacao_banca,
+                                          status_homologacao_banca=dados.status_homologacao_banca,
+                                          prazo_maximo_defesa=dados.prazo_maximo_defesa,
+                                          data_realizacao=dados.data_realizacao,
+                                          status_defesa=dados.status_defesa,
+                                          retorno_defesa=dados.retorno_defesa,
+                                          conceito_defesa=dados.conceito_defesa,
+                                          prazo_versao_final=dados.prazo_versao_final,
+                                          prazo_limite_processo_diploma=dados.prazo_limite_processo_diploma,
+                                          status_processo_diploma=dados.status_processo_diploma)
         return DefesaResponse.model_validate(defesa)
     except IntegrityError:
         raise HTTPException(
@@ -83,7 +95,7 @@ def obter_defesa_por_dissertacao(
         )
     return DefesaResponse.model_validate(defesa)
 
-@router.get("/aluno/{id_estudante}", response_model=list[DefesaResponse])
+@router.get("/estudante/{id_estudante}", response_model=list[DefesaResponse])
 def obter_defesas_por_aluno(
     id_estudante: int,
     db_connection: Session = Depends(get_db),
@@ -114,7 +126,7 @@ def atualizar_defesa(
 
 @router.delete(
     "/{id_defesa}",
-    response_model=DefesaResponse,
+    status_code=status.HTTP_204_NO_CONTENT,
 )
 def deletar_defesa(
     id_defesa: int,
@@ -128,4 +140,3 @@ def deletar_defesa(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Defesa não encontrada para deleção.",
         )
-    return {"detail": "Defesa deletada com sucesso."}

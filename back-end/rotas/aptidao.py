@@ -1,15 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session
+from sqlalchemy.orm import Session
 from db.database import get_db
 from db.models import Estudante 
 from services.aptidao_service import calcular_aptidao_defesa 
 from schemas import StatusDefesaResponse
+from security import autorizar
+
+PERFIS_GESTAO = ["SECRETARIA", "COORDENACAO", "ADMIN"]
 
 router = APIRouter(prefix="/aptidao", tags=["Aptidão para Defesa"])
 
 @router.get("/estudante/{id_estudante}", response_model=StatusDefesaResponse)
 def verificar_aptidao_defesa(
     id_estudante: int, 
+    usuario=Depends(autorizar(PERFIS_GESTAO)),
     db: Session = Depends(get_db)
 ):
     # 1. Verifica se o estudante existe (opcional, mas recomendado)

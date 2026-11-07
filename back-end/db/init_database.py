@@ -186,7 +186,7 @@ def inicializar_disciplinas(db):
             nova_disciplina = models.Disciplina(
                     codigo_disciplina=d["codigo"],
                     nome_disciplina=d["nome"],
-                    grupo_pesquisa=d["grupo"],
+                    grupo_disciplina=d["grupo"],
                     natureza_disciplina=d["natureza"],
                     creditos=d["creditos"],
                     eh_obrigatoria=d["obrigatoria"]
