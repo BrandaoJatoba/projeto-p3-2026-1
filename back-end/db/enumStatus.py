@@ -81,6 +81,8 @@ class StatusCertificadoProficiencia(StrEnum):
     ENTREGUE = "ENTREGUE"
     PENDENTE = "PENDENTE"
     DISPENSA = "DISPENSA"
+    APROVADA = "APROVADA"
+    REPROVADA = "REPROVADA"
 
 
 # ==========================================
@@ -111,6 +113,7 @@ class StatusValidacaoColegiadoArtigo(StrEnum):
     SUBMETIDA = "SUBMETIDA"
     APROVADA = "APROVADA"
     PENDENTE = "PENDENTE"
+    REPROVADA = "REPROVADA"
 
 
 # ==========================================
