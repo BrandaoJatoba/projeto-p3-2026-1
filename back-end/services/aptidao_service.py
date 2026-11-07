@@ -1,6 +1,6 @@
 from sqlmodel import Session
 from db.models import HistoricoDisciplina, Disciplina, Proficiencia, EstagioDocencia, Qualificacao, Dissertacao, SubmissaoArtigo
-from db.enumStatus import enumStatus
+from db import enumStatus
 from schemas import StatusDefesaResponse, DetalheCreditos, RequisitosDefesa
 
 def calcular_aptidao_defesa(db: Session, id_estudante: int) -> StatusDefesaResponse:
