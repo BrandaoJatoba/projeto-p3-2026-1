@@ -4,10 +4,12 @@ from typing import List, Optional, Dict, Any
 from schemas import DissertacaoCreate, DissertacaoUpdate
 
 def criar_dissertacao(db: Session, dissertacao: DissertacaoCreate) -> models.Dissertacao:
-    db.add(dissertacao)
+    # Converter schema Pydantic para modelo SQLAlchemy
+    nova_dissertacao = models.Dissertacao(**dissertacao.model_dump())
+    db.add(nova_dissertacao)
     db.commit()
-    db.refresh(dissertacao)
-    return dissertacao
+    db.refresh(nova_dissertacao)
+    return nova_dissertacao
 
 def obter_dissertacao_por_id(db: Session, dissertacao_id: int) -> Optional[models.Dissertacao]:
     return db.query(models.Dissertacao).filter(models.Dissertacao.id_dissertacao == dissertacao_id).first()
@@ -43,5 +45,5 @@ def buscar_dissertacoes(db: Session, filtros: Dict[str, Any]) -> List[models.Dis
             query = query.filter(getattr(models.Dissertacao, key) == value)
     return query.all() 
 
-def listar_dissertacoes_por_aluno(db: Session, id_aluno: int) -> List[models.Dissertacao]:
-    return db.query(models.Dissertacao).filter(models.Dissertacao.id_aluno == id_aluno).all()
+def listar_dissertacoes_por_aluno(db: Session, id_estudante: int) -> List[models.Dissertacao]:
+    return db.query(models.Dissertacao).filter(models.Dissertacao.id_estudante == id_estudante).all()

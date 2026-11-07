@@ -7,6 +7,55 @@ from db import models
 from db.enumStatus import StatusEstudanteEnum, StatusQualificacao, StatusDefesa
 from services.academic_tracking_service import AcademicTrackingService
 
+from sqlalchemy import func, case
+from db.models import Estudante, HistoricoDisciplina, Disciplina
+from db.enumStatus import StatusDisciplina, ConceitoHistorico
+
+def obter_resumo_creditos_por_perfil(db_connection: Session, id_estudante: int = None):
+    """
+    Agrupa os créditos integralizados por grupo de disciplina e identifica
+    quantas vezes o discente obteve conceito 'D'.
+    """
+    
+    # 1. Agregações condicionais (equivalente ao IF/CASE do SQL)
+    soma_creditos = func.sum(
+        case(
+            (HistoricoDisciplina.status_disciplina == StatusDisciplina.APROVADO.value, HistoricoDisciplina.creditos_integralizados), 
+            else_=0
+        )
+    ).label("total_creditos")
+    
+    # Conta quantas vezes o aluno tirou D nesse grupo de disciplinas
+    qtd_conceito_d = func.sum(
+        case(
+            (HistoricoDisciplina.conceito == ConceitoHistorico.D.value, 1), 
+            else_=0
+        )
+    ).label("qtd_conceito_d")
+
+    # 2. Montagem da Query
+    query = (
+        db_connection.query(
+            Estudante.id_estudante,
+            Estudante.nome_discente,
+            Disciplina.grupo_disciplina,
+            soma_creditos,
+            qtd_conceito_d
+        )
+        .join(HistoricoDisciplina, Estudante.id_estudante == HistoricoDisciplina.id_estudante)
+        .join(Disciplina, HistoricoDisciplina.id_disciplina == Disciplina.id_disciplina)
+        .group_by(
+            Estudante.id_estudante,
+            Estudante.nome_discente,
+            Disciplina.grupo_disciplina
+        )
+    )
+
+    # Filtro opcional para buscar de um aluno específico
+    if id_estudante:
+        query = query.filter(Estudante.id_estudante == id_estudante)
+
+    return query.all()
 
 # ==========================================================================
 # CRIAÇÃO COM MARCOS (Eager Creation) — usada pelo POST /estudantes

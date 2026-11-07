@@ -10,7 +10,13 @@ class StrEnum(str, Enum):
 # ==========================================
 # DISCIPLINAS
 # ==========================================
-class GrupoDisciplina(StrEnum):
+class GrupoPesquisa(str, Enum):
+    GRUPO_1 = "GRUPO 1" # Teoria da Computação, Análise de Algoritmos...
+    GRUPO_2 = "GRUPO 2" # Metodologia e Técnicas de Computação
+    GRUPO_3 = "GRUPO 3" # Sistemas de Computação
+    GRUPO_4 = "GRUPO 4" # Outros
+
+class NaturezaDisciplina(str, Enum):
     BASICAS = "BASICAS"
     ELETIVAS = "ELETIVAS"
     TOPICOS_ESPECIAIS = "TOPICOS_ESPECIAIS"

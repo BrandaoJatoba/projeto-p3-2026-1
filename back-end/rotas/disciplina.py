@@ -27,13 +27,15 @@ def cadastrar_disciplina(
 ):
     """Cadastra uma nova disciplina no sistema."""
     try:
-        # CORREÇÃO: Passando os atributos esperados pela função criar_disciplina
+        # Passando os novos atributos para o CRUD
         disciplina = crud_disciplina.criar_disciplina(
             db_connection=db_connection, 
             codigo_disciplina=dados.codigo_disciplina,
             nome_disciplina=dados.nome_disciplina,
-            grupo_disciplina=dados.grupo_disciplina,
-            creditos=dados.creditos
+            grupo_pesquisa=dados.grupo_pesquisa,           # NOVO
+            natureza_disciplina=dados.natureza_disciplina, # NOVO
+            creditos=dados.creditos,
+            eh_obrigatoria=dados.eh_obrigatoria            # NOVO
         )
         return DisciplinaResponse.model_validate(disciplina)
     except IntegrityError:
