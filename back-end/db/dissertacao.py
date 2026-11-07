@@ -10,7 +10,7 @@ def criar_dissertacao(db: Session, dissertacao: DissertacaoCreate) -> models.Dis
     return dissertacao
 
 def obter_dissertacao_por_id(db: Session, dissertacao_id: int) -> Optional[models.Dissertacao]:
-    return db.query(models.Dissertacao).filter(models.Dissertacao.id == dissertacao_id).first()
+    return db.query(models.Dissertacao).filter(models.Dissertacao.id_dissertacao == dissertacao_id).first()
 
 def atualizar_dissertacao(db: Session, dissertacao_id: int, dissertacao_update: DissertacaoUpdate) -> Optional[models.Dissertacao]:
     dissertacao = db.query(models.Dissertacao).filter(models.Dissertacao.id == dissertacao_id).first()
@@ -26,7 +26,7 @@ def atualizar_dissertacao(db: Session, dissertacao_id: int, dissertacao_update: 
     return dissertacao
 
 def deletar_dissertacao(db: Session, dissertacao_id: int) -> bool:
-    dissertacao = db.query(models.Dissertacao).filter(models.Dissertacao.id == dissertacao_id).first()
+    dissertacao = db.query(models.Dissertacao).filter(models.Dissertacao.id_dissertacao == dissertacao_id).first()
     if dissertacao:
         db.delete(dissertacao)
         db.commit()
