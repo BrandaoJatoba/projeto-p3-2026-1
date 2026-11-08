@@ -188,8 +188,11 @@ class HistoricoDisciplina(Base):
     
     """
     Registro de disciplinas cursadas pelo estudante em cada semestre,
-    armazenando o conceito obtido, status e créditos integralizados.
-    """
+    armazenando o conceito obtido, status. Créditos integralizados serão obtidos a partir da tabela disciplina e do conceito final (Aprovado, Reprovado, Trancado, etc.).
+    1. A tabela historico_disciplinas é a entidade central para o requisito de acompanhamento de créditos obtidos, pois ela relaciona o estudante, a disciplina cursada e o semestre letivo correspondente.
+    2. O conceito obtido em cada disciplina é armazenado nesta tabela, permitindo calcular os créditos integralizados com base nas disciplinas aprovadas.
+    3. O status da disciplina (Aprovado, Reprovado, Trancado, etc.) também é registrado aqui, fornecendo informações sobre o desempenho acadêmico do estudante.
+   """
 
     __tablename__ = "historico_disciplinas"
 
@@ -199,7 +202,6 @@ class HistoricoDisciplina(Base):
     id_semestre = Column(Integer, ForeignKey("semestres_letivos.id_semestre"), nullable=False)
     conceito = Column(String(5))
     status_disciplina = Column(String(20))
-    creditos_integralizados = Column(Integer)
 
 # --  Requisito 2: Estágio Docência -- #
 

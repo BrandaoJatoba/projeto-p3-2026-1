@@ -138,7 +138,7 @@ def criar_mock_data(db: Session):
                 
                 # Disciplinas
                 for disc in disciplinas[:6]:
-                    db.add(models.HistoricoDisciplina(id_estudante=est.id_estudante, id_disciplina=disc.id_disciplina, id_semestre=semestres_db[0].id_semestre, conceito="A", status_disciplina="APROVADO", creditos_integralizados=4))
+                    db.add(models.HistoricoDisciplina(id_estudante=est.id_estudante, id_disciplina=disc.id_disciplina, id_semestre=semestres_db[0].id_semestre, conceito="A", status_disciplina="APROVADO"))
                 
                 # Dissertação, Qualificação e Defesa (Atualizado)
                 diss = models.Dissertacao(id_estudante=est.id_estudante, titulo="Dissertação do João", data_inicio=datetime.date(2023, 3, 1))
@@ -166,7 +166,7 @@ def criar_mock_data(db: Session):
             # ==========================================
             elif "Iniciante" in est.nome_discente:
                 for disc in disciplinas[:2]:
-                    db.add(models.HistoricoDisciplina(id_estudante=est.id_estudante, id_disciplina=disc.id_disciplina, id_semestre=semestres_db[2].id_semestre, conceito="A", status_disciplina="APROVADO", creditos_integralizados=4))
+                    db.add(models.HistoricoDisciplina(id_estudante=est.id_estudante, id_disciplina=disc.id_disciplina, id_semestre=semestres_db[2].id_semestre, conceito="A", status_disciplina="APROVADO"))
                 diss = models.Dissertacao(id_estudante=est.id_estudante, titulo="Projeto Inicial da Maria", data_inicio=datetime.date(2024, 3, 1))
                 db.add(diss)
 
@@ -176,7 +176,7 @@ def criar_mock_data(db: Session):
             elif "Qualificado" in est.nome_discente:
                 db.add(models.Proficiencia(id_estudante=est.id_estudante, status_certificado="ENTREGUE", consolidada_sigaa=True))
                 for disc in disciplinas[:4]:
-                    db.add(models.HistoricoDisciplina(id_estudante=est.id_estudante, id_disciplina=disc.id_disciplina, id_semestre=semestres_db[1].id_semestre, conceito="B", status_disciplina="APROVADO", creditos_integralizados=4))
+                    db.add(models.HistoricoDisciplina(id_estudante=est.id_estudante, id_disciplina=disc.id_disciplina, id_semestre=semestres_db[1].id_semestre, conceito="B", status_disciplina="APROVADO"))
                 
                 # Dissertação e Qualificação (Atualizado)
                 diss = models.Dissertacao(id_estudante=est.id_estudante, titulo="Redes Neurais Aplicadas", data_inicio=datetime.date(2023, 8, 1))
