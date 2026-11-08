@@ -15,6 +15,7 @@ class GrupoPesquisa(StrEnum):
     GRUPO_2 = "GRUPO 2" # Metodologia e Técnicas de Computação
     GRUPO_3 = "GRUPO 3" # Sistemas de Computação
     GRUPO_4 = "GRUPO 4" # Outros
+    GRUPO_5 = "GRUPO 5" # Disciplinas da gradução (não pertencentes ao Mestrado)
 
 class NaturezaDisciplina(StrEnum):
     BASICAS = "BASICAS"

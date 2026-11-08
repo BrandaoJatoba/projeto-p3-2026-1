@@ -20,6 +20,7 @@ const opcoesGrupo = [
   { valor: 'GRUPO 2', rotulo: 'Grupo 2', descricao: 'Metodologia e Técnicas de Computação' },
   { valor: 'GRUPO 3', rotulo: 'Grupo 3', descricao: 'Sistemas de Computação' },
   { valor: 'GRUPO 4', rotulo: 'Grupo 4', descricao: 'Outros' },
+  { valor: 'GRUPO 5', rotulo: 'Grupo 5', descricao: 'Disciplinas da graduação (docência)' },
 ]
 
 const mensagemSessaoExpirada = 'Sua sessão expirou. Saia e entre de novo.'
