@@ -290,11 +290,7 @@ class HistoricoDisciplinaBase(BaseModel):
         default=enumStatus.StatusDisciplina.PENDENTE,
         description="Status do histórico na disciplina"
     )
-    creditos_integralizados: Optional[int] = Field(
-        default=0, 
-        ge=0, 
-        description="Quantidade de créditos obtidos após aprovação"
-    )
+  
 
 
 class HistoricoDisciplinaCreate(HistoricoDisciplinaBase):
@@ -309,7 +305,6 @@ class HistoricoDisciplinaUpdate(BaseModel):
     id_semestre: Optional[int] = None
     conceito: Optional[enumStatus.ConceitoHistorico] = None
     status_disciplina: Optional[enumStatus.StatusDisciplina] = None
-    creditos_integralizados: Optional[int] = Field(None, ge=0)
 
 
 class HistoricoDisciplinaResponse(HistoricoDisciplinaBase):

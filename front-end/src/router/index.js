@@ -11,6 +11,7 @@ import ProfessoresView from '../views/ProfessoresView.vue'
 import DisciplinasView from '../views/DisciplinasView.vue'
 import AlertasView from '../views/AlertasView.vue'
 import EstudantesView from '../views/EstudantesView.vue'
+import EstudanteDetalheView from '../views/EstudanteDetalheView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -53,6 +54,12 @@ const router = createRouter({
       path: '/estudantes',
       name: 'estudantes',
       component: EstudantesView,
+      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
+    },
+    {
+      path: '/estudantes/:id',
+      name: 'estudante-detalhe',
+      component: EstudanteDetalheView,
       meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
     },
     {
