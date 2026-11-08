@@ -25,11 +25,6 @@ function tituloReal(titulo) {
 }
 
 // Valores iguais aos do backend (back-end/db/enumStatus.py).
-const opcoesStatusDissertacao = [
-  { valor: 'EM ANDAMENTO', rotulo: 'Em andamento', classe: 'situacao-submetida' },
-  { valor: 'CONCLUÍDA', rotulo: 'Concluída', classe: 'situacao-aprovada' },
-  { valor: 'CANCELADA', rotulo: 'Cancelada', classe: 'situacao-cancelada' },
-]
 const opcoesStatusQualificacao = [
   { valor: 'PENDENTE', rotulo: 'Pendente', classe: 'situacao-pendente' },
   { valor: 'ENTREGUE', rotulo: 'Entregue', classe: 'situacao-aprovada' },
@@ -38,9 +33,9 @@ const opcoesStatusQualificacao = [
 ]
 const opcoesStatusDefesa = [
   { valor: 'PENDENTE', rotulo: 'Pendente', classe: 'situacao-pendente' },
-  { valor: 'Em homologação', rotulo: 'Em homologação', classe: 'situacao-submetida' },
-  { valor: 'Defendida', rotulo: 'Defendida', classe: 'situacao-aprovada' },
-  { valor: 'Concluído', rotulo: 'Concluído', classe: 'situacao-aprovada' },
+  { valor: 'EM_HOMOLOGACAO', rotulo: 'Em homologação', classe: 'situacao-submetida' },
+  { valor: 'DEFENDIDA', rotulo: 'Defendida', classe: 'situacao-aprovada' },
+  { valor: 'CONCLUIDO', rotulo: 'Concluído', classe: 'situacao-aprovada' },
   { valor: 'CANCELADO', rotulo: 'Cancelado', classe: 'situacao-cancelada' },
 ]
 const opcoesConceito = [
@@ -72,7 +67,7 @@ const salvandoDissertacao = ref(false)
 const erroFormDissertacao = ref('')
 const formDissertacao = ref({})
 
-// Modal da qualificação
+// Modais da qualificação e da defesa
 const modalQualificacaoAberto = ref(false)
 const modalDefesaAberto = ref(false)
 
@@ -136,8 +131,9 @@ async function lerMensagemDeErro(resposta) {
   return ''
 }
 
-async function buscarPorAluno(caminho) {
-  const resposta = await fetch(`${api}${caminho}/aluno/${props.idEstudante}`, {
+// Ex.: /dissertacoes/estudante/1. O 404 quer dizer "ainda não tem registro".
+async function buscarPorEstudante(caminho) {
+  const resposta = await fetch(`${api}${caminho}/estudante/${props.idEstudante}`, {
     headers: cabecalho(),
   })
   if (resposta.status === 404) return []
@@ -153,9 +149,9 @@ async function buscarTudo() {
 
   // allSettled: espera as três buscas e mostra o que deu certo, mesmo se uma falhar.
   const [resDissertacoes, resQualificacoes, resDefesas] = await Promise.allSettled([
-    buscarPorAluno('/dissertacoes'),
-    buscarPorAluno('/qualificacoes'),
-    buscarPorAluno('/defesas'),
+    buscarPorEstudante('/dissertacoes'),
+    buscarPorEstudante('/qualificacoes'),
+    buscarPorEstudante('/defesas'),
   ])
 
   if (resDissertacoes.status === 'fulfilled') {
@@ -189,12 +185,10 @@ function abrirModalDissertacao() {
     ? {
         titulo: tituloReal(dissertacao.value.titulo),
         data_inicio: (dissertacao.value.data_inicio || '').slice(0, 10),
-        status_dissertacao: dissertacao.value.status_dissertacao || 'EM ANDAMENTO',
       }
     : {
         titulo: '',
         data_inicio: dataDeHoje(),
-        status_dissertacao: 'EM ANDAMENTO',
       }
   erroFormDissertacao.value = ''
   modalDissertacaoAberto.value = true
@@ -217,14 +211,14 @@ async function salvarDissertacao() {
     return
   }
 
-  // O PUT do backend não aceita data_inicio: ao editar, mandamos só título e status.
+  // A data de início marca o começo da contagem dos prazos:
+  // ao editar, mandamos só o título.
   const dados = editando
-    ? { titulo, status_dissertacao: formDissertacao.value.status_dissertacao }
+    ? { titulo }
     : {
         id_estudante: props.idEstudante,
         titulo,
         data_inicio: formDissertacao.value.data_inicio,
-        status_dissertacao: formDissertacao.value.status_dissertacao,
       }
   const url = editando
     ? `${api}/dissertacoes/${dissertacao.value.id_dissertacao}`
@@ -271,7 +265,7 @@ async function salvarDissertacao() {
   }
 }
 
-// ---------- Modal: Qualificação ----------
+// ---------- Qualificação e defesa ----------
 
 function aoSalvarQualificacao(salva, editando) {
   if (salva && salva.id_qualificacao) {
@@ -325,23 +319,14 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
         <dl v-else-if="dissertacao" class="marco-dados">
           <div class="dado-largo">
             <dt>Título</dt>
-            <dd v-if="tituloReal(dissertacao.titulo)">{{ tituloReal(dissertacao.titulo) }}</dd>
+            <dd v-if="tituloReal(dissertacao.titulo)">
+              {{ tituloReal(dissertacao.titulo) }}
+            </dd>
             <dd v-else class="texto-vazio">Sem título</dd>
           </div>
           <div>
             <dt>Início</dt>
             <dd>{{ formatarData(dissertacao.data_inicio) }}</dd>
-          </div>
-          <div>
-            <dt>Status</dt>
-            <dd>
-              <span
-                class="badge"
-                :class="situacao(opcoesStatusDissertacao, dissertacao.status_dissertacao).classe"
-              >
-                {{ situacao(opcoesStatusDissertacao, dissertacao.status_dissertacao).rotulo }}
-              </span>
-            </dd>
           </div>
         </dl>
         <p v-else class="texto-vazio">Nenhuma dissertação registrada.</p>
@@ -492,17 +477,8 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
           />
         </div>
 
-        <div class="form-group">
-          <label for="dissertacao-status">Status *</label>
-          <select id="dissertacao-status" v-model="formDissertacao.status_dissertacao" required>
-            <option v-for="o in opcoesStatusDissertacao" :key="o.valor" :value="o.valor">
-              {{ o.rotulo }}
-            </option>
-          </select>
-        </div>
-
         <p v-if="dissertacao" class="dica span-full">
-          A data de início não pode ser alterada depois do cadastro.
+          A data de início marca o começo da contagem dos prazos e não pode ser alterada aqui.
         </p>
 
         <p v-if="erroFormDissertacao" class="aviso-erro span-full">{{ erroFormDissertacao }}</p>
@@ -717,8 +693,7 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
   color: #374151;
 }
 
-.form-group input,
-.form-group select {
+.form-group input {
   padding: 10px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
@@ -731,8 +706,7 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
   color: #6b7280;
 }
 
-.form-group input:focus,
-.form-group select:focus {
+.form-group input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
