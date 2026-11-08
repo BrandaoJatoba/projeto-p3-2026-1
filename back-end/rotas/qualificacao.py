@@ -10,6 +10,7 @@ from schemas import (
     QualificacaoResponse
 )
 from security import autorizar
+from services.resultado_bancas_service import processar_resultado_qualificacao # Importação do serviço
 
 PERFIS_GESTAO = ["SECRETARIA", "COORDENACAO", "ADMIN"]
 
@@ -96,14 +97,26 @@ def atualizar_qualificacao(
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
     """Atualiza os detalhes de uma qualificação existente."""
+    dados_atualizacao = atualizacoes.model_dump(exclude_unset=True)
+    
     qualificacao_atualizada = crud_qualificacao.atualizar_qualificacao(
-        db_connection, id_qualificacao, atualizacoes.model_dump(exclude_unset=True)
+        db_connection, id_qualificacao, dados_atualizacao
     )
     if not qualificacao_atualizada:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Qualificação não encontrada para atualização.",
         )
+        
+    # Gatilho: Processamento da regra de negócio caso o resultado da banca seja enviado
+    if "retorno_qualificacao" in dados_atualizacao and atualizacoes.retorno_qualificacao:
+        qualificacao_atualizada = processar_resultado_qualificacao(
+            db=db_connection,
+            id_qualificacao=id_qualificacao,
+            resultado=atualizacoes.retorno_qualificacao,
+            data_banca=qualificacao_atualizada.data_realizacao
+        )
+        
     return QualificacaoResponse.model_validate(qualificacao_atualizada)
 
 @router.delete(

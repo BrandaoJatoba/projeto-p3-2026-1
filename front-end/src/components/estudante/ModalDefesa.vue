@@ -23,7 +23,8 @@ const opcoesHomologacao = [
 ]
 const opcoesStatusDefesa = [
   { valor: 'PENDENTE', rotulo: 'Pendente' },
-  { valor: 'EM_HOMOLOGACAO', rotulo: 'Em homologação' },
+  { valor: 'EM_HOMOLOGACAO', rotulo: 'Em homologação' },  
+  { valor: 'AGUARDANDO_VERSAO_FINAL', rotulo: 'Aguardando versão final', classe: 'situacao-pendente' },
   { valor: 'DEFENDIDA', rotulo: 'Defendida' },
   { valor: 'CONCLUIDO', rotulo: 'Concluído' },
   { valor: 'CANCELADO', rotulo: 'Cancelado' },

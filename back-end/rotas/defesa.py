@@ -10,6 +10,7 @@ from schemas import (
     DefesaResponse
 )
 from security import autorizar
+from services.resultado_bancas_service import processar_resultado_defesa # Importação do serviço
 
 PERFIS_GESTAO = ["SECRETARIA", "COORDENACAO", "ADMIN"]
 
@@ -116,12 +117,26 @@ def atualizar_defesa(
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
     """Atualiza os detalhes de uma defesa específica pelo seu ID."""
-    defesa_atualizada = crud_defesa.atualizar_defesa(db_connection, id_defesa, atualizacoes.model_dump(exclude_unset=True))
+    dados_atualizacao = atualizacoes.model_dump(exclude_unset=True)
+    
+    defesa_atualizada = crud_defesa.atualizar_defesa(
+        db_connection, id_defesa, dados_atualizacao
+    )
     if not defesa_atualizada:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Defesa não encontrada para atualização.",
         )
+        
+    # Gatilho: Processamento da regra de negócio caso a secretaria lance o conceito da ata
+    if "conceito_defesa" in dados_atualizacao and atualizacoes.conceito_defesa:
+        defesa_atualizada = processar_resultado_defesa(
+            db=db_connection,
+            id_defesa=id_defesa,
+            conceito=atualizacoes.conceito_defesa,
+            data_banca=defesa_atualizada.data_realizacao
+        )
+
     return DefesaResponse.model_validate(defesa_atualizada)
 
 @router.delete(

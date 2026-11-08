@@ -20,7 +20,9 @@ const opcoesStatus = [
   { valor: 'PENDENTE', rotulo: 'Pendente' },
   { valor: 'ENTREGUE', rotulo: 'Entregue' },
   { valor: 'DISPENSA', rotulo: 'Dispensa' },
-  { valor: 'REPROVADO', rotulo: 'Reprovado' },
+  { valor: 'AGUARDANDO_NOVA_BANCA', rotulo: 'Aguardando nova banca'},
+  { valor: 'REPROVADO', rotulo: 'Reprovado'},
+  { valor: 'REPROVADO_DEFINITIVO', rotulo: 'Reprovado 2ª Tentativa'},
 ]
 const opcoesRetorno = ['Cadastrou Banca', 'Solicitou Prorrogação']
 

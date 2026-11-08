@@ -29,11 +29,14 @@ const opcoesStatusQualificacao = [
   { valor: 'PENDENTE', rotulo: 'Pendente', classe: 'situacao-pendente' },
   { valor: 'ENTREGUE', rotulo: 'Entregue', classe: 'situacao-aprovada' },
   { valor: 'DISPENSA', rotulo: 'Dispensa', classe: 'situacao-dispensa' },
+  { valor: 'AGUARDANDO_NOVA_BANCA', rotulo: 'Aguardando nova banca', classe: 'situacao-pendente' },
   { valor: 'REPROVADO', rotulo: 'Reprovado', classe: 'situacao-cancelada' },
+  { valor: 'REPROVADO_DEFINITIVO', rotulo: 'Reprovado 2ª Tentativa', classe: 'situacao-cancelada' },
 ]
 const opcoesStatusDefesa = [
   { valor: 'PENDENTE', rotulo: 'Pendente', classe: 'situacao-pendente' },
   { valor: 'EM_HOMOLOGACAO', rotulo: 'Em homologação', classe: 'situacao-submetida' },
+  { valor: 'AGUARDANDO_VERSAO_FINAL', rotulo: 'Aguardando versão final', classe: 'situacao-pendente' },
   { valor: 'DEFENDIDA', rotulo: 'Defendida', classe: 'situacao-aprovada' },
   { valor: 'CONCLUIDO', rotulo: 'Concluído', classe: 'situacao-aprovada' },
   { valor: 'CANCELADO', rotulo: 'Cancelado', classe: 'situacao-cancelada' },
