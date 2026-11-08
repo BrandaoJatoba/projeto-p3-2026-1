@@ -22,10 +22,13 @@ const opcoesGrupo = [
   { valor: 'GRUPO 4', rotulo: 'Grupo 4', descricao: 'Outros' },
 ]
 
+const mensagemSessaoExpirada = 'Sua sessão expirou. Saia e entre de novo.'
+
 const authStore = useAuthStore()
 const disciplinas = ref([])
 const carregando = ref(true)
-const erro = ref(false)
+// Texto do erro ao carregar a lista ('' quando não há erro).
+const erro = ref('')
 
 const codigoForm = ref('')
 const nomeForm = ref('')
@@ -151,21 +154,26 @@ async function lerMensagemDeErro(resposta) {
 
 async function buscarDisciplinas() {
   carregando.value = true
-  erro.value = false
+  erro.value = ''
 
   try {
     const resposta = await fetch('http://localhost:8000/disciplinas?limit=200', {
       headers: { Authorization: `Bearer ${authStore.token}` },
     })
 
+    if (resposta.status === 401) {
+      erro.value = mensagemSessaoExpirada
+      return
+    }
+
     if (!resposta.ok) {
-      erro.value = true
+      erro.value = 'Não foi possível carregar as disciplinas.'
       return
     }
 
     disciplinas.value = await resposta.json()
   } catch {
-    erro.value = true
+    erro.value = 'Não foi possível conectar ao servidor.'
   } finally {
     carregando.value = false
   }
@@ -246,8 +254,14 @@ async function salvarDisciplina() {
     })
 
     if (!resposta.ok) {
-      const detalhe = await lerMensagemDeErro(resposta)
-      erroForm.value = detalhe || 'Não foi possível salvar a disciplina. Confira os dados.'
+      if (resposta.status === 401) {
+        erroForm.value = mensagemSessaoExpirada
+      } else if (resposta.status === 403) {
+        erroForm.value = 'Você não tem permissão para salvar disciplinas.'
+      } else {
+        const detalhe = await lerMensagemDeErro(resposta)
+        erroForm.value = detalhe || 'Não foi possível salvar a disciplina. Confira os dados.'
+      }
       return
     }
 
@@ -275,6 +289,11 @@ async function excluirDisciplina(disciplina) {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${authStore.token}` },
     })
+
+    if (resposta.status === 401) {
+      mostrarAviso(mensagemSessaoExpirada, 'erro')
+      return
+    }
 
     if (resposta.status === 403) {
       mostrarAviso('Você não tem permissão para excluir disciplinas.', 'erro')
@@ -415,7 +434,7 @@ onMounted(() => {
         <p class="aviso-vazio">Carregando disciplinas...</p>
       </div>
       <div v-else-if="erro" class="linha-aviso">
-        <p class="aviso-erro">Não foi possível carregar as disciplinas.</p>
+        <p class="aviso-erro">{{ erro }}</p>
       </div>
       <div v-else-if="disciplinas.length === 0" class="linha-aviso">
         <p class="aviso-vazio">Nenhuma disciplina cadastrada.</p>
