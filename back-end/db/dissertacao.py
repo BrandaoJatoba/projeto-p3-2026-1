@@ -15,7 +15,7 @@ def obter_dissertacao_por_id(db: Session, dissertacao_id: int) -> Optional[model
     return db.query(models.Dissertacao).filter(models.Dissertacao.id_dissertacao == dissertacao_id).first()
 
 def atualizar_dissertacao(db: Session, dissertacao_id: int, dissertacao_update: DissertacaoUpdate) -> Optional[models.Dissertacao]:
-    dissertacao = db.query(models.Dissertacao).filter(models.Dissertacao.id == dissertacao_id).first()
+    dissertacao = db.query(models.Dissertacao).filter(models.Dissertacao.id_dissertacao == dissertacao_id).first()
     
     if not dissertacao:
         return None

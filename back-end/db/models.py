@@ -80,7 +80,7 @@ class Disciplina(Base):
     id_disciplina = Column(Integer, primary_key=True, autoincrement=True)
     codigo_disciplina = Column(String(20), nullable=False)
     nome_disciplina = Column(String(150), nullable=False) # Aumentado para nomes longos
-    grupo_pesquisa = Column(String(30), nullable=False)   # GRUPO 1, GRUPO 2...
+    grupo_disciplina = Column(String(30), nullable=False)   # GRUPO 1, GRUPO 2...
     natureza_disciplina = Column(String(30), nullable=False) # BASICAS, ELETIVAS...
     creditos = Column(Integer, nullable=False, default=4)
     eh_obrigatoria = Column(Boolean, nullable=False, default=False)
@@ -155,7 +155,7 @@ class HistoricoAlertaEnviado(Base):
     id_gatilho = Column(Integer, ForeignKey("gatilhos_alertas.id_gatilho"), nullable=False)
     data_envio = Column(DateTime, server_default=func.now())
     destinatario_email = Column(String(100), nullable=False)
-    status_envio = Column(String(20), default="SUCESSO")
+    status_envio = Column(String(20), default="ENVIADO")
 
 # -- Discentes -- #
 

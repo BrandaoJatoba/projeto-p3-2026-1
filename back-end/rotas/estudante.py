@@ -127,7 +127,7 @@ def listar_estudantes(
     status_atual: Optional[StatusEstudanteEnum] = Query(None, description="Ex.: ATIVO, DESLIGADO"),
     id_semestre: Optional[int] = Query(None, description="Turma de ingresso"),
     id_orientador: Optional[int] = Query(None, description="Discentes de um docente"),
-    eh_bolsista: Optional[bool] = Query(None),
+    eh_bolsista: Optional[bool] = Query(None, description="Discentes bolsistas"),
     busca: Optional[str] = Query(None, min_length=1, max_length=100, description="Trecho do nome ou matrícula"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),

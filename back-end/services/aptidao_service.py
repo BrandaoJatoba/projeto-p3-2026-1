@@ -42,12 +42,12 @@ def calcular_aptidao_defesa(db: Session, id_estudante: int) -> StatusDefesaRespo
         # 2. Verificação de Disciplinas Obrigatórias (Independente da Natureza)
         if getattr(disc, 'eh_obrigatoria', False):
             # Se for do Grupo 1
-            if disc.grupo_pesquisa == enumStatus.GrupoPesquisa.GRUPO_1:
+            if disc.grupo_disciplina == enumStatus.GrupoPesquisa.GRUPO_1:
                 qtd_obrigatorias_grupo1 += 1
                 qtd_obrigatorias_grupos_1_2_3 += 1
                 
             # Se for do Grupo 2 ou 3
-            elif disc.grupo_pesquisa in (enumStatus.GrupoPesquisa.GRUPO_2, enumStatus.GrupoPesquisa.GRUPO_3):
+            elif disc.grupo_disciplina in (enumStatus.GrupoPesquisa.GRUPO_2, enumStatus.GrupoPesquisa.GRUPO_3):
                 qtd_obrigatorias_grupos_1_2_3 += 1
 
     # Aplicação dos tetos (máximo de 8 para tópicos, máximo de 4 para estudo)

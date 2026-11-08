@@ -15,6 +15,10 @@ def criar_mock_data(db: Session):
         {"codigo": "2023.2", "inicio": datetime.date(2023, 8, 1), "fim": datetime.date(2023, 12, 15)},
         {"codigo": "2024.1", "inicio": datetime.date(2024, 3, 1), "fim": datetime.date(2024, 7, 15)},
         {"codigo": "2024.2", "inicio": datetime.date(2024, 8, 1), "fim": datetime.date(2024, 12, 15)},
+        {"codigo": "2025.1", "inicio": datetime.date(2025, 3, 1), "fim": datetime.date(2025, 7, 15)},
+        {"codigo": "2025.2", "inicio": datetime.date(2025, 8, 1), "fim": datetime.date(2025, 12, 15)},
+        {"codigo": "2026.1", "inicio": datetime.date(2026, 3, 1), "fim": datetime.date(2026, 7, 15)},
+        {"codigo": "2026.2", "inicio": datetime.date(2026, 8, 1), "fim": datetime.date(2026, 12, 15)},
     ]
     
     semestres_db = []

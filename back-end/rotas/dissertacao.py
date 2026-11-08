@@ -59,7 +59,7 @@ def obter_dissertacao(
 )
 def listar_dissertacoes(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1),
+       limit: int = Query(100, ge=1, le=1000),
     db_connection: Session = Depends(get_db),
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
@@ -68,7 +68,7 @@ def listar_dissertacoes(
     return [DissertacaoResponse.model_validate(d) for d in dissertacoes]
 
 @router.get(
-    "/aluno/{id_estudante}",
+    "/estudante/{id_estudante}",
     response_model=list[DissertacaoResponse],
 )
 def listar_dissertacoes_por_aluno(
@@ -99,6 +99,10 @@ def atualizar_dissertacao(
         )
     return DissertacaoResponse.model_validate(dissertacao_atualizada)
 
+@router.delete(
+    "/{id_dissertacao}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 def deletar_dissertacao(
     id_dissertacao: int,
     db_connection: Session = Depends(get_db),
@@ -111,5 +115,3 @@ def deletar_dissertacao(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Dissertação não encontrada para deleção.",
         )
-    return {"detail": "Dissertação deletada com sucesso."}
-

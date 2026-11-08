@@ -32,7 +32,7 @@ def cadastrar_disciplina(
             db_connection=db_connection, 
             codigo_disciplina=dados.codigo_disciplina,
             nome_disciplina=dados.nome_disciplina,
-            grupo_pesquisa=dados.grupo_pesquisa,           # NOVO
+            grupo_disciplina=dados.grupo_disciplina,           # NOVO
             natureza_disciplina=dados.natureza_disciplina, # NOVO
             creditos=dados.creditos,
             eh_obrigatoria=dados.eh_obrigatoria            # NOVO

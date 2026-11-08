@@ -10,13 +10,13 @@ class StrEnum(str, Enum):
 # ==========================================
 # DISCIPLINAS
 # ==========================================
-class GrupoPesquisa(str, Enum):
+class GrupoPesquisa(StrEnum):
     GRUPO_1 = "GRUPO 1" # Teoria da Computação, Análise de Algoritmos...
     GRUPO_2 = "GRUPO 2" # Metodologia e Técnicas de Computação
     GRUPO_3 = "GRUPO 3" # Sistemas de Computação
     GRUPO_4 = "GRUPO 4" # Outros
 
-class NaturezaDisciplina(str, Enum):
+class NaturezaDisciplina(StrEnum):
     BASICAS = "BASICAS"
     ELETIVAS = "ELETIVAS"
     TOPICOS_ESPECIAIS = "TOPICOS_ESPECIAIS"
@@ -46,7 +46,7 @@ class StatusDisciplina(StrEnum):
 # =========================================
 
     
-class StatusEstudanteEnum(str, Enum):
+class StatusEstudanteEnum(StrEnum):
     ATIVO = "ATIVO"
     TRANCADO = "TRANCADO"
     PROCESSO_DESLIGAMENTO = "PROCESSO DE DESLIGAMENTO"
@@ -107,6 +107,8 @@ class QualisArtigo(StrEnum):
 class TipoArtigo(StrEnum):
     PERIODICO = "PERIÓDICO"
     EVENTO = "EVENTO"
+    CONFERENCIA = "CONFERÊNCIA"
+    CAPITULO_LIVRO = "CAPÍTULO DE LIVRO"
 
 
 class StatusValidacaoColegiadoArtigo(StrEnum):
@@ -136,9 +138,9 @@ class RetornoQualificacao(StrEnum):
 # ==========================================
 class StatusDefesa(StrEnum):
     PENDENTE = "PENDENTE"
-    DEFENDIDA = "Defendida"
-    CONCLUIDO = "Concluído"
-    EM_HOMOLOGACAO = "Em homologação"
+    DEFENDIDA = "DEFENDIDA"
+    CONCLUIDO = "CONCLUIDO"
+    EM_HOMOLOGACAO = "EM_HOMOLOGACAO"
     CANCELADO = "CANCELADO"
 
 
@@ -206,12 +208,3 @@ class NomePerfil(StrEnum):
     SECRETARIA = "SECRETARIA"
     COORDENACAO = "COORDENACAO"
     DISCENTE = "DISCENTE"
-
-# ==========================================
-# DISSERTACOES
-# ==========================================
-
-class StatusDissertacao(StrEnum):
-    EM_ANDAMENTO = "EM ANDAMENTO"
-    CONCLUIDA = "CONCLUÍDA"
-    CANCELADA = "CANCELADA"
