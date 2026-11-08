@@ -17,6 +17,8 @@ const authStore = useAuthStore()
 const opcoesTipo = [
   { valor: 'PERIÓDICO', rotulo: 'Periódico' },
   { valor: 'EVENTO', rotulo: 'Evento' },
+  { valor: 'CONFERÊNCIA', rotulo: 'Conferência' },
+  { valor: 'CAPÍTULO DE LIVRO', rotulo: 'Capítulo de livro' },
 ]
 const opcoesQualis = ['A1', 'A2', 'A3', 'A4', 'B1', 'B2']
 const opcoesComprovante = [
@@ -29,6 +31,7 @@ const opcoesColegiado = [
   { valor: 'PENDENTE', rotulo: 'Pendente', classe: 'situacao-pendente' },
   { valor: 'SUBMETIDA', rotulo: 'Submetida', classe: 'situacao-submetida' },
   { valor: 'APROVADA', rotulo: 'Aprovada', classe: 'situacao-aprovada' },
+  { valor: 'REPROVADA', rotulo: 'Reprovada', classe: 'situacao-cancelada' },
 ]
 
 const artigos = ref([])
