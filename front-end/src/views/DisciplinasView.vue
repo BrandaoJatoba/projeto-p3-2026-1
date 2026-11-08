@@ -4,8 +4,9 @@ import { useAuthStore } from '../stores/auth'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
 import BaseButton from '../components/BaseButton.vue'
 
-// Valores iguais aos do GrupoDisciplina no backend (back-end/db/enumStatus.py).
-const gruposDisponiveis = [
+// Valores iguais aos do backend (back-end/db/enumStatus.py).
+// NaturezaDisciplina: o tipo da disciplina.
+const opcoesNatureza = [
   { valor: 'BASICAS', rotulo: 'Básicas' },
   { valor: 'ELETIVAS', rotulo: 'Eletivas' },
   { valor: 'TOPICOS_ESPECIAIS', rotulo: 'Tópicos especiais' },
@@ -13,15 +14,28 @@ const gruposDisponiveis = [
   { valor: 'DOCENCIA', rotulo: 'Docência' },
 ]
 
+// GrupoPesquisa: o grupo de pesquisa ao qual a disciplina pertence.
+const opcoesGrupo = [
+  { valor: 'GRUPO 1', rotulo: 'Grupo 1', descricao: 'Teoria da Computação' },
+  { valor: 'GRUPO 2', rotulo: 'Grupo 2', descricao: 'Metodologia e Técnicas de Computação' },
+  { valor: 'GRUPO 3', rotulo: 'Grupo 3', descricao: 'Sistemas de Computação' },
+  { valor: 'GRUPO 4', rotulo: 'Grupo 4', descricao: 'Outros' },
+]
+
+const mensagemSessaoExpirada = 'Sua sessão expirou. Saia e entre de novo.'
+
 const authStore = useAuthStore()
 const disciplinas = ref([])
 const carregando = ref(true)
-const erro = ref(false)
+// Texto do erro ao carregar a lista ('' quando não há erro).
+const erro = ref('')
 
 const codigoForm = ref('')
 const nomeForm = ref('')
+const naturezaForm = ref('')
 const grupoForm = ref('')
 const creditosForm = ref('')
+const obrigatoriaForm = ref(false)
 const editandoId = ref(null)
 const erroForm = ref('')
 const salvando = ref(false)
@@ -61,9 +75,31 @@ function normalizarCodigo(texto) {
     .toUpperCase()
 }
 
+function rotuloNatureza(valor) {
+  const natureza = opcoesNatureza.find((n) => n.valor === valor)
+  return natureza ? natureza.rotulo : valor || '—'
+}
+
+function buscarGrupo(valor) {
+  return opcoesGrupo.find((g) => g.valor === valor)
+}
+
 function rotuloGrupo(valor) {
-  const grupo = gruposDisponiveis.find((g) => g.valor === valor)
-  return grupo ? grupo.rotulo : valor
+  return buscarGrupo(valor)?.rotulo || valor || '—'
+}
+
+function descricaoGrupo(valor) {
+  return buscarGrupo(valor)?.descricao || ''
+}
+
+// O que cada coluna usa para ordenar.
+function valorOrdenacao(disciplina, coluna) {
+  if (coluna === 'creditos') return Number(disciplina.creditos)
+  if (coluna === 'eh_obrigatoria') return disciplina.eh_obrigatoria ? 1 : 0
+  if (coluna === 'natureza_disciplina')
+    return normalizar(rotuloNatureza(disciplina.natureza_disciplina))
+  if (coluna === 'grupo_disciplina') return normalizar(rotuloGrupo(disciplina.grupo_disciplina))
+  return normalizar(disciplina[coluna])
 }
 
 const disciplinasVisiveis = computed(() => {
@@ -74,22 +110,19 @@ const disciplinasVisiveis = computed(() => {
       (d) =>
         normalizar(d.nome_disciplina).includes(busca) ||
         normalizar(d.codigo_disciplina).includes(busca) ||
-        normalizar(rotuloGrupo(d.grupo_disciplina)).includes(busca),
+        normalizar(rotuloNatureza(d.natureza_disciplina)).includes(busca) ||
+        normalizar(rotuloGrupo(d.grupo_disciplina)).includes(busca) ||
+        normalizar(descricaoGrupo(d.grupo_disciplina)).includes(busca),
     )
     .sort((a, b) => {
       const coluna = colunaOrdenacao.value
-      let comparacao
+      const valorA = valorOrdenacao(a, coluna)
+      const valorB = valorOrdenacao(b, coluna)
 
-      if (coluna === 'creditos') {
-        comparacao = Number(a.creditos) - Number(b.creditos)
-      } else if (coluna === 'grupo_disciplina') {
-        comparacao = normalizar(rotuloGrupo(a.grupo_disciplina)).localeCompare(
-          normalizar(rotuloGrupo(b.grupo_disciplina)),
-          'pt-BR',
-        )
-      } else {
-        comparacao = normalizar(a[coluna]).localeCompare(normalizar(b[coluna]), 'pt-BR')
-      }
+      const comparacao =
+        typeof valorA === 'number'
+          ? valorA - valorB
+          : String(valorA).localeCompare(String(valorB), 'pt-BR')
 
       return direcaoOrdenacao.value === 'asc' ? comparacao : -comparacao
     })
@@ -109,23 +142,38 @@ function indicadorOrdenacao(coluna) {
   return direcaoOrdenacao.value === 'asc' ? '▲' : '▼'
 }
 
+async function lerMensagemDeErro(resposta) {
+  try {
+    const dados = await resposta.json()
+    if (typeof dados.detail === 'string') return dados.detail
+  } catch {
+    // A resposta não veio em JSON.
+  }
+  return ''
+}
+
 async function buscarDisciplinas() {
   carregando.value = true
-  erro.value = false
+  erro.value = ''
 
   try {
     const resposta = await fetch('http://localhost:8000/disciplinas?limit=200', {
       headers: { Authorization: `Bearer ${authStore.token}` },
     })
 
+    if (resposta.status === 401) {
+      erro.value = mensagemSessaoExpirada
+      return
+    }
+
     if (!resposta.ok) {
-      erro.value = true
+      erro.value = 'Não foi possível carregar as disciplinas.'
       return
     }
 
     disciplinas.value = await resposta.json()
   } catch {
-    erro.value = true
+    erro.value = 'Não foi possível conectar ao servidor.'
   } finally {
     carregando.value = false
   }
@@ -142,6 +190,7 @@ function validarFormulario() {
   if (repetida) return `Já existe uma disciplina com o código ${repetida.codigo_disciplina}.`
 
   if (!nomeForm.value.trim()) return 'Informe o nome da disciplina.'
+  if (!naturezaForm.value) return 'Escolha a natureza da disciplina.'
   if (!grupoForm.value) return 'Escolha o grupo da disciplina.'
 
   const creditos = Number(creditosForm.value)
@@ -156,8 +205,10 @@ function iniciarEdicao(disciplina) {
   editandoId.value = disciplina.id_disciplina
   codigoForm.value = disciplina.codigo_disciplina
   nomeForm.value = disciplina.nome_disciplina
-  grupoForm.value = disciplina.grupo_disciplina
+  naturezaForm.value = disciplina.natureza_disciplina || ''
+  grupoForm.value = disciplina.grupo_disciplina || ''
   creditosForm.value = disciplina.creditos
+  obrigatoriaForm.value = Boolean(disciplina.eh_obrigatoria)
   erroForm.value = ''
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -166,8 +217,10 @@ function cancelarEdicao() {
   editandoId.value = null
   codigoForm.value = ''
   nomeForm.value = ''
+  naturezaForm.value = ''
   grupoForm.value = ''
   creditosForm.value = ''
+  obrigatoriaForm.value = false
   erroForm.value = ''
 }
 
@@ -179,8 +232,10 @@ async function salvarDisciplina() {
   const dados = {
     codigo_disciplina: codigoForm.value.trim(),
     nome_disciplina: nomeForm.value.trim(),
+    natureza_disciplina: naturezaForm.value,
     grupo_disciplina: grupoForm.value,
     creditos: Number(creditosForm.value),
+    eh_obrigatoria: obrigatoriaForm.value,
   }
 
   salvando.value = true
@@ -199,7 +254,14 @@ async function salvarDisciplina() {
     })
 
     if (!resposta.ok) {
-      erroForm.value = 'Não foi possível salvar a disciplina. Confira os dados.'
+      if (resposta.status === 401) {
+        erroForm.value = mensagemSessaoExpirada
+      } else if (resposta.status === 403) {
+        erroForm.value = 'Você não tem permissão para salvar disciplinas.'
+      } else {
+        const detalhe = await lerMensagemDeErro(resposta)
+        erroForm.value = detalhe || 'Não foi possível salvar a disciplina. Confira os dados.'
+      }
       return
     }
 
@@ -227,6 +289,11 @@ async function excluirDisciplina(disciplina) {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${authStore.token}` },
     })
+
+    if (resposta.status === 401) {
+      mostrarAviso(mensagemSessaoExpirada, 'erro')
+      return
+    }
 
     if (resposta.status === 403) {
       mostrarAviso('Você não tem permissão para excluir disciplinas.', 'erro')
@@ -276,28 +343,53 @@ onMounted(() => {
       <form @submit.prevent="salvarDisciplina">
         <div class="form-grid">
           <div class="form-group">
-            <label>Código</label>
-            <input v-model="codigoForm" type="text" class="form-control" required />
+            <label for="disciplina-codigo">Código</label>
+            <input
+              id="disciplina-codigo"
+              v-model="codigoForm"
+              type="text"
+              maxlength="20"
+              class="form-control"
+              required
+            />
           </div>
 
           <div class="form-group">
-            <label>Nome da disciplina</label>
-            <input v-model="nomeForm" type="text" class="form-control" required />
+            <label for="disciplina-nome">Nome da disciplina</label>
+            <input
+              id="disciplina-nome"
+              v-model="nomeForm"
+              type="text"
+              maxlength="150"
+              class="form-control"
+              required
+            />
           </div>
 
           <div class="form-group">
-            <label>Grupo</label>
-            <select v-model="grupoForm" class="form-control" required>
-              <option value="" disabled>Selecione um grupo</option>
-              <option v-for="grupo in gruposDisponiveis" :key="grupo.valor" :value="grupo.valor">
-                {{ grupo.rotulo }}
+            <label for="disciplina-natureza">Natureza</label>
+            <select id="disciplina-natureza" v-model="naturezaForm" class="form-control" required>
+              <option value="" disabled>Selecione a natureza</option>
+              <option v-for="n in opcoesNatureza" :key="n.valor" :value="n.valor">
+                {{ n.rotulo }}
               </option>
             </select>
           </div>
 
           <div class="form-group">
-            <label>Créditos</label>
+            <label for="disciplina-grupo">Grupo</label>
+            <select id="disciplina-grupo" v-model="grupoForm" class="form-control" required>
+              <option value="" disabled>Selecione o grupo</option>
+              <option v-for="g in opcoesGrupo" :key="g.valor" :value="g.valor">
+                {{ g.rotulo }} – {{ g.descricao }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="disciplina-creditos">Créditos</label>
             <input
+              id="disciplina-creditos"
               v-model="creditosForm"
               type="number"
               min="1"
@@ -305,6 +397,11 @@ onMounted(() => {
               class="form-control"
               required
             />
+          </div>
+
+          <div class="form-group-checkbox">
+            <input id="disciplina-obrigatoria" v-model="obrigatoriaForm" type="checkbox" />
+            <label for="disciplina-obrigatoria">Disciplina obrigatória</label>
           </div>
         </div>
 
@@ -328,7 +425,8 @@ onMounted(() => {
           v-model="textoBusca"
           type="search"
           class="form-control campo-busca"
-          placeholder="Buscar por nome, código ou grupo..."
+          placeholder="Buscar por nome, código, natureza ou grupo..."
+          aria-label="Buscar disciplinas"
         />
       </div>
 
@@ -336,7 +434,7 @@ onMounted(() => {
         <p class="aviso-vazio">Carregando disciplinas...</p>
       </div>
       <div v-else-if="erro" class="linha-aviso">
-        <p class="aviso-erro">Não foi possível carregar as disciplinas.</p>
+        <p class="aviso-erro">{{ erro }}</p>
       </div>
       <div v-else-if="disciplinas.length === 0" class="linha-aviso">
         <p class="aviso-vazio">Nenhuma disciplina cadastrada.</p>
@@ -344,51 +442,67 @@ onMounted(() => {
       <div v-else-if="disciplinasVisiveis.length === 0" class="linha-aviso">
         <p class="aviso-vazio">Nenhuma disciplina encontrada para "{{ textoBusca }}".</p>
       </div>
-      <table v-else>
-        <thead>
-          <tr>
-            <th class="ordenavel" @click="ordenarPor('codigo_disciplina')">
-              Código {{ indicadorOrdenacao('codigo_disciplina') }}
-            </th>
-            <th class="ordenavel" @click="ordenarPor('nome_disciplina')">
-              Nome {{ indicadorOrdenacao('nome_disciplina') }}
-            </th>
-            <th class="ordenavel" @click="ordenarPor('grupo_disciplina')">
-              Grupo {{ indicadorOrdenacao('grupo_disciplina') }}
-            </th>
-            <th class="ordenavel" @click="ordenarPor('creditos')">
-              Créditos {{ indicadorOrdenacao('creditos') }}
-            </th>
-            <th class="coluna-acoes">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="disciplina in disciplinasVisiveis" :key="disciplina.id_disciplina">
-            <td>{{ disciplina.codigo_disciplina }}</td>
-            <td>{{ disciplina.nome_disciplina }}</td>
-            <td>
-              <span class="badge-grupo">{{ rotuloGrupo(disciplina.grupo_disciplina) }}</span>
-            </td>
-            <td>{{ disciplina.creditos }}</td>
-            <td class="coluna-acoes">
-              <div class="acoes">
-                <BaseButton type="button" variant="secondary" @click="iniciarEdicao(disciplina)">
-                  Editar
-                </BaseButton>
-                <BaseButton
-                  v-if="podeExcluir"
-                  type="button"
-                  variant="danger"
-                  :disabled="excluindo[disciplina.id_disciplina]"
-                  @click="excluirDisciplina(disciplina)"
-                >
-                  Excluir
-                </BaseButton>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-else class="tabela-rolagem">
+        <table>
+          <thead>
+            <tr>
+              <th class="ordenavel" @click="ordenarPor('codigo_disciplina')">
+                Código {{ indicadorOrdenacao('codigo_disciplina') }}
+              </th>
+              <th class="ordenavel" @click="ordenarPor('nome_disciplina')">
+                Nome {{ indicadorOrdenacao('nome_disciplina') }}
+              </th>
+              <th class="ordenavel" @click="ordenarPor('natureza_disciplina')">
+                Natureza {{ indicadorOrdenacao('natureza_disciplina') }}
+              </th>
+              <th class="ordenavel" @click="ordenarPor('grupo_disciplina')">
+                Grupo {{ indicadorOrdenacao('grupo_disciplina') }}
+              </th>
+              <th class="ordenavel" @click="ordenarPor('creditos')">
+                Créditos {{ indicadorOrdenacao('creditos') }}
+              </th>
+              <th class="ordenavel" @click="ordenarPor('eh_obrigatoria')">
+                Obrigatória {{ indicadorOrdenacao('eh_obrigatoria') }}
+              </th>
+              <th class="coluna-acoes">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="disciplina in disciplinasVisiveis" :key="disciplina.id_disciplina">
+              <td>{{ disciplina.codigo_disciplina }}</td>
+              <td>{{ disciplina.nome_disciplina }}</td>
+              <td>
+                <span class="badge-natureza">
+                  {{ rotuloNatureza(disciplina.natureza_disciplina) }}
+                </span>
+              </td>
+              <td>
+                <span class="badge-grupo" :title="descricaoGrupo(disciplina.grupo_disciplina)">
+                  {{ rotuloGrupo(disciplina.grupo_disciplina) }}
+                </span>
+              </td>
+              <td>{{ disciplina.creditos }}</td>
+              <td>{{ disciplina.eh_obrigatoria ? 'Sim' : 'Não' }}</td>
+              <td class="coluna-acoes">
+                <div class="acoes">
+                  <BaseButton type="button" variant="secondary" @click="iniciarEdicao(disciplina)">
+                    Editar
+                  </BaseButton>
+                  <BaseButton
+                    v-if="podeExcluir"
+                    type="button"
+                    variant="danger"
+                    :disabled="excluindo[disciplina.id_disciplina]"
+                    @click="excluirDisciplina(disciplina)"
+                  >
+                    Excluir
+                  </BaseButton>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </DefaultLayout>
 </template>
@@ -430,6 +544,18 @@ onMounted(() => {
   font-weight: 500;
   color: #4b5563;
 }
+.form-group-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: end;
+  padding-bottom: 10px;
+}
+.form-group-checkbox label {
+  font-size: 0.9rem;
+  color: #374151;
+  cursor: pointer;
+}
 .form-control {
   padding: 10px;
   border: 1px solid #d1d5db;
@@ -463,6 +589,7 @@ onMounted(() => {
 }
 .tabela-topo {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -475,6 +602,10 @@ onMounted(() => {
 }
 .campo-busca {
   width: 320px;
+  max-width: 100%;
+}
+.tabela-rolagem {
+  overflow-x: auto;
 }
 
 .linha-aviso {
@@ -524,6 +655,7 @@ th {
   border-top: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
   font-size: 0.875rem;
+  white-space: nowrap;
 }
 td {
   padding: 14px 20px;
@@ -551,13 +683,21 @@ tbody tr:last-child td {
   justify-content: flex-end;
 }
 
+.badge-natureza,
 .badge-grupo {
   display: inline-block;
   padding: 2px 10px;
   border-radius: 999px;
-  background-color: #eff6ff;
-  color: #1e40af;
   font-size: 0.8rem;
   font-weight: 500;
+  white-space: nowrap;
+}
+.badge-natureza {
+  background-color: #eff6ff;
+  color: #1e40af;
+}
+.badge-grupo {
+  background-color: #f5f3ff;
+  color: #5b21b6;
 }
 </style>
