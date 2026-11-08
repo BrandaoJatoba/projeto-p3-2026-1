@@ -102,6 +102,10 @@ class QualisArtigo(StrEnum):
     A4 = "A4"
     B1 = "B1"
     B2 = "B2"
+    B3 = "B3"
+    B4 = "B4"
+    B5 = "B5"
+    C = "C"
 
 
 class TipoArtigo(StrEnum):
