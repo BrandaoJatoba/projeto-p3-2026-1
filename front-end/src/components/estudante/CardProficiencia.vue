@@ -17,6 +17,8 @@ const authStore = useAuthStore()
 const opcoesStatusCertificado = [
   { valor: 'PENDENTE', rotulo: 'Pendente', classe: 'situacao-pendente' },
   { valor: 'ENTREGUE', rotulo: 'Entregue', classe: 'situacao-aprovada' },
+  { valor: 'APROVADA', rotulo: 'Aprovada', classe: 'situacao-aprovada' },
+  { valor: 'REPROVADA', rotulo: 'Reprovada', classe: 'situacao-cancelada' },
   { valor: 'DISPENSA', rotulo: 'Dispensa', classe: 'situacao-dispensa' },
 ]
 
@@ -407,6 +409,11 @@ watch(() => props.idEstudante, buscarProficiencias, { immediate: true })
 .situacao-dispensa {
   background-color: #f3f4f6;
   color: #4b5563;
+}
+
+.situacao-cancelada {
+  background-color: #fef2f2;
+  color: #b91c1c;
 }
 
 .form-grid {
