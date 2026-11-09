@@ -13,7 +13,7 @@ def calcular_aptidao_defesa(db: Session, id_estudante: int) -> StatusDefesaRespo
         Disciplina, HistoricoDisciplina.id_disciplina == Disciplina.id_disciplina
     ).filter(
         HistoricoDisciplina.id_estudante == id_estudante,
-        HistoricoDisciplina.status_disciplina == enumStatus.StatusDisciplina.APROVADO
+        HistoricoDisciplina.status_disciplina == enumStatus.StatusDisciplina.DEFERIDO
     ).all()
 
     cred_basicas = 0

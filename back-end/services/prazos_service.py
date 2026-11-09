@@ -61,7 +61,7 @@ def recalcular_prazos_estudante(db: Session, id_estudante: int):
     # 2. Buscar todas as prorrogações aprovadas do estudante
     prorrogacoes = db.query(ProrrogacaoHistorico).filter(
         ProrrogacaoHistorico.id_estudante == id_estudante,
-        ProrrogacaoHistorico.resultado_pedido == enumStatus.ResultadoPedidoProrrogacao.APROVADO.value
+        ProrrogacaoHistorico.resultado_pedido == enumStatus.ResultadoPedidoProrrogacao.DEFERIDO.value
     ).all()
 
     meses_prorrogacao_qualificacao = sum(p.quantidade_meses for p in prorrogacoes if p.tipo_prazo == enumStatus.TipoPrazoProrrogacao.QUALIFICACAO.value)
