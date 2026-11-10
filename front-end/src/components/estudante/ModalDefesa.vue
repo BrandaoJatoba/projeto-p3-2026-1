@@ -59,7 +59,6 @@ function preencherFormulario() {
     data_realizacao: data(d?.data_realizacao),
     status_defesa: d?.status_defesa || 'PENDENTE',
     conceito_defesa: d?.conceito_defesa || '',
-    retorno_defesa: d?.retorno_defesa || '',
     prazo_versao_final: data(d?.prazo_versao_final),
     prazo_limite_processo_diploma: data(d?.prazo_limite_processo_diploma),
     status_processo_diploma: d?.status_processo_diploma || 'PENDENTE',
@@ -112,7 +111,6 @@ async function salvar() {
     data_realizacao: f.data_realizacao || null,
     status_defesa: f.status_defesa,
     conceito_defesa: f.conceito_defesa || null,
-    retorno_defesa: f.retorno_defesa || null,
     prazo_versao_final: f.prazo_versao_final || null,
     prazo_limite_processo_diploma: f.prazo_limite_processo_diploma || null,
     status_processo_diploma: f.status_processo_diploma,
@@ -225,14 +223,7 @@ async function salvar() {
                 {{ o.rotulo }}
               </option>
             </select>
-          </div>
-          <div class="form-group">
-            <label for="defesa-retorno">Retorno do discente</label>
-            <select id="defesa-retorno" v-model="form.retorno_defesa">
-              <option value="">Nenhum</option>
-              <option v-for="r in opcoesRetorno" :key="r" :value="r">{{ r }}</option>
-            </select>
-          </div>
+          </div>          
         </div>
       </fieldset>
 

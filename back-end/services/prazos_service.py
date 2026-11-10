@@ -12,35 +12,41 @@ from db.models import (
     ProrrogacaoHistorico
 )
 import db.enumStatus as enumStatus
+from services.academic_tracking_service import (
+    MESES_PARA_QUALIFICACAO,
+    MESES_PARA_DEFESA,
+    somar_meses,
+)
 
-# Configurações Padrão do Programa (podem vir de variáveis de ambiente futuramente)
-MESES_PADRAO_QUALIFICACAO = 12
-MESES_PADRAO_DEFESA = 24
+STATUS_QUALIFICACAO_ENCERRADA = {
+    enumStatus.StatusQualificacao.DISPENSA.value,
+    enumStatus.StatusQualificacao.REPROVADO_DEFINITIVO.value,
+}
 
+STATUS_DEFESA_ENCERRADA = {
+    enumStatus.StatusDefesa.DEFENDIDA.value,
+    enumStatus.StatusDefesa.CONCLUIDO.value,
+    enumStatus.StatusDefesa.AGUARDANDO_VERSAO_FINAL.value,
+    enumStatus.StatusDefesa.CANCELADO.value,
+}
 
 def _calcular_dias_suspensao_aplicaveis(
-    suspensoes: list[SuspensaoCalendario], 
-    data_base_prazo: date
+    suspensoes: list[SuspensaoCalendario],
+    data_inicio_aluno: date,
+    data_base_prazo: date,
 ) -> int:
-    """
-    Calcula os dias totais de suspensão a serem adicionados ao prazo.
-    Atualmente afeta TODOS os prazos indistintamente, mas a arquitetura
-    permite filtrar no futuro.
-    """
     dias_totais = 0
-    for suspensao in suspensoes:
-        if not suspensao.dias_suspensos:
+    for s in suspensoes:
+        if not s.dias_suspensos:
             continue
-            
-        # =====================================================================
-        # TODO (Evolução Futura): 
-        # Para que a greve afete apenas quem tinha prazo ativo durante ela,
-        # substitua o "True" abaixo por uma lógica de interseção de datas.
-        # Exemplo: if data_base_prazo >= suspensao.data_inicio_suspensao:
-        # =====================================================================
-        if True:
-            dias_totais += suspensao.dias_suspensos
-            
+
+        fim = s.data_fim_suspensao or s.data_inicio_suspensao
+
+        # O aluno já tinha começado antes da suspensão terminar
+        # e o prazo ainda não tinha vencido quando ela começou
+        if data_inicio_aluno <= fim and data_base_prazo >= s.data_inicio_suspensao:
+            dias_totais += s.dias_suspensos
+
     return dias_totais
 
 
@@ -49,6 +55,7 @@ def recalcular_prazos_estudante(db: Session, id_estudante: int):
     Recalcula do zero as datas limites de Qualificação e Defesa do estudante
     com base na data de início da dissertação, prorrogações aprovadas e suspensões.
     """
+    
     # 1. Buscar os dados base do estudante
     estudante = db.query(Estudante).filter(Estudante.id_estudante == id_estudante).first()
     dissertacao = db.query(Dissertacao).filter(Dissertacao.id_estudante == id_estudante).first()
@@ -56,6 +63,13 @@ def recalcular_prazos_estudante(db: Session, id_estudante: int):
     if not estudante or not dissertacao or not dissertacao.data_inicio:
         return # Sem data base, não há o que calcular
 
+    STATUS_RECALCULAVEIS = {
+        enumStatus.StatusEstudanteEnum.ATIVO,
+    }
+
+    if estudante.status_atual not in STATUS_RECALCULAVEIS:
+        return
+    
     data_inicio = dissertacao.data_inicio
 
     # 2. Buscar todas as prorrogações aprovadas do estudante
@@ -73,33 +87,38 @@ def recalcular_prazos_estudante(db: Session, id_estudante: int):
     ).all()
 
     # --- CÁLCULO DA QUALIFICAÇÃO ---
-    qualificacao = db.query(Qualificacao).filter(Qualificacao.id_dissertacao == dissertacao.id_dissertacao).first()
-    if qualificacao:
-        # Data Base (Início + Meses Padrão + Meses de Prorrogação)
-        data_base_qualificacao = data_inicio + relativedelta(months=MESES_PADRAO_QUALIFICACAO + meses_prorrogacao_qualificacao)
-        
-        # Soma Dias de Suspensão
-        dias_add = _calcular_dias_suspensao_aplicaveis(suspensoes, data_base_qualificacao)
-        novo_prazo_qualificacao = data_base_qualificacao + relativedelta(days=dias_add)
-        
-        qualificacao.prazo_maximo_qualificacao = novo_prazo_qualificacao
+    qualificacao = (
+    db.query(Qualificacao)
+    .filter(Qualificacao.id_dissertacao == dissertacao.id_dissertacao)
+    .order_by(Qualificacao.tentativa.desc(), Qualificacao.id_qualificacao.desc())
+    .first()
+)
+    if qualificacao and qualificacao.status_qualificacao not in STATUS_QUALIFICACAO_ENCERRADA:
+        data_base_qualificacao = somar_meses(
+            data_inicio, MESES_PARA_QUALIFICACAO + meses_prorrogacao_qualificacao
+        )
+        dias_add = _calcular_dias_suspensao_aplicaveis(suspensoes, data_inicio, data_base_qualificacao)
+        qualificacao.prazo_maximo_qualificacao = data_base_qualificacao + relativedelta(days=dias_add)
 
     # --- CÁLCULO DA DEFESA ---
-    defesa = db.query(Defesa).filter(Defesa.id_dissertacao == dissertacao.id_dissertacao).first()
-    if defesa:
-        # Data Base (Início + Meses Padrão + Meses Prorrogação Defesa)
-        # Nota: Prorrogações de defesa podem acumular as de qualificação dependendo da regra do PPG. 
-        # Aqui, isolamos cada tipo.
-        data_base_defesa = data_inicio + relativedelta(months=MESES_PADRAO_DEFESA + meses_prorrogacao_defesa)
-        
-        # Soma Dias de Suspensão
-        dias_add = _calcular_dias_suspensao_aplicaveis(suspensoes, data_base_defesa)
+# --- CÁLCULO DA DEFESA ---
+    defesa = (
+        db.query(Defesa)
+        .filter(Defesa.id_dissertacao == dissertacao.id_dissertacao)
+        .order_by(Defesa.id_defesa.desc())
+        .first()
+    )
+    if defesa and defesa.status_defesa not in STATUS_DEFESA_ENCERRADA:
+        data_base_defesa = somar_meses(
+            data_inicio, MESES_PARA_DEFESA + meses_prorrogacao_defesa
+        )
+        dias_add = _calcular_dias_suspensao_aplicaveis(suspensoes, data_inicio, data_base_defesa)
         novo_prazo_defesa = data_base_defesa + relativedelta(days=dias_add)
-        
+
         defesa.prazo_maximo_defesa = novo_prazo_defesa
-        
-        # O prazo limite no SIGAA é amarrado à Defesa
-        estudante.prazo_conclusao_sigaa = novo_prazo_defesa
+
+        if estudante.prazo_conclusao_sigaa is None:
+            estudante.prazo_conclusao_sigaa = novo_prazo_defesa
 
     db.commit()
 

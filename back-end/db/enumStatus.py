@@ -151,11 +151,6 @@ class StatusDefesa(StrEnum):
     CANCELADO = "CANCELADO"
 
 
-class RetornoDefesa(StrEnum):
-    CADASTROU_BANCA = "Cadastrou Banca"
-    SOLICITOU_PRORROGACAO = "Solicitou Prorrogação"
-
-
 class ConceitoDefesa(StrEnum):
     APROVADO = "APROVADO"
     APROVADO_CONDICIONALMENTE = "APROVADO_CONDICIONALMENTE"

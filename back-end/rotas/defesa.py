@@ -36,7 +36,6 @@ def cadastrar_defesa(
                                           prazo_maximo_defesa=dados.prazo_maximo_defesa,
                                           data_realizacao=dados.data_realizacao,
                                           status_defesa=dados.status_defesa,
-                                          retorno_defesa=dados.retorno_defesa,
                                           conceito_defesa=dados.conceito_defesa,
                                           prazo_versao_final=dados.prazo_versao_final,
                                           prazo_limite_processo_diploma=dados.prazo_limite_processo_diploma,

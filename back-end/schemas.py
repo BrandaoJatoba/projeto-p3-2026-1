@@ -404,7 +404,6 @@ class DefesaBase(BaseModel):
     status_defesa: Optional[enumStatus.StatusDefesa] = Field(
         default=enumStatus.StatusDefesa.PENDENTE,
         description="Status da defesa")
-    retorno_defesa: Optional[enumStatus.RetornoDefesa] = Field(None, description="Ato do discente após a defesa (Solicitou Banca ou Solicitou Prorrogação.)")
     conceito_defesa: Optional[enumStatus.ConceitoDefesa] = Field(None, description="Conceito obtido na defesa (Aprovado, Aprovado Condicionalmente ou Reprovado)")
     prazo_versao_final: Optional[date] = Field(None, description="Prazo para entrega da versão final da dissertação")
     
@@ -428,7 +427,6 @@ class DefesaUpdate(BaseModel):
     prazo_maximo_defesa: date
     data_realizacao: Optional[date] = None
     status_defesa: Optional[enumStatus.StatusDefesa] = None
-    retorno_defesa: Optional[enumStatus.RetornoDefesa] = None
     conceito_defesa: Optional[enumStatus.ConceitoDefesa] = None
     prazo_versao_final: Optional[date] = None
     prazo_limite_processo_diploma: Optional[date] = None

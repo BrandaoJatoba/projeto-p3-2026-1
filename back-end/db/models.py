@@ -307,7 +307,6 @@ class Defesa(Base):
     prazo_maximo_defesa = Column(Date, nullable=False)
     data_realizacao = Column(Date, nullable=True)
     status_defesa = Column(String(20), default="PENDENTE")
-    retorno_defesa = Column(String(30), nullable=True)
     conceito_defesa = Column(String(30), nullable=True)
     prazo_versao_final = Column(Date, nullable=True)
 
@@ -326,6 +325,6 @@ class ProrrogacaoHistorico(Base):
     id_prorrogacao = Column(Integer, primary_key=True, autoincrement=True)
     id_estudante = Column(Integer, ForeignKey("estudantes.id_estudante"), nullable=False)
     tipo_prazo = Column(String(15))
-    quantidade_meses = Column(Integer)
+    quantidade_meses = Column(Integer, nullable=False)
     data_pedido = Column(Date)
     resultado_pedido = Column(String(15))
