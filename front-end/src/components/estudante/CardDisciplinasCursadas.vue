@@ -34,6 +34,8 @@ const salvando = ref(false)
 const erroForm = ref('')
 const editandoId = ref(null)
 const form = ref({})
+// Linhas que estão sendo excluídas (para desativar o botão enquanto espera).
+const excluindo = ref({})
 
 const disciplinasOrdenadas = computed(() =>
   [...disciplinas.value].sort((a, b) =>
@@ -248,6 +250,41 @@ async function salvar() {
   }
 }
 
+// Serve para corrigir um registro feito errado (disciplina ou semestre trocados),
+// já que na edição esses dois campos ficam travados.
+async function excluir(registro) {
+  const descricao = `${nomeDisciplina(registro.id_disciplina)} de ${codigoSemestre(registro.id_semestre)}`
+  const confirmar = confirm(`Excluir ${descricao}? Essa ação não pode ser desfeita.`)
+  if (!confirmar) return
+
+  excluindo.value[registro.id_historico] = true
+  try {
+    const resposta = await fetch(`${api}/historico-disciplinas/${registro.id_historico}`, {
+      method: 'DELETE',
+      headers: cabecalho(),
+    })
+
+    if (!resposta.ok) {
+      if (resposta.status === 401) {
+        emit('aviso', 'Sua sessão expirou. Saia e entre de novo.', 'erro')
+      } else if (resposta.status === 403) {
+        emit('aviso', 'Você não tem permissão para excluir disciplinas cursadas.', 'erro')
+      } else {
+        const detalhe = await lerMensagemDeErro(resposta)
+        emit('aviso', detalhe || 'Não foi possível excluir a disciplina.', 'erro')
+      }
+      return
+    }
+
+    historico.value = historico.value.filter((h) => h.id_historico !== registro.id_historico)
+    emit('aviso', 'Disciplina removida.', 'sucesso')
+  } catch {
+    emit('aviso', 'Não foi possível conectar ao servidor.', 'erro')
+  } finally {
+    excluindo.value[registro.id_historico] = false
+  }
+}
+
 buscarLista('/disciplinas?limit=200', disciplinas)
 buscarLista('/configuracoes/semestres', semestres)
 
@@ -290,14 +327,25 @@ watch(() => props.idEstudante, buscarHistorico, { immediate: true })
               </span>
             </td>
             <td class="coluna-acoes">
-              <button
-                type="button"
-                class="botao-tabela"
-                :aria-label="`Editar ${nomeDisciplina(registro.id_disciplina)}`"
-                @click="abrirModal(registro)"
-              >
-                <span aria-hidden="true">✎</span> Editar
-              </button>
+              <div class="acoes-linha">
+                <button
+                  type="button"
+                  class="botao-tabela"
+                  :aria-label="`Editar ${nomeDisciplina(registro.id_disciplina)}`"
+                  @click="abrirModal(registro)"
+                >
+                  <span aria-hidden="true">✎</span> Editar
+                </button>
+                <button
+                  type="button"
+                  class="botao-tabela botao-perigo"
+                  :aria-label="`Excluir ${nomeDisciplina(registro.id_disciplina)}`"
+                  :disabled="excluindo[registro.id_historico]"
+                  @click="excluir(registro)"
+                >
+                  {{ excluindo[registro.id_historico] ? 'Excluindo...' : 'Excluir' }}
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -363,7 +411,8 @@ watch(() => props.idEstudante, buscarHistorico, { immediate: true })
         </div>
 
         <p v-if="editandoId" class="dica span-full">
-          Na edição, só o conceito e o status podem ser alterados.
+          Na edição, só o conceito e o status podem ser alterados. Se a disciplina ou o semestre
+          estiverem errados, exclua o registro e adicione de novo.
         </p>
 
         <p v-if="erroForm" class="aviso-erro span-full">{{ erroForm }}</p>
@@ -471,6 +520,12 @@ watch(() => props.idEstudante, buscarHistorico, { immediate: true })
   text-align: right;
 }
 
+.acoes-linha {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .botao-tabela {
   padding: 4px 10px;
   border: 1px solid #d1d5db;
@@ -483,14 +538,29 @@ watch(() => props.idEstudante, buscarHistorico, { immediate: true })
   white-space: nowrap;
 }
 
-.botao-tabela:hover {
+.botao-tabela:hover:not(:disabled) {
   background-color: #f9fafb;
   border-color: #9ca3af;
+}
+
+.botao-tabela:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .botao-tabela:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
+}
+
+.botao-perigo {
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.botao-perigo:hover:not(:disabled) {
+  background-color: #fef2f2;
+  border-color: #f87171;
 }
 
 .visualmente-oculto {
