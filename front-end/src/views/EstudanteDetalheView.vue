@@ -6,6 +6,7 @@ import BaseButton from '../components/BaseButton.vue'
 import BaseModal from '../components/BaseModal.vue'
 import { useAuthStore } from '../stores/auth'
 import CardEstagios from '../components/estudante/CardEstagios.vue'
+import CardDisciplinasCursadas from '../components/estudante/CardDisciplinasCursadas.vue'
 import CardProficiencia from '../components/estudante/CardProficiencia.vue'
 import CardArtigos from '../components/estudante/CardArtigos.vue'
 import CardTrabalhoFinal from '../components/estudante/CardTrabalhoFinal.vue'
@@ -545,6 +546,7 @@ onBeforeUnmount(() => {
         </dl>
       </section>
 
+      <CardDisciplinasCursadas :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
       <CardProficiencia :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
       <CardArtigos :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
       <CardEstagios
