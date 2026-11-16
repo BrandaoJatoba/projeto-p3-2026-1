@@ -8,7 +8,6 @@ def criar_qualificacao(
     id_dissertacao: int,
     prazo_maximo_qualificacao: date,
     status_qualificacao: str,
-    retorno_qualificacao: Optional[str] = None,
     tentativa: int = 1,
     data_realizacao: Optional[date] = None,
 ) -> models.Qualificacao:
@@ -17,7 +16,6 @@ def criar_qualificacao(
         id_dissertacao=id_dissertacao,
         prazo_maximo_qualificacao=prazo_maximo_qualificacao,
         status_qualificacao=status_qualificacao,
-        retorno_qualificacao=retorno_qualificacao,
         tentativa=tentativa,
         data_realizacao=data_realizacao
     )

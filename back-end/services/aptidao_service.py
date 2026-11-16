@@ -100,7 +100,7 @@ def calcular_aptidao_defesa(db: Session, id_estudante: int) -> StatusDefesaRespo
     # ==========================================
     qualificacao = db.query(Qualificacao).join(Dissertacao).filter(
         Dissertacao.id_estudante == id_estudante,
-        Qualificacao.status_qualificacao == enumStatus.StatusQualificacao.ENTREGUE # CORRIGIDO: ENTREGUE em vez de APROVADO
+        Qualificacao.status_qualificacao == enumStatus.StatusQualificacao.APROVADO 
     ).first()
     regra_qualificacao_ok = qualificacao is not None
     if not regra_qualificacao_ok:

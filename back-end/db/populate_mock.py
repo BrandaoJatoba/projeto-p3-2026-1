@@ -81,7 +81,7 @@ ESTUDANTES = [
         "artigos": [{"titulo": "Mutation Testing para Modelos de ML", "qualis": "B1", "tipo": "EVENTO",
                      "status_comprovante": "SUBMETIDA", "data_entrega": date(2026, 2, 10),
                      "status_validacao": "APROVADA"}],
-        "qualificacoes": [{"tentativa": 1, "status": "ENTREGUE", "retorno": None,
+        "qualificacoes": [{"tentativa": 1, "status": "APROVADO",
                            "data_realizacao": date(2025, 12, 10)}],
         "defesa": {"status_defesa": "EM_HOMOLOGACAO", "status_homologacao_banca": "SOLICITADA",
                    "data_solicitacao_banca": date(2026, 10, 26)},
@@ -104,7 +104,7 @@ ESTUDANTES = [
         "artigos": [{"titulo": "Bio-inspired Routing in WSN", "qualis": "A3", "tipo": "PERIÓDICO",
                      "status_comprovante": "PUBLICADO", "data_entrega": date(2025, 6, 30),
                      "status_validacao": "APROVADA"}],
-        "qualificacoes": [{"tentativa": 1, "status": "ENTREGUE", "retorno": None,
+        "qualificacoes": [{"tentativa": 1, "status": "APROVADO",
                            "data_realizacao": date(2025, 9, 26)}],
         "defesa": {"status_defesa": "CONCLUIDO", "status_homologacao_banca": "APROVADA_COLEGIADO",
                    "data_solicitacao_banca": date(2026, 2, 20), "data_realizacao": date(2026, 4, 2),
@@ -125,9 +125,9 @@ ESTUDANTES = [
                     "status_relatorio": "PENDENTE", "data_entrega_relatorio": None,
                     "semestre": "2026.1", "supervisor": 3},
         "qualificacoes": [
-            {"tentativa": 1, "status": "REPROVADO", "retorno": "Cadastrou Banca",
+            {"tentativa": 1, "status": "REPROVADO",
              "data_realizacao": date(2026, 6, 10)},
-            {"tentativa": 2, "status": "ENTREGUE", "retorno": None,
+            {"tentativa": 2, "status": "APROVADO",
              "data_realizacao": date(2026, 9, 2)},
         ],
     },
@@ -144,8 +144,8 @@ ESTUDANTES = [
         ],
         "proficiencia": {"status": "PENDENTE"},
         "qualificacoes": [
-            {"tentativa": 1, "status": "REPROVADO", "retorno": None, "data_realizacao": date(2025, 2, 20)},
-            {"tentativa": 2, "status": "REPROVADO_DEFINITIVO", "retorno": None,
+            {"tentativa": 1, "status": "REPROVADO", "data_realizacao": date(2025, 2, 20)},
+            {"tentativa": 2, "status": "REPROVADO_DEFINITIVO", 
              "data_realizacao": date(2025, 5, 15)},
         ],
         "defesa": {"status_defesa": "CANCELADO"},
@@ -161,7 +161,7 @@ ESTUDANTES = [
         "estagio": {"status_proposta": "APROVADA", "data_entrega_proposta": date(2025, 9, 15),
                     "status_relatorio": "SUBMETIDO", "data_entrega_relatorio": date(2026, 3, 20),
                     "semestre": "2025.2", "supervisor": 5},
-        "qualificacoes": [{"tentativa": 1, "status": "PENDENTE", "retorno": "Solicitou Prorrogação",
+        "qualificacoes": [{"tentativa": 1, "status": "PENDENTE",
                            "data_realizacao": None}],
         "prorrogacoes": [
             {"tipo": "QUALIFICACAO", "meses": 2, "pedido": date(2026, 8, 20), "resultado": "DEFERIDO"},
@@ -194,7 +194,7 @@ ESTUDANTES = [
         "artigos": [{"titulo": "Non-stationary RL: a Survey", "qualis": "A2", "tipo": "PERIÓDICO",
                      "status_comprovante": "PUBLICADO", "data_entrega": date(2026, 1, 18),
                      "status_validacao": "APROVADA"}],
-        "qualificacoes": [{"tentativa": 1, "status": "ENTREGUE", "retorno": None,
+        "qualificacoes": [{"tentativa": 1, "status": "APROVADO",
                            "data_realizacao": date(2025, 11, 20)}],
         "defesa": {"status_defesa": "AGUARDANDO_VERSAO_FINAL", "status_homologacao_banca": "APROVADA_COLEGIADO",
                    "data_solicitacao_banca": date(2026, 9, 10), "data_realizacao": date(2026, 10, 15),
@@ -297,12 +297,12 @@ def _criar_estudante(db, spec, indice, semestres, professores, catalogo):
 
     # --- Qualificação(ões) e Defesa, com prazos regimentais iniciais ---
     prazos = AcademicTrackingService.calcular_prazos_iniciais(sem.data_inicio_real)
-    for q in spec.get("qualificacoes", [{"tentativa": 1, "status": "PENDENTE",
-                                         "retorno": None, "data_realizacao": None}]):
+    for q in spec.get("qualificacoes", [{"tentativa": 1, "status": "APROVADO",
+                                          "data_realizacao": None}]):
         db.add(models.Qualificacao(
             id_dissertacao=diss.id_dissertacao,
             prazo_maximo_qualificacao=prazos.prazo_maximo_qualificacao,
-            status_qualificacao=q["status"], retorno_qualificacao=q["retorno"],
+            status_qualificacao=q["status"], 
             tentativa=q["tentativa"], data_realizacao=q["data_realizacao"],
         ))
 

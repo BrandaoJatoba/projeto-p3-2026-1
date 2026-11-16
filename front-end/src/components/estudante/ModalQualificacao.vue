@@ -18,13 +18,12 @@ const authStore = useAuthStore()
 // Valores iguais aos do backend (back-end/db/enumStatus.py).
 const opcoesStatus = [
   { valor: 'PENDENTE', rotulo: 'Pendente' },
-  { valor: 'ENTREGUE', rotulo: 'Entregue' },
+  { valor: 'APROVADO', rotulo: 'Aprovado' },
   { valor: 'DISPENSA', rotulo: 'Dispensa' },
   { valor: 'AGUARDANDO_NOVA_BANCA', rotulo: 'Aguardando nova banca'},
   { valor: 'REPROVADO', rotulo: 'Reprovado'},
   { valor: 'REPROVADO_DEFINITIVO', rotulo: 'Reprovado 2ª Tentativa'},
 ]
-const opcoesRetorno = ['Cadastrou Banca', 'Solicitou Prorrogação']
 
 const form = ref({})
 const salvando = ref(false)
@@ -37,7 +36,6 @@ function preencherFormulario() {
     tentativa: q?.tentativa ?? 1,
     prazo_maximo_qualificacao: (q?.prazo_maximo_qualificacao || '').slice(0, 10),
     data_realizacao: (q?.data_realizacao || '').slice(0, 10),
-    retorno_qualificacao: q?.retorno_qualificacao || '',
   }
   erro.value = ''
 }
@@ -92,7 +90,6 @@ async function salvar() {
         : Number(form.value.tentativa),
     prazo_maximo_qualificacao: form.value.prazo_maximo_qualificacao,
     data_realizacao: form.value.data_realizacao || null,
-    retorno_qualificacao: form.value.retorno_qualificacao || null,
   }
   if (!editando) dados.id_dissertacao = props.idDissertacao
 
@@ -178,14 +175,6 @@ async function salvar() {
       <div class="form-group">
         <label for="qualificacao-realizacao">Data de realização</label>
         <input id="qualificacao-realizacao" v-model="form.data_realizacao" type="date" />
-      </div>
-
-      <div class="form-group span-full">
-        <label for="qualificacao-retorno">Retorno do discente</label>
-        <select id="qualificacao-retorno" v-model="form.retorno_qualificacao">
-          <option value="">Nenhum</option>
-          <option v-for="r in opcoesRetorno" :key="r" :value="r">{{ r }}</option>
-        </select>
       </div>
 
       <p v-if="erro" class="aviso-erro span-full">{{ erro }}</p>

@@ -127,16 +127,13 @@ class StatusValidacaoColegiadoArtigo(StrEnum):
 # QUALIFICACOES
 # ==========================================
 class StatusQualificacao(StrEnum):
-    ENTREGUE = "ENTREGUE"
+    APROVADO = "APROVADO"
     PENDENTE = "PENDENTE"
     DISPENSA = "DISPENSA"
     REPROVADO = "REPROVADO"
     AGUARDANDO_NOVA_BANCA = "AGUARDANDO_NOVA_BANCA"
     REPROVADO_DEFINITIVO = "REPROVADO_DEFINITIVO"
 
-class RetornoQualificacao(StrEnum):
-    CADASTROU_BANCA = "Cadastrou Banca"
-    SOLICITOU_PRORROGACAO = "Solicitou Prorrogação"
 
 
 # ==========================================

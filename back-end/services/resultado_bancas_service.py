@@ -18,21 +18,24 @@ def processar_resultado_qualificacao(db: Session, id_qualificacao: int, resultad
     dissertacao = db.query(Dissertacao).filter(Dissertacao.id_dissertacao == qualificacao.id_dissertacao).first()
     estudante = db.query(Estudante).filter(Estudante.id_estudante == dissertacao.id_estudante).first()
 
+    resultado_normalizado = resultado.strip().upper()
+    if resultado_normalizado not in {"APROVADO", "REPROVADO"}:
+        raise ValueError(f"Resultado de qualificação inválido: {resultado}")
+
     data_base_calculo = data_banca or date.today()
-    qualificacao.retorno_qualificacao = resultado
     qualificacao.data_realizacao = data_base_calculo
 
-    if resultado == "APROVADO":
+    if resultado_normalizado == "APROVADO":
         qualificacao.status_qualificacao = "CONCLUIDO"
-        
-    elif resultado == "REPROVADO":
+
+    elif resultado_normalizado == "REPROVADO":
         if qualificacao.tentativa == 1:
-            # Direito a uma repetição no prazo máximo de 3 meses[cite: 20]
+            # Direito a uma repetição no prazo máximo de 3 meses
             qualificacao.tentativa = 2
             qualificacao.status_qualificacao = "AGUARDANDO_NOVA_BANCA"
             qualificacao.prazo_maximo_qualificacao = data_base_calculo + relativedelta(months=3)
         else:
-            # Segunda reprovação acarreta desligamento[cite: 20]
+            # Segunda reprovação acarreta desligamento
             qualificacao.status_qualificacao = "REPROVADO_DEFINITIVO"
             estudante.status_atual = enumStatus.StatusEstudanteEnum.DESLIGADO
 

@@ -27,7 +27,7 @@ function tituloReal(titulo) {
 // Valores iguais aos do backend (back-end/db/enumStatus.py).
 const opcoesStatusQualificacao = [
   { valor: 'PENDENTE', rotulo: 'Pendente', classe: 'situacao-pendente' },
-  { valor: 'ENTREGUE', rotulo: 'Entregue', classe: 'situacao-aprovada' },
+  { valor: 'APROVADO', rotulo: 'APROVADO', classe: 'situacao-aprovada' },
   { valor: 'DISPENSA', rotulo: 'Dispensa', classe: 'situacao-dispensa' },
   { valor: 'AGUARDANDO_NOVA_BANCA', rotulo: 'Aguardando nova banca', classe: 'situacao-pendente' },
   { valor: 'REPROVADO', rotulo: 'Reprovado', classe: 'situacao-cancelada' },
@@ -377,10 +377,6 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
           <div>
             <dt>Realização</dt>
             <dd>{{ formatarData(qualificacaoAtual.data_realizacao) }}</dd>
-          </div>
-          <div>
-            <dt>Retorno</dt>
-            <dd>{{ qualificacaoAtual.retorno_qualificacao || '—' }}</dd>
           </div>
         </dl>
         <p v-else-if="!idDissertacao" class="texto-vazio">Registre a dissertação primeiro.</p>

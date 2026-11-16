@@ -34,7 +34,6 @@ const opcoesConceito = [
   { valor: 'APROVADO_CONDICIONALMENTE', rotulo: 'Aprovado condicionalmente' },
   { valor: 'REPROVADO', rotulo: 'Reprovado' },
 ]
-const opcoesRetorno = ['Cadastrou Banca', 'Solicitou Prorrogação']
 const opcoesDiploma = [
   { valor: 'PENDENTE', rotulo: 'Pendente' },
   { valor: 'DOCUMENTACAO_ENVIADA', rotulo: 'Documentação enviada' },

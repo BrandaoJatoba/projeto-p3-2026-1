@@ -287,7 +287,6 @@ class Qualificacao(Base):
     id_dissertacao = Column(Integer, ForeignKey("dissertacoes.id_dissertacao"), nullable=False)
     prazo_maximo_qualificacao = Column(Date, nullable=False)
     status_qualificacao = Column(String(20))
-    retorno_qualificacao = Column(String(30))
     tentativa = Column(Integer, default=1)
     data_realizacao = Column(Date, nullable=True)
 

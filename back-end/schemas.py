@@ -357,7 +357,6 @@ class QualificacaoBase(BaseModel):
         default=enumStatus.StatusQualificacao.PENDENTE,
         description="Status atual da qualificação"
     )
-    retorno_qualificacao: Optional[enumStatus.RetornoQualificacao] = Field(None, description="Ato do discente após a qualificação (Solicitou Banca ou Solicitou Prorrogação.)")
     tentativa: int = Field(default=1, description="Número de tentativas realizadas para a qualificação")
     data_realizacao: Optional[date] = Field(None, description="Data da qualificação")
     
@@ -370,7 +369,6 @@ class QualificacaoUpdate(BaseModel):
     id_dissertacao: Optional[int] = None
     prazo_maximo_qualificacao: Optional[date] = None
     status_qualificacao: Optional[enumStatus.StatusQualificacao] = None
-    retorno_qualificacao: Optional[str] = None
     tentativa: Optional[int] = None
     data_realizacao: Optional[date] = None
 

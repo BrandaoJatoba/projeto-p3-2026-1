@@ -18,9 +18,12 @@ from services.academic_tracking_service import (
     somar_meses,
 )
 
+MESES_REPETICAO_QUALIFICACAO = 3
+
 STATUS_QUALIFICACAO_ENCERRADA = {
     enumStatus.StatusQualificacao.DISPENSA.value,
     enumStatus.StatusQualificacao.REPROVADO_DEFINITIVO.value,
+    enumStatus.StatusQualificacao.APROVADO.value,
 }
 
 STATUS_DEFESA_ENCERRADA = {
@@ -87,17 +90,44 @@ def recalcular_prazos_estudante(db: Session, id_estudante: int):
     ).all()
 
     # --- CÁLCULO DA QUALIFICAÇÃO ---
+    # --- CÁLCULO DA QUALIFICAÇÃO ---
     qualificacao = (
-    db.query(Qualificacao)
-    .filter(Qualificacao.id_dissertacao == dissertacao.id_dissertacao)
-    .order_by(Qualificacao.tentativa.desc(), Qualificacao.id_qualificacao.desc())
-    .first()
-)
+        db.query(Qualificacao)
+        .filter(Qualificacao.id_dissertacao == dissertacao.id_dissertacao)
+        .order_by(Qualificacao.tentativa.desc(), Qualificacao.id_qualificacao.desc())
+        .first()
+    )
     if qualificacao and qualificacao.status_qualificacao not in STATUS_QUALIFICACAO_ENCERRADA:
-        data_base_qualificacao = somar_meses(
-            data_inicio, MESES_PARA_QUALIFICACAO + meses_prorrogacao_qualificacao
+        eh_segunda_tentativa = (
+            qualificacao.tentativa >= 2
+            or qualificacao.status_qualificacao == "AGUARDANDO_NOVA_BANCA"
         )
-        dias_add = _calcular_dias_suspensao_aplicaveis(suspensoes, data_inicio, data_base_qualificacao)
+
+        if eh_segunda_tentativa and qualificacao.data_realizacao:
+            # Regimento Art. 23: 3 meses contados da data da primeira banca reprovada
+            # Considera apenas prorrogações deferidas após a 1ª tentativa (caso ocorram)
+            meses_prorrogacao_2a_tentativa = sum(
+                p.quantidade_meses
+                for p in prorrogacoes
+                if p.tipo_prazo == enumStatus.TipoPrazoProrrogacao.QUALIFICACAO.value
+                and p.data_pedido
+                and p.data_pedido >= qualificacao.data_realizacao
+            )
+            data_referencia = qualificacao.data_realizacao
+            data_base_qualificacao = somar_meses(
+                data_referencia,
+                MESES_REPETICAO_QUALIFICACAO + meses_prorrogacao_2a_tentativa,
+            )
+        else:
+            data_referencia = data_inicio
+            data_base_qualificacao = somar_meses(
+                data_referencia,
+                MESES_PARA_QUALIFICACAO + meses_prorrogacao_qualificacao,
+            )
+
+        dias_add = _calcular_dias_suspensao_aplicaveis(
+            suspensoes, data_referencia, data_base_qualificacao
+        )
         qualificacao.prazo_maximo_qualificacao = data_base_qualificacao + relativedelta(days=dias_add)
 
     # --- CÁLCULO DA DEFESA ---

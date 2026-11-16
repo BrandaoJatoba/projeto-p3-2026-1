@@ -177,9 +177,7 @@ const bancasDoMes = computed(() => {
   return qualificacoesDoMes.length + defesasDoMes.length
 })
 
-// Qualificação: a banca já aconteceu, mas o resultado ainda não foi registrado.
-// Usamos o status (e não o "retorno"), porque o retorno fica vazio até em
-// qualificações já resolvidas, e ele vai ser trocado por "resultado" na task do João.
+
 function qualificacaoSemAta(qualificacao) {
   return (
     antesDeHoje(qualificacao.data_realizacao) && qualificacao.status_qualificacao === 'PENDENTE'

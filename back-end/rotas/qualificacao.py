@@ -33,7 +33,6 @@ def cadastrar_qualificacao(
                                                             prazo_maximo_qualificacao=dados.prazo_maximo_qualificacao,
                                                             data_realizacao=dados.data_realizacao,
                                                             status_qualificacao=dados.status_qualificacao,
-                                                            retorno_qualificacao=dados.retorno_qualificacao,
                                                             tentativa = dados.tentativa,
                                                             )
         return QualificacaoResponse.model_validate(qualificacao)
@@ -98,7 +97,14 @@ def atualizar_qualificacao(
 ):
     """Atualiza os detalhes de uma qualificação existente."""
     dados_atualizacao = atualizacoes.model_dump(exclude_unset=True)
-    
+
+    # Intercepta se a atualização representa o desfecho da banca
+    resultado_banca = None
+    if "status_qualificacao" in dados_atualizacao and dados_atualizacao["status_qualificacao"]:
+        status_enviado = dados_atualizacao["status_qualificacao"].strip().upper()
+        if status_enviado in {"APROVADO", "REPROVADO"}:
+            resultado_banca = dados_atualizacao.pop("status_qualificacao")
+
     qualificacao_atualizada = crud_qualificacao.atualizar_qualificacao(
         db_connection, id_qualificacao, dados_atualizacao
     )
@@ -107,16 +113,22 @@ def atualizar_qualificacao(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Qualificação não encontrada para atualização.",
         )
-        
+
     # Gatilho: Processamento da regra de negócio caso o resultado da banca seja enviado
-    if "retorno_qualificacao" in dados_atualizacao and atualizacoes.retorno_qualificacao:
-        qualificacao_atualizada = processar_resultado_qualificacao(
-            db=db_connection,
-            id_qualificacao=id_qualificacao,
-            resultado=atualizacoes.retorno_qualificacao,
-            data_banca=qualificacao_atualizada.data_realizacao
-        )
-        
+    if resultado_banca:
+        try:
+            qualificacao_atualizada = processar_resultado_qualificacao(
+                db=db_connection,
+                id_qualificacao=id_qualificacao,
+                resultado=resultado_banca,
+                data_banca=qualificacao_atualizada.data_realizacao,
+            )
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(e),
+            )
+
     return QualificacaoResponse.model_validate(qualificacao_atualizada)
 
 @router.delete(
