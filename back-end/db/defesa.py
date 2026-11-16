@@ -6,7 +6,6 @@ from datetime import date
 def criar_defesa(db: Session, 
                  id_dissertacao: int,
                  prazo_maximo_defesa: date,
-                 prazo_solicitacao_homologacao_banca: date,
                  data_solicitacao_banca: Optional[date] = None,
                  status_homologacao_banca: Optional[str] = None,
                  data_realizacao: Optional[date] = None,
@@ -18,7 +17,6 @@ def criar_defesa(db: Session,
                  ) -> models.Defesa:
     nova_defesa = models.Defesa(
         id_dissertacao=id_dissertacao,
-        prazo_solicitacao_homologacao_banca=prazo_solicitacao_homologacao_banca,
         data_solicitacao_banca=data_solicitacao_banca,
         status_homologacao_banca=status_homologacao_banca,
         prazo_maximo_defesa=prazo_maximo_defesa,

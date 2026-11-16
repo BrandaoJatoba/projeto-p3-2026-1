@@ -1,5 +1,5 @@
 from datetime import date
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from typing import Optional, List
 import db.enumStatus as enumStatus
 
@@ -382,53 +382,88 @@ class QualificacaoResponse(QualificacaoBase):
 # SCHEMAS DE DEFESA
 # ==========================================
 
+def _validar_intervalo_homologacao_defesa(
+    data_solicitacao: Optional[date],
+    data_realizacao: Optional[date],
+) -> None:
+    if data_solicitacao and data_realizacao:
+        if data_realizacao < data_solicitacao:
+            raise ValueError(
+                "A data de realização da defesa não pode ser anterior à data de solicitação da banca."
+            )
+        if (data_realizacao - data_solicitacao).days > 30:
+            raise ValueError(
+                "Conforme o Art. 37, VI do Regimento, a defesa deve ocorrer no máximo 30 dias após a solicitação de homologação da banca."
+            )
+
+
 class DefesaBase(BaseModel):
     """Atributos Comuns da Defesa"""
     
     # PK e FK
-    id_dissertacao : int = Field(..., description="ID da dissertação")
+    id_dissertacao: int = Field(..., description="ID da dissertação")
     
-    # --- Fase 1: Homologação da Banca
-    prazo_solicitacao_homologacao_banca: Optional[date] = Field(None, description="Prazo para solicitação de homologação da banca")
+    # --- Fase 1: Homologação da Banca ---
     data_solicitacao_banca: Optional[date] = Field(None, description="Data de solicitação da banca")
     status_homologacao_banca: Optional[enumStatus.StatusHomologacaoBanca] = Field(
         default=enumStatus.StatusHomologacaoBanca.PENDENTE,
         description="Status da homologação da banca"
     )
     
-    # --- Fase 2: Realização e Conceito da Defesa
+    # --- Fase 2: Realização e Conceito da Defesa ---
     prazo_maximo_defesa: date = Field(..., description="Prazo máximo para a defesa")
     data_realizacao: Optional[date] = Field(None, description="Data de realização da defesa")
     status_defesa: Optional[enumStatus.StatusDefesa] = Field(
         default=enumStatus.StatusDefesa.PENDENTE,
-        description="Status da defesa")
-    conceito_defesa: Optional[enumStatus.ConceitoDefesa] = Field(None, description="Conceito obtido na defesa (Aprovado, Aprovado Condicionalmente ou Reprovado)")
+        description="Status da defesa"
+    )
+    conceito_defesa: Optional[enumStatus.ConceitoDefesa] = Field(
+        None, 
+        description="Conceito obtido na defesa (Aprovado, Aprovado Condicionalmente ou Reprovado)"
+    )
     prazo_versao_final: Optional[date] = Field(None, description="Prazo para entrega da versão final da dissertação")
     
-    # --- Fase 3: Processo de Diploma
+    # --- Fase 3: Processo de Diploma ---
     prazo_limite_processo_diploma: Optional[date] = Field(None, description="Prazo máximo para o processo de diploma")
     status_processo_diploma: Optional[enumStatus.StatusProcessoDiploma] = Field(
         default=enumStatus.StatusProcessoDiploma.PENDENTE,
         description="Status do processo de diploma"
     )
 
+
 class DefesaCreate(DefesaBase):
     """Schema para cadastro de uma nova defesa (POST)."""
-    pass
+
+    @model_validator(mode="after")
+    def validar_datas_banca(self):
+        _validar_intervalo_homologacao_defesa(
+            self.data_solicitacao_banca, 
+            self.data_realizacao
+        )
+        return self
+
 
 class DefesaUpdate(BaseModel):
     """Schema para atualização parcial de dados da defesa (PATCH/PUT)."""
     id_dissertacao: Optional[int] = None
-    prazo_solicitacao_homologacao_banca: Optional[date] = None
     data_solicitacao_banca: Optional[date] = None
     status_homologacao_banca: Optional[enumStatus.StatusHomologacaoBanca] = None
-    prazo_maximo_defesa: date
+    prazo_maximo_defesa: Optional[date] = None
     data_realizacao: Optional[date] = None
     status_defesa: Optional[enumStatus.StatusDefesa] = None
     conceito_defesa: Optional[enumStatus.ConceitoDefesa] = None
     prazo_versao_final: Optional[date] = None
     prazo_limite_processo_diploma: Optional[date] = None
     status_processo_diploma: Optional[enumStatus.StatusProcessoDiploma] = None
+
+    @model_validator(mode="after")
+    def validar_datas_banca(self):
+        _validar_intervalo_homologacao_defesa(
+            self.data_solicitacao_banca, 
+            self.data_realizacao
+        )
+        return self
+
 
 class DefesaResponse(DefesaBase):
     """Schema de resposta retornado pela API (contém a chave primária id_defesa)."""

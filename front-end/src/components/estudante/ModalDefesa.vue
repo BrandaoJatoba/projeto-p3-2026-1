@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import BaseButton from '../BaseButton.vue'
 import BaseModal from '../BaseModal.vue'
 import { useAuthStore } from '../../stores/auth'
@@ -23,8 +23,8 @@ const opcoesHomologacao = [
 ]
 const opcoesStatusDefesa = [
   { valor: 'PENDENTE', rotulo: 'Pendente' },
-  { valor: 'EM_HOMOLOGACAO', rotulo: 'Em homologação' },  
-  { valor: 'AGUARDANDO_VERSAO_FINAL', rotulo: 'Aguardando versão final', classe: 'situacao-pendente' },
+  { valor: 'EM_HOMOLOGACAO', rotulo: 'Em homologação' },
+  { valor: 'AGUARDANDO_VERSAO_FINAL', rotulo: 'Aguardando versão final' },
   { valor: 'DEFENDIDA', rotulo: 'Defendida' },
   { valor: 'CONCLUIDO', rotulo: 'Concluído' },
   { valor: 'CANCELADO', rotulo: 'Cancelado' },
@@ -44,22 +44,29 @@ const form = ref({})
 const salvando = ref(false)
 const erro = ref('')
 
-function data(texto) {
+const editando = computed(() => Boolean(props.defesa))
+
+function dataISO(texto) {
   return (texto || '').slice(0, 10)
+}
+
+function formatarDataBR(texto) {
+  const iso = dataISO(texto)
+  if (!iso) return '—'
+  const [ano, mes, dia] = iso.split('-')
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : iso
 }
 
 function preencherFormulario() {
   const d = props.defesa
   form.value = {
-    prazo_solicitacao_homologacao_banca: data(d?.prazo_solicitacao_homologacao_banca),
-    data_solicitacao_banca: data(d?.data_solicitacao_banca),
+    data_solicitacao_banca: dataISO(d?.data_solicitacao_banca),
     status_homologacao_banca: d?.status_homologacao_banca || 'PENDENTE',
-    prazo_maximo_defesa: data(d?.prazo_maximo_defesa),
-    data_realizacao: data(d?.data_realizacao),
+    prazo_maximo_defesa: dataISO(d?.prazo_maximo_defesa),
+    data_realizacao: dataISO(d?.data_realizacao),
     status_defesa: d?.status_defesa || 'PENDENTE',
     conceito_defesa: d?.conceito_defesa || '',
-    prazo_versao_final: data(d?.prazo_versao_final),
-    prazo_limite_processo_diploma: data(d?.prazo_limite_processo_diploma),
+    prazo_limite_processo_diploma: dataISO(d?.prazo_limite_processo_diploma),
     status_processo_diploma: d?.status_processo_diploma || 'PENDENTE',
   }
   erro.value = ''
@@ -88,11 +95,36 @@ async function lerMensagemDeErro(resposta) {
   return ''
 }
 
+function calcularDiferencaDias(dataInicioISO, dataFimISO) {
+  const [anoI, mesI, diaI] = dataInicioISO.split('-').map(Number)
+  const [anoF, mesF, diaF] = dataFimISO.split('-').map(Number)
+  const inicio = new Date(anoI, mesI - 1, diaI)
+  const fim = new Date(anoF, mesF - 1, diaF)
+  return Math.round((fim - inicio) / (1000 * 60 * 60 * 24))
+}
+
 function validar() {
-  if (!form.value.prazo_maximo_defesa) return 'Informe o prazo máximo da defesa.'
-  if (!props.defesa && !props.idDissertacao) {
-    return 'Não foi possível identificar a dissertação deste estudante.'
+  const f = form.value
+
+  if (!editando.value) {
+    if (!props.idDissertacao) {
+      return 'Não foi possível identificar a dissertação deste estudante.'
+    }
+    if (!f.prazo_maximo_defesa) {
+      return 'Informe o prazo máximo da defesa.'
+    }
   }
+
+  if (f.data_solicitacao_banca && f.data_realizacao) {
+    const dias = calcularDiferencaDias(f.data_solicitacao_banca, f.data_realizacao)
+    if (dias < 0) {
+      return 'A data de realização da defesa não pode ser anterior à data do pedido da banca.'
+    }
+    if (dias > 30) {
+      return 'Conforme o Art. 37, VI do Regimento, a defesa deve ocorrer no máximo 30 dias após o pedido de homologação da banca.'
+    }
+  }
+
   return ''
 }
 
@@ -100,28 +132,28 @@ async function salvar() {
   erro.value = validar()
   if (erro.value) return
 
-  const editando = Boolean(props.defesa)
   const f = form.value
   const dados = {
-    prazo_solicitacao_homologacao_banca: f.prazo_solicitacao_homologacao_banca || null,
     data_solicitacao_banca: f.data_solicitacao_banca || null,
     status_homologacao_banca: f.status_homologacao_banca,
-    prazo_maximo_defesa: f.prazo_maximo_defesa,
     data_realizacao: f.data_realizacao || null,
     status_defesa: f.status_defesa,
     conceito_defesa: f.conceito_defesa || null,
-    prazo_versao_final: f.prazo_versao_final || null,
     prazo_limite_processo_diploma: f.prazo_limite_processo_diploma || null,
     status_processo_diploma: f.status_processo_diploma,
   }
-  if (!editando) dados.id_dissertacao = props.idDissertacao
 
-  const url = editando ? `${api}/defesas/${props.defesa.id_defesa}` : `${api}/defesas`
+  if (!editando.value) {
+    dados.id_dissertacao = props.idDissertacao
+    dados.prazo_maximo_defesa = f.prazo_maximo_defesa
+  }
+
+  const url = editando.value ? `${api}/defesas/${props.defesa.id_defesa}` : `${api}/defesas`
 
   salvando.value = true
   try {
     const resposta = await fetch(url, {
-      method: editando ? 'PUT' : 'POST',
+      method: editando.value ? 'PUT' : 'POST',
       headers: {
         Authorization: `Bearer ${authStore.token}`,
         'Content-Type': 'application/json',
@@ -147,7 +179,7 @@ async function salvar() {
     } catch {
       salva = null
     }
-    emit('salvo', salva, editando)
+    emit('salvo', salva, editando.value)
   } catch {
     erro.value = 'Não foi possível conectar ao servidor.'
   } finally {
@@ -159,22 +191,14 @@ async function salvar() {
 <template>
   <BaseModal
     :aberto="aberto"
-    :titulo="defesa ? 'Atualizar defesa' : 'Registrar defesa'"
-    larguraMaxima="760px"
+    :titulo="editando ? 'Atualizar defesa' : 'Registrar defesa'"
+    larguraMaxima="720px"
     @fechar="fechar"
   >
     <form id="form-defesa" class="secoes" @submit.prevent="salvar">
       <fieldset class="secao">
         <legend>1. Banca</legend>
         <div class="form-grid">
-          <div class="form-group">
-            <label for="defesa-prazo-homologacao">Prazo para pedir homologação</label>
-            <input
-              id="defesa-prazo-homologacao"
-              v-model="form.prazo_solicitacao_homologacao_banca"
-              type="date"
-            />
-          </div>
           <div class="form-group">
             <label for="defesa-data-solicitacao">Data do pedido da banca</label>
             <input id="defesa-data-solicitacao" v-model="form.data_solicitacao_banca" type="date" />
@@ -188,12 +212,15 @@ async function salvar() {
             </select>
           </div>
         </div>
+        <p class="dica">
+          A defesa deve ocorrer no máximo 30 dias após a data do pedido de homologação.
+        </p>
       </fieldset>
 
       <fieldset class="secao">
         <legend>2. Defesa</legend>
         <div class="form-grid">
-          <div class="form-group">
+          <div v-if="!editando" class="form-group">
             <label for="defesa-prazo-maximo">Prazo máximo *</label>
             <input
               id="defesa-prazo-maximo"
@@ -222,16 +249,16 @@ async function salvar() {
                 {{ o.rotulo }}
               </option>
             </select>
-          </div>          
+          </div>
         </div>
       </fieldset>
 
       <fieldset class="secao">
         <legend>3. Depois da defesa</legend>
         <div class="form-grid">
-          <div class="form-group">
-            <label for="defesa-versao-final">Prazo da versão final</label>
-            <input id="defesa-versao-final" v-model="form.prazo_versao_final" type="date" />
+          <div v-if="defesa?.prazo_versao_final" class="form-group">
+            <label>Prazo da versão final</label>
+            <div class="campo-leitura">{{ formatarDataBR(defesa.prazo_versao_final) }}</div>
           </div>
           <div class="form-group">
             <label for="defesa-prazo-diploma">Prazo do processo de diploma</label>
@@ -319,6 +346,21 @@ async function salvar() {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.campo-leitura {
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background-color: #f9fafb;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.dica {
+  margin: 10px 0 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
 }
 
 .aviso-erro {

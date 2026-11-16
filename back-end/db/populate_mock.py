@@ -8,7 +8,7 @@ Os prazos NÃO são digitados à mão: cada estudante nasce com os prazos regime
 (AcademicTrackingService) e, no fim, o prazos_service recalcula tudo com
 prorrogações e suspensões. Assim o mock exercita as mesmas regras do sistema.
 """
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
@@ -111,7 +111,7 @@ ESTUDANTES = [
         "qualificacoes": [{"tentativa": 1, "status": "APROVADO",
                            "data_realizacao": date(2025, 9, 26)}],
         "defesa": {"status_defesa": "CONCLUIDO", "status_homologacao_banca": "APROVADA_COLEGIADO",
-                   "data_solicitacao_banca": date(2026, 2, 20), "data_realizacao": date(2026, 4, 2),
+                   "data_solicitacao_banca": date(2026, 3, 10), "data_realizacao": date(2026, 4, 2),
                    "conceito_defesa": "APROVADO", "prazo_versao_final": date(2026, 5, 2),
                    "prazo_limite_processo_diploma": date(2026, 6, 1),
                    "status_processo_diploma": "PROCESSO_ABERTO"},
@@ -201,7 +201,7 @@ ESTUDANTES = [
         "qualificacoes": [{"tentativa": 1, "status": "APROVADO",
                            "data_realizacao": date(2025, 11, 20)}],
         "defesa": {"status_defesa": "AGUARDANDO_VERSAO_FINAL", "status_homologacao_banca": "APROVADA_COLEGIADO",
-                   "data_solicitacao_banca": date(2026, 9, 10), "data_realizacao": date(2026, 10, 15),
+                   "data_solicitacao_banca": date(2026, 9, 20), "data_realizacao": date(2026, 10, 15),
                    "conceito_defesa": "APROVADO_CONDICIONALMENTE", "prazo_versao_final": date(2026, 12, 14),
                    "prazo_limite_processo_diploma": date(2026, 12, 14),
                    "status_processo_diploma": "PENDENTE"},
@@ -426,14 +426,6 @@ def criar_mock_data(db: Session):
     # Recalcula com as regras reais (prorrogações DEFERIDAS + suspensões aplicáveis)
     for est in criados:
         recalcular_prazos_estudante(db, est.id_estudante)
-
-    # Prazo de solicitação da banca = 30 dias antes do prazo da defesa (Regimento, Art. 37, VI)
-    for est in criados:
-        diss = db.query(models.Dissertacao).filter_by(id_estudante=est.id_estudante).first()
-        defesa = db.query(models.Defesa).filter_by(id_dissertacao=diss.id_dissertacao).first()
-        if defesa and defesa.prazo_solicitacao_homologacao_banca is None:
-            defesa.prazo_solicitacao_homologacao_banca = defesa.prazo_maximo_defesa - timedelta(days=30)
-    db.commit()
 
     _carregar_alertas(db)
 
