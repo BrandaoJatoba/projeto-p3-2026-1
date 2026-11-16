@@ -10,7 +10,7 @@ prorrogações e suspensões. Assim o mock exercita as mesmas regras do sistema.
 """
 from datetime import date, datetime
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from db.database import SessionLocal
 from db import models
@@ -54,12 +54,14 @@ PROFESSORES = [
 # ESTUDANTES (cenários)
 # ==========================================================================
 # Cada chave de nível superior é opcional, exceto matricula/nome/status/semestre.
+# - "prof": índice do orientador principal (ORIENTADOR) em PROFESSORES
+# - "coorientadores": lista opcional de índices de coorientadores (COORIENTADOR)
 ESTUDANTES = [
     {
-        "cenario": "Ingressante recente, ainda cursando disciplinas; SIGAA vazio",
+        "cenario": "Ingressante recente, ainda cursando disciplinas; SIGAA vazio (com 1 coorientador)",
         "matricula": "20252001", "nome": "Ana Beatriz Souza",
         "status": E.StatusEstudanteEnum.ATIVO, "semestre": "2025.2",
-        "prof": 1, "bolsista": True, "sigaa": None,
+        "prof": 1, "coorientadores": [0], "bolsista": True, "sigaa": None,
         "titulo": "Detecção de Anomalias em Séries Temporais",
         "disciplinas": {"BASICAS": 1, "ELETIVAS": 2},
         "extras": [
@@ -72,10 +74,10 @@ ESTUDANTES = [
                     "semestre": "2026.2", "supervisor": 0},
     },
     {
-        "cenario": "Reta final: qualificada, banca solicitada, defesa prorrogada em 6 meses",
+        "cenario": "Reta final: qualificada, banca solicitada, defesa prorrogada em 6 meses (2 coorientadores)",
         "matricula": "20242002", "nome": "Bruno Carvalho Lima",
         "status": E.StatusEstudanteEnum.ATIVO, "semestre": "2024.2",
-        "prof": 0, "bolsista": True, "sigaa": None,
+        "prof": 0, "coorientadores": [3, 5], "bolsista": True, "sigaa": None,
         "titulo": "Testes Automatizados de Sistemas Baseados em IA",
         "disciplinas": {"BASICAS": 2, "ELETIVAS": 3, "TOPICOS_ESPECIAIS": 1},
         "proficiencia": {"status": "ENTREGUE", "data": date(2025, 5, 12), "sigaa": True},
@@ -120,7 +122,7 @@ ESTUDANTES = [
         "cenario": "Reprovado na 1ª qualificação, aprovado na 2ª; falta artigo; SIGAA manual divergente",
         "matricula": "20251004", "nome": "Diego Ferreira Alves",
         "status": E.StatusEstudanteEnum.ATIVO, "semestre": "2025.1",
-        "prof": 3, "bolsista": True, "sigaa": date(2027, 3, 1),
+        "prof": 3, "coorientadores": [1], "bolsista": True, "sigaa": date(2027, 3, 1),
         "titulo": "Classificação de Imagens Médicas com Poucos Dados",
         "disciplinas": {"BASICAS": 2, "ELETIVAS": 3},
         "extras": [{"codigo": "PPGI 040", "semestre": "2026.2", "conceito": None, "status": "PENDENTE"}],
@@ -149,16 +151,16 @@ ESTUDANTES = [
         "proficiencia": {"status": "PENDENTE"},
         "qualificacoes": [
             {"tentativa": 1, "status": "REPROVADO", "data_realizacao": date(2025, 2, 20)},
-            {"tentativa": 2, "status": "REPROVADO_DEFINITIVO", 
+            {"tentativa": 2, "status": "REPROVADO_DEFINITIVO",
              "data_realizacao": date(2025, 5, 15)},
         ],
         "defesa": {"status_defesa": "CANCELADO"},
     },
     {
-        "cenario": "Qualificação vence em dias: prorrogação deferida + novo pedido em análise",
+        "cenario": "Qualificação vence em dias: prorrogação deferida + novo pedido em análise (com coorientador)",
         "matricula": "20251006", "nome": "Gustavo Pereira Costa",
         "status": E.StatusEstudanteEnum.ATIVO, "semestre": "2025.1",
-        "prof": 5, "bolsista": True, "sigaa": None,
+        "prof": 5, "coorientadores": [4], "bolsista": True, "sigaa": None,
         "titulo": "Agentes Inteligentes para Educação Adaptativa",
         "disciplinas": {"BASICAS": 2, "ELETIVAS": 2},
         "proficiencia": {"status": "ENTREGUE", "data": date(2025, 10, 20), "sigaa": True},
@@ -285,15 +287,35 @@ def _criar_estudante(db, spec, indice, semestres, professores, catalogo):
     sem = semestres[spec["semestre"]]
     codigos = [c for c, _, _ in SEMESTRES]
 
-    # --- Estudante + Dissertação ---
+    # --- Estudante + Vínculos de Orientação (N:N) + Dissertação ---
     est = models.Estudante(
         matricula=spec["matricula"], nome_discente=spec["nome"], status_atual=spec["status"],
-        id_semestre=sem.id_semestre, id_orientador=professores[spec["prof"]].id_professor,
+        id_semestre=sem.id_semestre,
         eh_bolsista=spec["bolsista"], prazo_conclusao_sigaa=spec["sigaa"],
         email=f"aluno{spec['matricula']}@ic.ufal.br",
     )
     db.add(est)
     db.flush()
+
+    ids_vinculados = set()
+    if spec.get("prof") is not None:
+        id_principal = professores[spec["prof"]].id_professor
+        db.add(models.EstudanteOrientador(
+            id_estudante=est.id_estudante,
+            id_professor=id_principal,
+            tipo_orientacao="ORIENTADOR",
+        ))
+        ids_vinculados.add(id_principal)
+
+    for idx_coorient in spec.get("coorientadores", []):
+        id_coorient = professores[idx_coorient].id_professor
+        if id_coorient not in ids_vinculados:
+            db.add(models.EstudanteOrientador(
+                id_estudante=est.id_estudante,
+                id_professor=id_coorient,
+                tipo_orientacao="COORIENTADOR",
+            ))
+            ids_vinculados.add(id_coorient)
 
     diss = models.Dissertacao(
         id_estudante=est.id_estudante, titulo=spec.get("titulo"), data_inicio=sem.data_inicio_real,
@@ -308,7 +330,7 @@ def _criar_estudante(db, spec, indice, semestres, professores, catalogo):
         db.add(models.Qualificacao(
             id_dissertacao=diss.id_dissertacao,
             prazo_maximo_qualificacao=prazos.prazo_maximo_qualificacao,
-            status_qualificacao=q["status"], 
+            status_qualificacao=q["status"],
             tentativa=q["tentativa"], data_realizacao=q["data_realizacao"],
         ))
 
@@ -380,6 +402,24 @@ def _criar_estudante(db, spec, indice, semestres, professores, catalogo):
     return est
 
 
+def _obter_emails_cc_estudante(db: Session, id_estudante: int):
+    vinculos = (
+        db.query(models.EstudanteOrientador)
+        .options(selectinload(models.EstudanteOrientador.professor))
+        .filter(models.EstudanteOrientador.id_estudante == id_estudante)
+        .all()
+    )
+    ordenados = sorted(
+        vinculos,
+        key=lambda v: (
+            0 if v.tipo_orientacao == "ORIENTADOR" else 1,
+            (v.professor.nome_professor if v.professor else "").lower(),
+        ),
+    )
+    emails = [v.professor.email for v in ordenados if v.professor and v.professor.email]
+    return ", ".join(dict.fromkeys(emails)) if emails else None
+
+
 def _carregar_alertas(db: Session):
     for matricula, cod_prazo, dias, status, quando in ALERTAS:
         est = db.query(models.Estudante).filter_by(matricula=matricula).first()
@@ -396,8 +436,12 @@ def _carregar_alertas(db: Session):
             id_estudante=est.id_estudante, id_gatilho=gatilho.id_gatilho).first()
         if not ja_existe:
             db.add(models.HistoricoAlertaEnviado(
-                id_estudante=est.id_estudante, id_gatilho=gatilho.id_gatilho,
-                data_envio=quando, destinatario_email=est.email, status_envio=status,
+                id_estudante=est.id_estudante,
+                id_gatilho=gatilho.id_gatilho,
+                data_envio=quando,
+                destinatario_email=est.email,
+                emails_cc=_obter_emails_cc_estudante(db, est.id_estudante),
+                status_envio=status,
             ))
     db.commit()
 

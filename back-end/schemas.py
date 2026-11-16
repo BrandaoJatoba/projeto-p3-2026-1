@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, computed_field
 from typing import Optional, List
 import db.enumStatus as enumStatus
 
@@ -545,99 +545,113 @@ class ProrrogacaoResponse(ProrrogacaoBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-# ===========================================
-# SCHEMAS DE ESTUDANTE
-# ===========================================
+# ==========================================
+# Schemas para Orientação (N:N)
+# ==========================================
 
-class EstudanteCriacao(BaseModel):
-    """Corpo do POST /estudantes."""
-    matricula: str = Field(..., min_length=1, max_length=20, examples=["2026100123"])
-    nome_discente: str = Field(..., min_length=2, max_length=100, examples=["Maria da Silva"])
-    id_semestre: int = Field(..., gt=0, description="Semestre de ingresso")
-    eh_bolsista: bool = Field(default=False)
-    email: Optional[str] = Field(None, max_length=100)
-    id_orientador: Optional[int] = Field(None, gt=0, description="ID do professor orientador (opcional)")
-    prazo_conclusao_sigaa: Optional[date] = None
+class ProfessorResumo(BaseModel):
+    id_professor: int
+    nome_professor: str
+    email: Optional[str] = None
 
-
-class EstudanteAtualizacao(BaseModel):
-    """
-    Corpo do PUT /estudantes/{id}. Todos os campos são opcionais.
-    A rota usa model_dump(exclude_unset=True) para diferenciar
-    "campo não enviado" de "campo enviado como null"
-    (ex.: {"id_orientador": null} DESVINCULA o orientador).
-
-    matricula e id_semestre ficam de fora de propósito: trocar o semestre de
-    ingresso invalidaria os prazos já gravados em QUALIFICACOES/DEFESAS.
-    """
-    nome_discente: Optional[str] = Field(None, min_length=2, max_length=100)
-    email: Optional[str] = Field(None, max_length=100)
-    id_orientador: Optional[int] = Field(None, gt=0)
-    eh_bolsista: Optional[bool] = None
-    prazo_conclusao_sigaa: Optional[date] = None
-    status_atual: Optional[str] = None
-
-
-class EstudanteResposta(BaseModel):
-    """Dados cadastrais (usado na listagem, mais leve)."""
     model_config = ConfigDict(from_attributes=True)
 
+
+class EstudanteOrientadorBase(BaseModel):
+    id_professor: int = Field(..., gt=0)
+    tipo_orientacao: enumStatus.TipoOrientacao = Field(
+        default=enumStatus.TipoOrientacao.ORIENTADOR
+    )
+
+
+class EstudanteOrientadorCreate(EstudanteOrientadorBase):
+    pass
+
+
+class EstudanteOrientadorUpdate(BaseModel):
+    tipo_orientacao: enumStatus.TipoOrientacao
+
+
+class EstudanteOrientadorResponse(EstudanteOrientadorBase):
+    id_estudante: int
+    professor: Optional[ProfessorResumo] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# Schemas para Estudante
+# ==========================================
+
+class EstudanteBase(BaseModel):
+    matricula: str = Field(..., min_length=1, max_length=20)
+    nome_discente: str = Field(..., min_length=1, max_length=100)
+    status_atual: enumStatus.StatusEstudanteEnum = Field(
+        default=enumStatus.StatusEstudanteEnum.ATIVO
+    )
+    id_semestre: int = Field(..., gt=0)
+    eh_bolsista: bool = False
+    prazo_conclusao_sigaa: Optional[date] = None
+    email: Optional[EmailStr] = None
+
+
+class EstudanteCreate(EstudanteBase):
+    id_orientador: Optional[int] = Field(None, gt=0)
+    orientacoes: Optional[List[EstudanteOrientadorCreate]] = None
+
+
+class EstudanteUpdate(BaseModel):
+    matricula: Optional[str] = Field(None, min_length=1, max_length=20)
+    nome_discente: Optional[str] = Field(None, min_length=1, max_length=100)
+    status_atual: Optional[enumStatus.StatusEstudanteEnum] = None
+    id_semestre: Optional[int] = Field(None, gt=0)
+    eh_bolsista: Optional[bool] = None
+    prazo_conclusao_sigaa: Optional[date] = None
+    email: Optional[EmailStr] = None
+    id_orientador: Optional[int] = None
+    orientacoes: Optional[List[EstudanteOrientadorCreate]] = None
+
+
+class EstudanteResponse(BaseModel):
     id_estudante: int
     matricula: str
     nome_discente: str
-    email: Optional[str]
+    status_atual: enumStatus.StatusEstudanteEnum
     id_semestre: int
-    id_orientador: Optional[int]
-    status_atual: str
-    eh_bolsista: Optional[bool]
-    prazo_conclusao_sigaa: Optional[date]
+    eh_bolsista: bool
+    prazo_conclusao_sigaa: Optional[date] = None
+    email: Optional[str] = None
+    orientacoes: List[EstudanteOrientadorResponse] = []
 
+    @computed_field
+    @property
+    def id_orientador(self) -> Optional[int]:
+        for vinculo in self.orientacoes:
+            if vinculo.tipo_orientacao == enumStatus.TipoOrientacao.ORIENTADOR:
+                return vinculo.id_professor
+        return None
 
-class DissertacaoResumo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id_dissertacao: int
-    titulo: Optional[str]
-    data_inicio: date
 
-    @field_validator('titulo', mode='before')
-    @classmethod
-    def substituir_titulo_nulo(cls, v):
-        return v if v is not None else "A definir"
-
-
-class QualificacaoResumo(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id_qualificacao: int
-    prazo_maximo_qualificacao: date
-    status_qualificacao: Optional[enumStatus.StatusQualificacao]
-    tentativa: Optional[int]
-    data_realizacao: Optional[date]
-
-
-class DefesaResumo(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id_defesa: int
-    prazo_maximo_defesa: date
-    status_defesa: Optional[enumStatus.StatusDefesa]
-    data_realizacao: Optional[date]
-
-
-class EstudanteDetalhado(EstudanteResposta):
-    """Perfil completo: cadastro + marcos de acompanhamento."""
-    dissertacao: Optional[DissertacaoResumo] = None
-    qualificacao: Optional[QualificacaoResumo] = None
-    defesa: Optional[DefesaResumo] = None
+class EstudanteDetalhado(EstudanteResponse):
+    dissertacao: Optional[DissertacaoResponse] = None
+    qualificacao: Optional[QualificacaoResponse] = None
+    defesa: Optional[DefesaResponse] = None
 
 
 class EstudantePaginado(BaseModel):
-    """Resposta do GET /estudantes: o front precisa do total para montar a paginação."""
     total: int
     skip: int
     limit: int
-    itens: list[EstudanteResposta]
+    itens: List[EstudanteResponse]
+
+
+# Aliases de compatibilidade caso algum módulo ainda importe os nomes anteriores
+EstudanteCriacao = EstudanteCreate
+EstudanteAtualizacao = EstudanteUpdate
+EstudanteResposta = EstudanteResponse
+
 
 # ==========================
 # SCHEMA DE PROFESSOR
@@ -658,11 +672,8 @@ class ProfessorResposta(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class ProfessorDetalhado(ProfessorResposta):
-    pass
-
-class ProfessorDetalhado(ProfessorResposta):
     """Perfil completo do professor, incluindo os estudantes orientados."""
-    estudantes_orientados: list[EstudanteResposta] = []
+    estudantes_orientados: list[EstudanteResponse] = []
 
 # ===================================================
 # Endpoint Apto para defesa

@@ -23,9 +23,9 @@ from db import semestre as crud_semestre
 from db import professor as crud_professor
 from db.enumStatus import StatusEstudanteEnum, TipoOrientacao
 from schemas import (
-    EstudanteCriacao,
-    EstudanteAtualizacao,
-    EstudanteResposta,
+    EstudanteCreate,
+    EstudanteUpdate,
+    EstudanteResponse,
     EstudanteDetalhado,
     EstudantePaginado,
     EstudanteOrientadorCreate,
@@ -44,7 +44,7 @@ def _montar_detalhado(db_connection: Session, estudante) -> EstudanteDetalhado:
     dissertacao, qualificacao, defesa = crud_estudante.buscar_marcos_do_estudante(
         db_connection, estudante.id_estudante
     )
-    base = EstudanteResposta.model_validate(estudante).model_dump(exclude={"id_orientador"})
+    base = EstudanteResponse.model_validate(estudante).model_dump(exclude={"id_orientador"})
     return EstudanteDetalhado(
         **base,
         dissertacao=dissertacao,
@@ -86,7 +86,7 @@ def _validar_professores_existem(
     status_code=status.HTTP_201_CREATED,
 )
 def cadastrar_estudante(
-    dados: EstudanteCriacao,
+    dados: EstudanteCreate,
     db_connection: Session = Depends(get_db),
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
@@ -216,7 +216,7 @@ def obter_estudante(
 @router.put("/{id_estudante}", response_model=EstudanteDetalhado)
 def atualizar_estudante(
     id_estudante: int,
-    dados: EstudanteAtualizacao,
+    dados: EstudanteUpdate,
     db_connection: Session = Depends(get_db),
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
