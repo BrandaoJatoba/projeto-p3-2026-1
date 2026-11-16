@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -10,11 +10,12 @@ from schemas import (
     DefesaResponse
 )
 from security import autorizar
-from services.resultado_bancas_service import processar_resultado_defesa # Importação do serviço
+from services.resultado_bancas_service import processar_resultado_defesa
 
 PERFIS_GESTAO = ["SECRETARIA", "COORDENACAO", "ADMIN"]
 
 router = APIRouter(prefix="/defesas", tags=["Defesas"])
+
 
 @router.post(
     "",
@@ -28,24 +29,26 @@ def cadastrar_defesa(
 ):
     """Cadastra uma nova defesa no sistema."""
     try:
-        defesa = crud_defesa.criar_defesa(db_connection,
-                                          id_dissertacao=dados.id_dissertacao,
-                                          prazo_solicitacao_homologacao_banca=dados.prazo_solicitacao_homologacao_banca,
-                                          data_solicitacao_banca=dados.data_solicitacao_banca,
-                                          status_homologacao_banca=dados.status_homologacao_banca,
-                                          prazo_maximo_defesa=dados.prazo_maximo_defesa,
-                                          data_realizacao=dados.data_realizacao,
-                                          status_defesa=dados.status_defesa,
-                                          conceito_defesa=dados.conceito_defesa,
-                                          prazo_versao_final=dados.prazo_versao_final,
-                                          prazo_limite_processo_diploma=dados.prazo_limite_processo_diploma,
-                                          status_processo_diploma=dados.status_processo_diploma)
+        defesa = crud_defesa.criar_defesa(
+            db_connection,
+            id_dissertacao=dados.id_dissertacao,
+            data_solicitacao_banca=dados.data_solicitacao_banca,
+            status_homologacao_banca=dados.status_homologacao_banca,
+            prazo_maximo_defesa=dados.prazo_maximo_defesa,
+            data_realizacao=dados.data_realizacao,
+            status_defesa=dados.status_defesa,
+            conceito_defesa=dados.conceito_defesa,
+            prazo_versao_final=dados.prazo_versao_final,
+            prazo_limite_processo_diploma=dados.prazo_limite_processo_diploma,
+            status_processo_diploma=dados.status_processo_diploma,
+        )
         return DefesaResponse.model_validate(defesa)
     except IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Erro de integridade ao cadastrar a defesa.",
         )
+
 
 @router.get(
     "/{id_defesa}",
@@ -65,6 +68,7 @@ def obter_defesa(
         )
     return DefesaResponse.model_validate(defesa)
 
+
 @router.get(
     "",
     response_model=list[DefesaResponse],
@@ -76,6 +80,7 @@ def listar_defesas(
     """Lista todas as defesas cadastradas no sistema."""
     defesas = crud_defesa.listar_defesas(db_connection)
     return [DefesaResponse.model_validate(defesa) for defesa in defesas]
+
 
 @router.get(
     "/dissertacao/{id_dissertacao}",
@@ -95,6 +100,7 @@ def obter_defesa_por_dissertacao(
         )
     return DefesaResponse.model_validate(defesa)
 
+
 @router.get("/estudante/{id_estudante}", response_model=list[DefesaResponse])
 def obter_defesas_por_aluno(
     id_estudante: int,
@@ -104,6 +110,7 @@ def obter_defesas_por_aluno(
     """Obtém todas as defesas associadas a um aluno específico pelo ID do aluno."""
     defesas = crud_defesa.obter_defesas_por_aluno(db_connection, id_estudante)
     return [DefesaResponse.model_validate(defesa) for defesa in defesas]
+
 
 @router.put(
     "/{id_defesa}",
@@ -116,27 +123,50 @@ def atualizar_defesa(
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
     """Atualiza os detalhes de uma defesa específica pelo seu ID."""
-    dados_atualizacao = atualizacoes.model_dump(exclude_unset=True)
-    
-    defesa_atualizada = crud_defesa.atualizar_defesa(
-        db_connection, id_defesa, dados_atualizacao
-    )
-    if not defesa_atualizada:
+    defesa_existente = crud_defesa.obter_defesa_por_id(db_connection, id_defesa)
+    if not defesa_existente:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Defesa não encontrada para atualização.",
         )
-        
+
+    dados_atualizacao = atualizacoes.model_dump(exclude_unset=True)
+
+    # Validação cruzada entre a data já salva no banco e a nova data enviada
+    data_solicitacao = dados_atualizacao.get(
+        "data_solicitacao_banca", defesa_existente.data_solicitacao_banca
+    )
+    data_realizacao = dados_atualizacao.get(
+        "data_realizacao", defesa_existente.data_realizacao
+    )
+
+    if data_solicitacao and data_realizacao:
+        if data_realizacao < data_solicitacao:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A data de realização da defesa não pode ser anterior à data de solicitação da banca.",
+            )
+        if (data_realizacao - data_solicitacao).days > 30:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Conforme o Art. 37, VI do Regimento, a defesa deve ocorrer no máximo 30 dias após a solicitação de homologação da banca.",
+            )
+
+    defesa_atualizada = crud_defesa.atualizar_defesa(
+        db_connection, id_defesa, dados_atualizacao
+    )
+
     # Gatilho: Processamento da regra de negócio caso a secretaria lance o conceito da ata
     if "conceito_defesa" in dados_atualizacao and atualizacoes.conceito_defesa:
         defesa_atualizada = processar_resultado_defesa(
             db=db_connection,
             id_defesa=id_defesa,
             conceito=atualizacoes.conceito_defesa,
-            data_banca=defesa_atualizada.data_realizacao
+            data_banca=defesa_atualizada.data_realizacao,
         )
 
     return DefesaResponse.model_validate(defesa_atualizada)
+
 
 @router.delete(
     "/{id_defesa}",

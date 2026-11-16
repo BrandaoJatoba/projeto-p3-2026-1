@@ -39,6 +39,8 @@ const opcoesStatusDefesa = [
   { valor: 'AGUARDANDO_VERSAO_FINAL', rotulo: 'Aguardando versão final', classe: 'situacao-pendente' },
   { valor: 'DEFENDIDA', rotulo: 'Defendida', classe: 'situacao-aprovada' },
   { valor: 'CONCLUIDO', rotulo: 'Concluído', classe: 'situacao-aprovada' },
+  { valor: 'REPROVADO_DEFINITIVO', rotulo: 'Reprovado', classe: 'situacao-cancelada' },
+  { valor: 'REPROVADO_POR_PRAZO', rotulo: 'Reprovado por prazo', classe: 'situacao-cancelada' },
   { valor: 'CANCELADO', rotulo: 'Cancelado', classe: 'situacao-cancelada' },
 ]
 const opcoesConceito = [
@@ -441,6 +443,10 @@ watch(() => props.idEstudante, buscarTudo, { immediate: true })
               </span>
               <span v-else>—</span>
             </dd>
+          </div>
+          <div v-if="defesaAtual.prazo_versao_final">
+            <dt>Prazo da versão final</dt>
+            <dd>{{ formatarData(defesaAtual.prazo_versao_final) }}</dd>
           </div>
         </dl>
         <p v-else-if="!idDissertacao" class="texto-vazio">Registre a dissertação primeiro.</p>

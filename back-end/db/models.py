@@ -299,7 +299,6 @@ class Defesa(Base):
     id_dissertacao = Column(Integer, ForeignKey("dissertacoes.id_dissertacao"), nullable=False)
 
     # --- FASE 1: HOMOLOGAÇÃO DA BANCA ---
-    prazo_solicitacao_homologacao_banca = Column(Date, nullable=True)
     data_solicitacao_banca = Column(Date, nullable=True)
     status_homologacao_banca = Column(String(20), default="PENDENTE")
 
