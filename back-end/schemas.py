@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from typing import Optional, List
 import db.enumStatus as enumStatus
@@ -104,6 +104,44 @@ class GatilhoAlertaResponse(GatilhoAlertaBase):
     id_gatilho: int
 
     model_config = ConfigDict(from_attributes=True)
+
+class HistoricoAlertaEnviadoCreate(BaseModel):
+    id_estudante: int = Field(..., gt=0)
+    id_gatilho: int = Field(..., gt=0)
+    destinatario_email: Optional[EmailStr] = None
+    emails_cc: Optional[str] = None
+    status_envio: enumStatus.StatusEnvioAlerta = Field(
+        default=enumStatus.StatusEnvioAlerta.ENVIADO
+    )
+
+# ==================
+# SCHEMAS DE HISTÓRICO DE ALERTAS ENVIADOS
+# =================
+
+class HistoricoAlertaEnviadoUpdate(BaseModel):
+    destinatario_email: Optional[EmailStr] = None
+    emails_cc: Optional[str] = None
+    status_envio: Optional[enumStatus.StatusEnvioAlerta] = None
+    data_envio: Optional[datetime] = None
+
+
+class HistoricoAlertaEnviadoResponse(BaseModel):
+    id_historico_alerta: int
+    id_estudante: int
+    id_gatilho: int
+    data_envio: datetime
+    destinatario_email: str
+    emails_cc: Optional[str] = None
+    status_envio: enumStatus.StatusEnvioAlerta
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class HistoricoAlertaPaginado(BaseModel):
+    total: int
+    skip: int
+    limit: int
+    itens: List[HistoricoAlertaEnviadoResponse]
 
 # ==========================================
 # SCHEMAS DE DISCIPLINA
