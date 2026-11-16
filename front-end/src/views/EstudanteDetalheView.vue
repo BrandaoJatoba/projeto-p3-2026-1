@@ -17,7 +17,6 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const estudante = ref(null)
-const nomeOrientador = ref('')
 const codigoSemestre = ref('')
 const carregando = ref(true)
 const erro = ref('')
@@ -48,14 +47,28 @@ const classesStatus = {
   TITULADO: 'status-titulado',
 }
 
+const tiposOrientacao = [
+  { valor: 'ORIENTADOR', rotulo: 'Orientador (Principal)' },
+  { valor: 'COORIENTADOR', rotulo: 'Coorientador' },
+]
+
 // ---------- Modal: Editar perfil ----------
 const modalPerfilAberto = ref(false)
 const salvandoPerfil = ref(false)
 const erroPerfil = ref('')
 const formPerfil = ref({})
 
+// ---------- Modal: Orientação (N:N) ----------
+const modalOrientacaoAberto = ref(false)
+const salvandoOrientacao = ref(false)
+const erroOrientacao = ref('')
+const removendoProfessorId = ref(null)
+const formOrientacao = ref({
+  id_professor: '',
+  tipo_orientacao: 'ORIENTADOR',
+})
+
 // ---------- Prorrogações ----------
-// Valores iguais aos do backend (back-end/db/enumStatus.py).
 const tiposPrazoProrrogacao = [
   { valor: 'QUALIFICACAO', rotulo: 'Qualificação' },
   { valor: 'DEFESA', rotulo: 'Defesa' },
@@ -79,6 +92,33 @@ const formProrrogacao = ref({})
 const professoresOrdenados = computed(() =>
   [...professores.value].sort((a, b) => a.nome_professor.localeCompare(b.nome_professor, 'pt-BR')),
 )
+
+const orientacoesOrdenadas = computed(() => {
+  const lista = estudante.value?.orientacoes || []
+  return [...lista].sort((a, b) => {
+    if (a.tipo_orientacao === b.tipo_orientacao) {
+      const nomeA = a.professor?.nome_professor || ''
+      const nomeB = b.professor?.nome_professor || ''
+      return nomeA.localeCompare(nomeB, 'pt-BR')
+    }
+    return a.tipo_orientacao === 'ORIENTADOR' ? -1 : 1
+  })
+})
+
+const orientadorPrincipal = computed(() =>
+  (estudante.value?.orientacoes || []).find((o) => o.tipo_orientacao === 'ORIENTADOR') || null,
+)
+
+const quantidadeCoorientadores = computed(
+  () =>
+    (estudante.value?.orientacoes || []).filter((o) => o.tipo_orientacao === 'COORIENTADOR')
+      .length,
+)
+
+const professoresDisponiveisParaVinculo = computed(() => {
+  const vinculados = new Set((estudante.value?.orientacoes || []).map((o) => o.id_professor))
+  return professoresOrdenados.value.filter((p) => !vinculados.has(p.id_professor))
+})
 
 const prorrogacoesOrdenadas = computed(() =>
   [...prorrogacoes.value].sort((a, b) =>
@@ -179,7 +219,6 @@ async function lerMensagemDeErro(resposta) {
 }
 
 function voltar() {
-  // Se veio de outra tela do sistema (ex.: a listagem com filtros), volta para ela.
   if (window.history.state?.back) {
     router.back()
   } else {
@@ -188,18 +227,6 @@ function voltar() {
 }
 
 // ---------- Pedidos à API ----------
-
-async function buscarOrientador(idOrientador) {
-  if (!idOrientador) return
-  try {
-    const resposta = await fetch(`${api}/professores/${idOrientador}`, { headers: cabecalho() })
-    if (!resposta.ok) return
-    const professor = await resposta.json()
-    nomeOrientador.value = professor.nome_professor
-  } catch {
-    // Sem o nome, a tela mostra "Professor" e o número.
-  }
-}
 
 async function buscarSemestre(idSemestre) {
   if (!idSemestre) return
@@ -221,7 +248,7 @@ async function buscarProfessores() {
     if (!resposta.ok) return
     professores.value = await resposta.json()
   } catch {
-    // Sem a lista, o campo de orientador mostra só "Sem orientador".
+    // Falha silenciosa; o select exibirá apenas as opções já carregadas.
   }
 }
 
@@ -250,7 +277,6 @@ async function buscarProrrogacoes(idEstudante) {
 
 async function carregarEstudante() {
   estudante.value = null
-  nomeOrientador.value = ''
   codigoSemestre.value = ''
   prorrogacoes.value = []
   erro.value = ''
@@ -279,9 +305,8 @@ async function carregarEstudante() {
     const dados = await resposta.json()
     if (Number(route.params.id) !== id) return
     estudante.value = dados
-    // Os cards dos marcos carregam sozinhos, sem segurar o resto da tela.
     buscarProrrogacoes(id)
-    await Promise.all([buscarOrientador(dados.id_orientador), buscarSemestre(dados.id_semestre)])
+    await buscarSemestre(dados.id_semestre)
   } catch {
     erro.value = 'Não foi possível conectar ao servidor. Verifique se o backend está ligado.'
   } finally {
@@ -295,13 +320,11 @@ function abrirModalPerfil() {
   formPerfil.value = {
     nome_discente: estudante.value.nome_discente || '',
     email: estudante.value.email || '',
-    id_orientador: estudante.value.id_orientador || '',
     status_atual: estudante.value.status_atual,
     prazo_conclusao_sigaa: (estudante.value.prazo_conclusao_sigaa || '').slice(0, 10),
     eh_bolsista: Boolean(estudante.value.eh_bolsista),
   }
   erroPerfil.value = ''
-  if (professores.value.length === 0) buscarProfessores()
   modalPerfilAberto.value = true
 }
 
@@ -320,7 +343,6 @@ async function salvarPerfil() {
   const dados = {
     nome_discente: nome,
     email: formPerfil.value.email.trim() || null,
-    id_orientador: formPerfil.value.id_orientador || null,
     eh_bolsista: formPerfil.value.eh_bolsista,
     prazo_conclusao_sigaa: formPerfil.value.prazo_conclusao_sigaa || null,
     status_atual: formPerfil.value.status_atual,
@@ -347,17 +369,114 @@ async function salvarPerfil() {
       return
     }
 
-    // Atualiza o card na hora, sem recarregar a página.
-    estudante.value = { ...estudante.value, ...dados }
-    const professor = professores.value.find((p) => p.id_professor === dados.id_orientador)
-    nomeOrientador.value = professor ? professor.nome_professor : ''
-
+    estudante.value = await resposta.json()
     modalPerfilAberto.value = false
     mostrarAviso('Perfil atualizado.', 'sucesso')
   } catch {
     erroPerfil.value = 'Não foi possível conectar ao servidor.'
   } finally {
     salvandoPerfil.value = false
+  }
+}
+
+// ---------- Modal e Ações: Orientação (N:N) ----------
+
+function abrirModalOrientacao() {
+  formOrientacao.value = {
+    id_professor: '',
+    tipo_orientacao: orientadorPrincipal.value ? 'COORIENTADOR' : 'ORIENTADOR',
+  }
+  erroOrientacao.value = ''
+  if (professores.value.length === 0) buscarProfessores()
+  modalOrientacaoAberto.value = true
+}
+
+function fecharModalOrientacao() {
+  if (salvandoOrientacao.value) return
+  modalOrientacaoAberto.value = false
+}
+
+async function salvarVinculoOrientacao(idProfessor, tipoOrientacao, fecharModal = true) {
+  if (!idProfessor) {
+    erroOrientacao.value = 'Selecione um professor.'
+    return
+  }
+
+  erroOrientacao.value = ''
+  salvandoOrientacao.value = true
+  try {
+    const resposta = await fetch(
+      `${api}/estudantes/${estudante.value.id_estudante}/orientadores`,
+      {
+        method: 'POST',
+        headers: { ...cabecalho(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_professor: Number(idProfessor),
+          tipo_orientacao: tipoOrientacao,
+        }),
+      },
+    )
+
+    if (!resposta.ok) {
+      const detalhe = await lerMensagemDeErro(resposta)
+      const mensagem =
+        resposta.status === 401
+          ? 'Sua sessão expirou. Saia e entre de novo.'
+          : resposta.status === 403
+            ? 'Você não tem permissão para alterar a orientação.'
+            : detalhe || 'Não foi possível vincular o docente.'
+
+      if (fecharModal) {
+        erroOrientacao.value = mensagem
+      } else {
+        mostrarAviso(mensagem, 'erro')
+      }
+      return
+    }
+
+    estudante.value = await resposta.json()
+    if (fecharModal) {
+      modalOrientacaoAberto.value = false
+    }
+    mostrarAviso('Orientação atualizada.', 'sucesso')
+  } catch {
+    const mensagem = 'Não foi possível conectar ao servidor.'
+    if (fecharModal) {
+      erroOrientacao.value = mensagem
+    } else {
+      mostrarAviso(mensagem, 'erro')
+    }
+  } finally {
+    salvandoOrientacao.value = false
+  }
+}
+
+async function removerVinculoOrientacao(vinculo) {
+  const nome = vinculo.professor?.nome_professor || `Professor ${vinculo.id_professor}`
+  if (!window.confirm(`Remover ${nome} da orientação deste discente?`)) return
+
+  removendoProfessorId.value = vinculo.id_professor
+  try {
+    const resposta = await fetch(
+      `${api}/estudantes/${estudante.value.id_estudante}/orientadores/${vinculo.id_professor}`,
+      {
+        method: 'DELETE',
+        headers: cabecalho(),
+      },
+    )
+
+    if (!resposta.ok) {
+      const detalhe = await lerMensagemDeErro(resposta)
+      mostrarAviso(detalhe || 'Não foi possível remover o vínculo.', 'erro')
+      return
+    }
+
+    estudante.value = await resposta.json()
+    mostrarAviso('Vínculo removido.', 'sucesso')
+  } catch {
+    mostrarAviso('Não foi possível conectar ao servidor.', 'erro')
+  } finally {
+    removendoProfessorId.value = null
   }
 }
 
@@ -433,7 +552,6 @@ async function salvarProrrogacao() {
       return
     }
 
-    // Atualiza a tabela na hora com o que a API devolveu.
     let salva = null
     try {
       salva = await resposta.json()
@@ -486,6 +604,7 @@ onBeforeUnmount(() => {
     <div v-else-if="erro" class="aviso-erro">{{ erro }}</div>
 
     <template v-else-if="estudante">
+      <!-- Card 1: Perfil cadastral -->
       <section class="card">
         <div class="perfil-topo">
           <div class="perfil-identidade">
@@ -516,9 +635,20 @@ onBeforeUnmount(() => {
             <dd v-else class="texto-vazio">Sem e-mail</dd>
           </div>
           <div>
-            <dt>Orientador</dt>
-            <dd v-if="estudante.id_orientador">
-              {{ nomeOrientador || `Professor ${estudante.id_orientador}` }}
+            <dt>Orientador principal</dt>
+            <dd v-if="orientadorPrincipal">
+              {{
+                orientadorPrincipal.professor?.nome_professor ||
+                `Professor ${orientadorPrincipal.id_professor}`
+              }}
+              <span v-if="quantidadeCoorientadores > 0" class="texto-prazo">
+                (+{{ quantidadeCoorientadores }}
+                {{ quantidadeCoorientadores === 1 ? 'coorientador' : 'coorientadores' }})
+              </span>
+            </dd>
+            <dd v-else-if="quantidadeCoorientadores > 0" class="texto-vazio">
+              Sem orientador principal ({{ quantidadeCoorientadores }}
+              {{ quantidadeCoorientadores === 1 ? 'coorientador' : 'coorientadores' }})
             </dd>
             <dd v-else class="texto-vazio">Sem orientador</dd>
           </div>
@@ -546,6 +676,88 @@ onBeforeUnmount(() => {
         </dl>
       </section>
 
+      <!-- Card 2: Orientação e Coorientação (N:N) -->
+      <section class="card">
+        <div class="card-topo">
+          <h2>Orientação</h2>
+          <BaseButton type="button" variant="secondary" @click="abrirModalOrientacao">
+            Adicionar orientador
+          </BaseButton>
+        </div>
+
+        <p v-if="orientacoesOrdenadas.length === 0" class="texto-vazio">
+          Nenhum orientador ou coorientador vinculado.
+        </p>
+
+        <div v-else class="tabela-rolagem">
+          <table class="tabela-simples">
+            <thead>
+              <tr>
+                <th>Docente</th>
+                <th>E-mail (cópia de alertas)</th>
+                <th>Papel</th>
+                <th class="coluna-acoes"><span class="visualmente-oculto">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="vinculo in orientacoesOrdenadas" :key="vinculo.id_professor">
+                <td>
+                  {{
+                    vinculo.professor?.nome_professor || `Professor ${vinculo.id_professor}`
+                  }}
+                </td>
+                <td>
+                  <span v-if="vinculo.professor?.email">{{ vinculo.professor.email }}</span>
+                  <span v-else class="texto-vazio">Sem e-mail cadastrado</span>
+                </td>
+                <td>
+                  <span
+                    class="badge"
+                    :class="
+                      vinculo.tipo_orientacao === 'ORIENTADOR'
+                        ? 'papel-orientador'
+                        : 'papel-coorientador'
+                    "
+                  >
+                    {{ vinculo.tipo_orientacao === 'ORIENTADOR' ? 'Orientador' : 'Coorientador' }}
+                  </span>
+                </td>
+                <td class="coluna-acoes acoes-inline">
+                  <button
+                    v-if="vinculo.tipo_orientacao === 'ORIENTADOR'"
+                    type="button"
+                    class="botao-tabela"
+                    :disabled="salvandoOrientacao"
+                    @click="salvarVinculoOrientacao(vinculo.id_professor, 'COORIENTADOR', false)"
+                  >
+                    Tornar coorientador
+                  </button>
+                  <button
+                    v-else-if="!orientadorPrincipal"
+                    type="button"
+                    class="botao-tabela"
+                    :disabled="salvandoOrientacao"
+                    @click="salvarVinculoOrientacao(vinculo.id_professor, 'ORIENTADOR', false)"
+                  >
+                    Tornar orientador
+                  </button>
+                  <button
+                    type="button"
+                    class="botao-tabela botao-tabela-perigo"
+                    :disabled="removendoProfessorId === vinculo.id_professor"
+                    @click="removerVinculoOrientacao(vinculo)"
+                  >
+                    {{
+                      removendoProfessorId === vinculo.id_professor ? 'Removendo...' : 'Remover'
+                    }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <CardDisciplinasCursadas :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
       <CardProficiencia :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
       <CardArtigos :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
@@ -555,6 +767,8 @@ onBeforeUnmount(() => {
         @aviso="mostrarAviso"
       />
       <CardTrabalhoFinal :id-estudante="estudante.id_estudante" @aviso="mostrarAviso" />
+
+      <!-- Card: Prorrogações -->
       <section class="card">
         <div class="card-topo">
           <h2>Prorrogações</h2>
@@ -605,6 +819,7 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
+      <!-- Modal 1: Editar perfil (dados cadastrais do discente) -->
       <BaseModal :aberto="modalPerfilAberto" titulo="Editar perfil" @fechar="fecharModalPerfil">
         <form id="form-editar-perfil" class="form-grid" @submit.prevent="salvarPerfil">
           <div class="form-group span-full">
@@ -615,20 +830,6 @@ onBeforeUnmount(() => {
           <div class="form-group span-full">
             <label for="perfil-email">E-mail</label>
             <input id="perfil-email" v-model="formPerfil.email" type="email" />
-          </div>
-
-          <div class="form-group">
-            <label for="perfil-orientador">Orientador</label>
-            <select id="perfil-orientador" v-model="formPerfil.id_orientador">
-              <option value="">Sem orientador</option>
-              <option
-                v-for="professor in professoresOrdenados"
-                :key="professor.id_professor"
-                :value="professor.id_professor"
-              >
-                {{ professor.nome_professor }}
-              </option>
-            </select>
           </div>
 
           <div class="form-group">
@@ -645,7 +846,7 @@ onBeforeUnmount(() => {
             <input id="perfil-prazo" v-model="formPerfil.prazo_conclusao_sigaa" type="date" />
           </div>
 
-          <div class="form-group-checkbox">
+          <div class="form-group-checkbox span-full">
             <input id="perfil-bolsista" v-model="formPerfil.eh_bolsista" type="checkbox" />
             <label for="perfil-bolsista">Estudante bolsista</label>
           </div>
@@ -677,6 +878,86 @@ onBeforeUnmount(() => {
         </template>
       </BaseModal>
 
+      <!-- Modal 2: Adicionar orientador ou coorientador -->
+      <BaseModal
+        :aberto="modalOrientacaoAberto"
+        titulo="Adicionar orientador ou coorientador"
+        @fechar="fecharModalOrientacao"
+      >
+        <form
+          id="form-orientacao"
+          class="form-grid"
+          @submit.prevent="
+            salvarVinculoOrientacao(
+              formOrientacao.id_professor,
+              formOrientacao.tipo_orientacao,
+              true,
+            )
+          "
+        >
+          <div class="form-group span-full">
+            <label for="orientacao-professor">Docente *</label>
+            <select
+              id="orientacao-professor"
+              v-model="formOrientacao.id_professor"
+              required
+            >
+              <option value="" disabled>Selecione um professor</option>
+              <option
+                v-for="professor in professoresDisponiveisParaVinculo"
+                :key="professor.id_professor"
+                :value="professor.id_professor"
+              >
+                {{ professor.nome_professor }}
+                {{ professor.email ? `(${professor.email})` : '' }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group span-full">
+            <label for="orientacao-papel">Papel na orientação *</label>
+            <select id="orientacao-papel" v-model="formOrientacao.tipo_orientacao" required>
+              <option
+                v-for="tipo in tiposOrientacao"
+                :key="tipo.valor"
+                :value="tipo.valor"
+                :disabled="tipo.valor === 'ORIENTADOR' && Boolean(orientadorPrincipal)"
+              >
+                {{ tipo.rotulo }}
+              </option>
+            </select>
+          </div>
+
+          <p v-if="orientadorPrincipal" class="dica span-full">
+            Este discente já possui orientador principal ({{
+              orientadorPrincipal.professor?.nome_professor
+            }}). Para substituí-lo, altere o papel do atual para coorientador ou remova-o antes.
+          </p>
+
+          <p v-if="erroOrientacao" class="aviso-erro span-full">{{ erroOrientacao }}</p>
+        </form>
+
+        <template #rodape>
+          <BaseButton
+            type="button"
+            variant="secondary"
+            :disabled="salvandoOrientacao"
+            @click="fecharModalOrientacao"
+          >
+            Cancelar
+          </BaseButton>
+          <BaseButton
+            type="submit"
+            form="form-orientacao"
+            variant="primary"
+            :disabled="salvandoOrientacao"
+          >
+            {{ salvandoOrientacao ? 'Vinculando...' : 'Vincular' }}
+          </BaseButton>
+        </template>
+      </BaseModal>
+
+      <!-- Modal 3: Prorrogação -->
       <BaseModal
         :aberto="modalProrrogacaoAberto"
         :titulo="editandoProrrogacaoId ? 'Editar prorrogação' : 'Adicionar prorrogação'"
@@ -934,31 +1215,6 @@ onBeforeUnmount(() => {
   font-style: italic;
 }
 
-.marcos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-}
-
-.marco {
-  padding: 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background-color: #f9fafb;
-}
-
-.marco h3 {
-  margin: 0 0 12px 0;
-  font-size: 1rem;
-  color: #374151;
-}
-
-.marco-dados {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-}
-
 .tabela-rolagem {
   overflow-x: auto;
 }
@@ -995,6 +1251,12 @@ onBeforeUnmount(() => {
   text-align: right;
 }
 
+.acoes-inline {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .botao-tabela {
   padding: 4px 10px;
   border: 1px solid #d1d5db;
@@ -1006,14 +1268,29 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.botao-tabela:hover {
+.botao-tabela:hover:not(:disabled) {
   background-color: #f9fafb;
   border-color: #9ca3af;
+}
+
+.botao-tabela:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .botao-tabela:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
+}
+
+.botao-tabela-perigo {
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.botao-tabela-perigo:hover:not(:disabled) {
+  background-color: #fef2f2;
+  border-color: #f87171;
 }
 
 .visualmente-oculto {
@@ -1048,6 +1325,16 @@ onBeforeUnmount(() => {
 }
 
 .badge-neutro {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.papel-orientador {
+  background-color: #eff6ff;
+  color: #1e40af;
+}
+
+.papel-coorientador {
   background-color: #f3f4f6;
   color: #374151;
 }
@@ -1110,7 +1397,6 @@ onBeforeUnmount(() => {
   border: 1px solid #fca5a5;
 }
 
-/* Formulários dentro dos modais (mesmo visual do modal de cadastro) */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

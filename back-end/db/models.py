@@ -1,5 +1,19 @@
 import enum
-from sqlalchemy import Text, Column, Integer, String, Date, Boolean, ForeignKey, DateTime, Enum as SQLEnum, func
+from sqlalchemy import (
+    Text,
+    Column,
+    Integer,
+    String,
+    Date,
+    Boolean,
+    ForeignKey,
+    DateTime,
+    Enum as SQLEnum,
+    CheckConstraint,
+    Index,
+    func,
+    text,
+)
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from db.database import Base
 import db.enumStatus
@@ -66,7 +80,7 @@ class SessionRefreshToken(Base):
 class Professor(Base):
     
     """
-    Registro dos professores do programa, atuando como orientadores de discentes ou supervisores em estágios de docência.
+    Registro dos professores do programa, atuando como orientadores/coorientadores de discentes ou supervisores em estágios de docência.
     """
 
     __tablename__ = "professores"
@@ -74,6 +88,8 @@ class Professor(Base):
     id_professor = Column(Integer, primary_key=True, autoincrement=True)
     nome_professor = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=True)
+
+    orientacoes = relationship("EstudanteOrientador", back_populates="professor")
 
 class Disciplina(Base):
     __tablename__ = "disciplinas"
@@ -156,6 +172,7 @@ class HistoricoAlertaEnviado(Base):
     id_gatilho = Column(Integer, ForeignKey("gatilhos_alertas.id_gatilho"), nullable=False)
     data_envio = Column(DateTime, server_default=func.now())
     destinatario_email = Column(String(100), nullable=False)
+    emails_cc = Column(Text, nullable=True)
     status_envio = Column(String(20), default="ENVIADO")
 
 # -- Discentes -- #
@@ -164,7 +181,7 @@ class Estudante(Base):
     
     """
     Cadastro central dos discentes do programa contendo informações acadêmicas,
-    vínculo de orientação, status de bolsa e prazo limite do SIGAA.
+    vínculos de orientação (N:N), status de bolsa e prazo limite do SIGAA.
     """
 
     __tablename__ = "estudantes"
@@ -178,10 +195,45 @@ class Estudante(Base):
         default=db.enumStatus.StatusEstudanteEnum.ATIVO
     )    
     id_semestre = Column(Integer, ForeignKey("semestres_letivos.id_semestre"), nullable=False)
-    id_orientador = Column(Integer, ForeignKey("professores.id_professor"), nullable=True)
     eh_bolsista = Column(Boolean, default=False)
     prazo_conclusao_sigaa = Column(Date, nullable=True)
     email = Column(String(100), unique=True, nullable=True)
+
+    orientacoes = relationship(
+        "EstudanteOrientador",
+        back_populates="estudante",
+        cascade="all, delete-orphan",
+    )
+
+
+class EstudanteOrientador(Base):
+    """
+    Tabela associativa (N:N) que vincula discentes aos seus professores orientadores
+    e coorientadores, garantindo no máximo um orientador principal por discente.
+    """
+
+    __tablename__ = "estudantes_orientadores"
+
+    id_estudante = Column(Integer, ForeignKey("estudantes.id_estudante"), primary_key=True)
+    id_professor = Column(Integer, ForeignKey("professores.id_professor"), primary_key=True)
+    tipo_orientacao = Column(String(20), nullable=False, default="ORIENTADOR")
+
+    __table_args__ = (
+        CheckConstraint(
+            "tipo_orientacao IN ('ORIENTADOR', 'COORIENTADOR')",
+            name="ck_tipo_orientacao",
+        ),
+        Index(
+            "uq_estudante_orientador_principal",
+            "id_estudante",
+            unique=True,
+            sqlite_where=text("tipo_orientacao = 'ORIENTADOR'"),
+            postgresql_where=text("tipo_orientacao = 'ORIENTADOR'"),
+        ),
+    )
+
+    estudante = relationship("Estudante", back_populates="orientacoes")
+    professor = relationship("Professor", back_populates="orientacoes")
 
 # -- REQUISITO 1: Créditos Obtidos -- #
 

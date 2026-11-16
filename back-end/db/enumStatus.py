@@ -43,10 +43,8 @@ class StatusDisciplina(StrEnum):
 
 
 # =========================================
-# ESTUDANTES
+# ESTUDANTES E ORIENTAÇÃO
 # =========================================
-
-    
 class StatusEstudanteEnum(StrEnum):
     ATIVO = "ATIVO"
     TRANCADO = "TRANCADO"
@@ -56,6 +54,9 @@ class StatusEstudanteEnum(StrEnum):
     TITULADO = "TITULADO"
 
 
+class TipoOrientacao(StrEnum):
+    ORIENTADOR = "ORIENTADOR"
+    COORIENTADOR = "COORIENTADOR"
 
 
 # ==========================================
@@ -133,7 +134,6 @@ class StatusQualificacao(StrEnum):
     REPROVADO = "REPROVADO"
     AGUARDANDO_NOVA_BANCA = "AGUARDANDO_NOVA_BANCA"
     REPROVADO_DEFINITIVO = "REPROVADO_DEFINITIVO"
-
 
 
 # ==========================================
