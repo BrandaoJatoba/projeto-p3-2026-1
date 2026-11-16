@@ -1,5 +1,5 @@
 from datetime import date
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import Optional, List
 import db.enumStatus as enumStatus
 
@@ -569,21 +569,23 @@ class EstudantePaginado(BaseModel):
 # ==========================
 # SCHEMA DE PROFESSOR
 # ==========================
-class ProfessorBase(BaseModel):
-    """Atributos comuns do professor."""
-    nome_professor: str = Field(..., min_length=2, max_length=100, description="Nome completo do professor")
-
-class ProfessorCriacao(ProfessorBase):
-    pass
+class ProfessorCriacao(BaseModel):
+    nome_professor: str = Field(..., min_length=2, max_length=100)
+    email: Optional[EmailStr] = None
 
 class ProfessorAtualizacao(BaseModel):
     nome_professor: Optional[str] = Field(None, min_length=2, max_length=100)
+    email: Optional[EmailStr] = None
 
 class ProfessorResposta(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id_professor: int
     nome_professor: str
+    email: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ProfessorDetalhado(ProfessorResposta):
+    pass
 
 class ProfessorDetalhado(ProfessorResposta):
     """Perfil completo do professor, incluindo os estudantes orientados."""

@@ -10,6 +10,7 @@ const carregando = ref(true)
 const erro = ref(false)
 
 const nomeForm = ref('')
+const emailForm = ref('')
 const editandoId = ref(null)
 const erroForm = ref('')
 const salvando = ref(false)
@@ -45,7 +46,11 @@ const professoresVisiveis = computed(() => {
   const busca = normalizar(textoBusca.value.trim())
 
   return professores.value
-    .filter((p) => normalizar(p.nome_professor).includes(busca))
+    .filter(
+      (p) =>
+        normalizar(p.nome_professor).includes(busca) ||
+        normalizar(p.email).includes(busca),
+    )
     .sort((a, b) => {
       const comparacao = normalizar(a[colunaOrdenacao.value]).localeCompare(
         normalizar(b[colunaOrdenacao.value]),
@@ -94,6 +99,7 @@ async function buscarProfessores() {
 function iniciarEdicao(professor) {
   editandoId.value = professor.id_professor
   nomeForm.value = professor.nome_professor
+  emailForm.value = professor.email ?? ''
   erroForm.value = ''
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -101,11 +107,14 @@ function iniciarEdicao(professor) {
 function cancelarEdicao() {
   editandoId.value = null
   nomeForm.value = ''
+  emailForm.value = ''
   erroForm.value = ''
 }
 
 async function salvarProfessor() {
   const nome = nomeForm.value.trim()
+  const email = emailForm.value.trim() || null
+
   if (!nome) {
     erroForm.value = 'Informe o nome do professor.'
     return
@@ -126,11 +135,13 @@ async function salvarProfessor() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${authStore.token}`,
       },
-      body: JSON.stringify({ nome_professor: nome }),
+      body: JSON.stringify({ nome_professor: nome, email }),
     })
 
     if (!resposta.ok) {
-      erroForm.value = 'Não foi possível salvar o professor. Confira os dados.'
+      const erroDados = await resposta.json().catch(() => null)
+      erroForm.value =
+        erroDados?.detail || 'Não foi possível salvar o professor. Confira os dados.'
       return
     }
 
@@ -205,9 +216,21 @@ onMounted(() => {
       <h2>{{ editandoId ? 'Editar professor' : 'Novo professor' }}</h2>
 
       <form @submit.prevent="salvarProfessor">
-        <div class="form-group">
-          <label>Nome do professor</label>
-          <input v-model="nomeForm" type="text" class="form-control" required />
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nome do professor</label>
+            <input v-model="nomeForm" type="text" class="form-control" required />
+          </div>
+
+          <div class="form-group">
+            <label>E-mail institucional</label>
+            <input
+              v-model="emailForm"
+              type="email"
+              class="form-control"
+              placeholder="professor@ic.ufal.br"
+            />
+          </div>
         </div>
 
         <p v-if="erroForm" class="aviso-erro aviso-form">{{ erroForm }}</p>
@@ -230,7 +253,7 @@ onMounted(() => {
           v-model="textoBusca"
           type="search"
           class="form-control campo-busca"
-          placeholder="Buscar por nome..."
+          placeholder="Buscar por nome ou e-mail..."
         />
       </div>
 
@@ -252,12 +275,19 @@ onMounted(() => {
             <th class="ordenavel" @click="ordenarPor('nome_professor')">
               Nome {{ indicadorOrdenacao('nome_professor') }}
             </th>
+            <th class="ordenavel" @click="ordenarPor('email')">
+              E-mail {{ indicadorOrdenacao('email') }}
+            </th>
             <th class="coluna-acoes">Ações</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="professor in professoresVisiveis" :key="professor.id_professor">
             <td>{{ professor.nome_professor }}</td>
+            <td>
+              <span v-if="professor.email">{{ professor.email }}</span>
+              <span v-else class="aviso-vazio">Não informado</span>
+            </td>
             <td class="coluna-acoes">
               <div class="acoes">
                 <BaseButton type="button" variant="secondary" @click="iniciarEdicao(professor)">
@@ -302,6 +332,16 @@ onMounted(() => {
   margin: 0 0 16px 0;
   border-bottom: 1px solid #e5e7eb;
   padding-bottom: 8px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .form-group {
   display: flex;

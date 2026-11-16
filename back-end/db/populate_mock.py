@@ -42,8 +42,12 @@ SUSPENSOES = [
 ]
 
 PROFESSORES = [
-    "Alan Turing", "Ada Lovelace", "Donald Knuth",
-    "Grace Hopper", "Edsger Dijkstra", "Barbara Liskov",
+    ("Alan Turing", "alan.turing@ic.ufal.br"),
+    ("Ada Lovelace", "ada.lovelace@ic.ufal.br"),
+    ("Donald Knuth", "donald.knuth@ic.ufal.br"),
+    ("Grace Hopper", "grace.hopper@ic.ufal.br"),
+    ("Edsger Dijkstra", "edsger.dijkstra@ic.ufal.br"),
+    ("Barbara Liskov", "barbara.liskov@ic.ufal.br"),
 ]
 
 # ==========================================================================
@@ -251,11 +255,13 @@ def _carregar_suspensoes(db: Session, semestres: dict):
 
 def _carregar_professores(db: Session) -> list:
     professores = []
-    for nome in PROFESSORES:
+    for nome, email in PROFESSORES:
         prof = db.query(models.Professor).filter_by(nome_professor=nome).first()
         if not prof:
-            prof = models.Professor(nome_professor=nome)
+            prof = models.Professor(nome_professor=nome, email=email)
             db.add(prof)
+        elif not prof.email:
+            prof.email = email
         professores.append(prof)
     db.commit()
     return professores

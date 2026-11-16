@@ -23,16 +23,51 @@ def cadastrar_professor(
 ):
     """Cadastra um novo professor no sistema."""
     try:
-        # CORREÇÃO: Passando o atributo específico (nome) em vez do objeto inteiro
         professor = crud_professor.criar_professor(
-            db_connection=db_connection, 
-            nome_professor=dados.nome_professor 
+            db_connection=db_connection,
+            nome_professor=dados.nome_professor,
+            email=dados.email,
         )
         return ProfessorResposta.model_validate(professor)
     except IntegrityError:
+        db_connection.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Erro de integridade ao cadastrar o professor.",
+            detail="Já existe um professor cadastrado com este e-mail.",
+        )
+
+
+@router.put(
+    "/{id_professor}",
+    response_model=ProfessorDetalhado,
+    status_code=status.HTTP_200_OK,
+)
+def atualizar_professor(
+    id_professor: int,
+    dados: ProfessorAtualizacao,
+    db_connection: Session = Depends(get_db),
+    usuario=Depends(autorizar(PERFIS_GESTAO)),
+):
+    """Atualiza os dados de um professor existente."""
+    try:
+        professor_atualizado = crud_professor.atualizar_professor(
+            db_connection=db_connection,
+            id_professor=id_professor,
+            dados_atualizacao=dados.model_dump(exclude_unset=True),
+        )
+
+        if not professor_atualizado:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Professor com ID {id_professor} não encontrado.",
+            )
+
+        return ProfessorResposta.model_validate(professor_atualizado)
+    except IntegrityError:
+        db_connection.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Já existe outro professor cadastrado com este e-mail.",
         )
 
 @router.get(
@@ -54,39 +89,6 @@ def buscar_professor_por_id(
         )
     return ProfessorResposta.model_validate(professor)
 
-@router.put(
-    "/{id_professor}",
-    response_model=ProfessorDetalhado,
-    status_code=status.HTTP_200_OK,
-)
-def atualizar_professor(
-    id_professor: int,
-    dados: ProfessorAtualizacao,
-    db_connection: Session = Depends(get_db),
-    usuario=Depends(autorizar(PERFIS_GESTAO)),
-):
-    """Atualiza os dados de um professor existente."""
-    try:
-        # CORREÇÃO: O próprio CRUD já verifica se existe. 
-        # Passamos o ID e o dicionário de dados (usando model_dump).
-        professor_atualizado = crud_professor.atualizar_professor(
-            db_connection=db_connection, 
-            id_professor=id_professor, 
-            dados_atualizacao=dados.model_dump(exclude_unset=True)
-        )
-        
-        if not professor_atualizado:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Professor com ID {id_professor} não encontrado.",
-            )
-            
-        return ProfessorResposta.model_validate(professor_atualizado)
-    except IntegrityError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Erro de integridade ao atualizar o professor.",
-        )
 
 @router.delete(
     "/{id_professor}",

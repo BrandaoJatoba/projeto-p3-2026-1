@@ -73,6 +73,7 @@ class Professor(Base):
 
     id_professor = Column(Integer, primary_key=True, autoincrement=True)
     nome_professor = Column(String(100), nullable=False)
+    email = Column(String(100), unique=True, nullable=True)
 
 class Disciplina(Base):
     __tablename__ = "disciplinas"
