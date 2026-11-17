@@ -8,6 +8,8 @@ const idSemestreSuspensao = ref('')
 const motivoSuspensao = ref('')
 const dataInicioSuspensao = ref('')
 const dataFimSuspensao = ref('')
+const diasSuspensos = ref('')
+const avisoDatas = ref('')
 const mensagemSuspensao = ref('')
 const suspensoes = ref([])
 const editandoSuspensaoId = ref(null)
@@ -16,14 +18,66 @@ const semestres = ref([])
 
 const authStore = useAuthStore()
 
+// "2026-11-10" vira uma data local (new Date("2026-11-10") seria lido em UTC).
+function lerData(texto) {
+  if (!texto) return null
+  const [ano, mes, dia] = texto.slice(0, 10).split('-').map(Number)
+  if (!ano || !mes || !dia) return null
+  return new Date(ano, mes - 1, dia)
+}
+
+// Conta o primeiro e o último dia (de 01/11 a 10/11 = 10 dias), como combinado com o João.
+function diasEntre(inicio, fim) {
+  const umDia = 1000 * 60 * 60 * 24
+  return Math.round((fim - inicio) / umDia) + 1
+}
+
+// Roda quando a pessoa muda uma das datas (não roda ao abrir a edição,
+// para não apagar um número que a secretaria tenha digitado).
+function calcularDias() {
+  avisoDatas.value = ''
+  const inicio = lerData(dataInicioSuspensao.value)
+  const fim = lerData(dataFimSuspensao.value)
+  if (!inicio || !fim) return
+
+  if (fim < inicio) {
+    avisoDatas.value = 'A data de fim não pode ser antes da data de início.'
+    return
+  }
+
+  diasSuspensos.value = diasEntre(inicio, fim)
+}
+
+function validarFormulario() {
+  const inicio = lerData(dataInicioSuspensao.value)
+  const fim = lerData(dataFimSuspensao.value)
+  if (inicio && fim && fim < inicio) {
+    return 'A data de fim não pode ser antes da data de início.'
+  }
+
+  if (diasSuspensos.value !== '' && diasSuspensos.value !== null) {
+    const dias = Number(diasSuspensos.value)
+    if (!Number.isInteger(dias) || dias < 0) {
+      return 'Os dias de suspensão precisam ser um número inteiro (0 ou mais).'
+    }
+  }
+
+  return ''
+}
+
 async function cadastrarSuspensao() {
-  mensagemSuspensao.value = ''
+  mensagemSuspensao.value = validarFormulario()
+  if (mensagemSuspensao.value) return
 
   const dadosSuspensao = {
     id_semestre: idSemestreSuspensao.value,
     motivo: motivoSuspensao.value,
     data_inicio_suspensao: dataInicioSuspensao.value,
     data_fim_suspensao: dataFimSuspensao.value || null,
+    dias_suspensos:
+      diasSuspensos.value === '' || diasSuspensos.value === null
+        ? null
+        : Number(diasSuspensos.value),
   }
 
   const editando = editandoSuspensaoId.value !== null
@@ -47,10 +101,10 @@ async function cadastrarSuspensao() {
       return
     }
 
+    cancelarEdicaoSuspensao()
     mensagemSuspensao.value = editando
       ? 'Suspensão atualizada com sucesso!'
       : 'Suspensão cadastrada com sucesso!'
-    cancelarEdicaoSuspensao()
     buscarSuspensoes()
   } catch (erroDeConexao) {
     mensagemSuspensao.value = 'Não foi possível conectar ao servidor.'
@@ -63,6 +117,9 @@ function editarSuspensao(suspensao) {
   motivoSuspensao.value = suspensao.motivo
   dataInicioSuspensao.value = suspensao.data_inicio_suspensao
   dataFimSuspensao.value = suspensao.data_fim_suspensao
+  diasSuspensos.value = suspensao.dias_suspensos ?? ''
+  avisoDatas.value = ''
+  mensagemSuspensao.value = ''
 }
 
 function cancelarEdicaoSuspensao() {
@@ -71,6 +128,9 @@ function cancelarEdicaoSuspensao() {
   motivoSuspensao.value = ''
   dataInicioSuspensao.value = ''
   dataFimSuspensao.value = ''
+  diasSuspensos.value = ''
+  avisoDatas.value = ''
+  mensagemSuspensao.value = ''
 }
 
 async function buscarSuspensoes() {
@@ -154,8 +214,13 @@ onMounted(() => {
       <form @submit.prevent="cadastrarSuspensao">
         <div class="form-grid">
           <div class="form-group">
-            <label>Semestre</label>
-            <select class="form-control" v-model="idSemestreSuspensao" required>
+            <label for="suspensao-semestre">Semestre</label>
+            <select
+              id="suspensao-semestre"
+              v-model="idSemestreSuspensao"
+              class="form-control"
+              required
+            >
               <option value="" disabled>Selecione um semestre</option>
               <option
                 v-for="semestre in semestres"
@@ -168,20 +233,54 @@ onMounted(() => {
           </div>
 
           <div class="form-group">
-            <label>Motivo (ex: Greve Docente)</label>
-            <input type="text" class="form-control" v-model="motivoSuspensao" required />
+            <label for="suspensao-motivo">Motivo (ex: Greve Docente)</label>
+            <input
+              id="suspensao-motivo"
+              v-model="motivoSuspensao"
+              type="text"
+              class="form-control"
+              required
+            />
           </div>
 
           <div class="form-group">
-            <label>Data de início</label>
-            <input type="date" class="form-control" v-model="dataInicioSuspensao" required />
+            <label for="suspensao-inicio">Data de início</label>
+            <input
+              id="suspensao-inicio"
+              v-model="dataInicioSuspensao"
+              type="date"
+              class="form-control"
+              required
+              @change="calcularDias"
+            />
           </div>
 
           <div class="form-group">
-            <label>Data de fim <small>(opcional)</small></label>
-            <input type="date" class="form-control" v-model="dataFimSuspensao" />
+            <label for="suspensao-fim">Data de fim <small>(opcional)</small></label>
+            <input
+              id="suspensao-fim"
+              v-model="dataFimSuspensao"
+              type="date"
+              class="form-control"
+              @change="calcularDias"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="suspensao-dias">Dias de suspensão</label>
+            <input
+              id="suspensao-dias"
+              v-model="diasSuspensos"
+              type="number"
+              min="0"
+              step="1"
+              class="form-control"
+            />
+            <small>Calculado pelas datas. Pode ser alterado.</small>
           </div>
         </div>
+
+        <p v-if="avisoDatas" class="alert alert-erro mt-3">{{ avisoDatas }}</p>
 
         <div class="form-actions">
           <BaseButton type="submit" variant="primary">
@@ -213,6 +312,7 @@ onMounted(() => {
             <th>Motivo</th>
             <th>Início</th>
             <th>Fim</th>
+            <th>Dias</th>
             <th class="actions-col">Ações</th>
           </tr>
         </thead>
@@ -224,6 +324,7 @@ onMounted(() => {
             <td>{{ suspensao.motivo }}</td>
             <td>{{ suspensao.data_inicio_suspensao }}</td>
             <td>{{ suspensao.data_fim_suspensao || '-' }}</td>
+            <td>{{ suspensao.dias_suspensos ?? '-' }}</td>
             <td class="actions-col">
               <div class="action-buttons">
                 <BaseButton type="button" variant="secondary" @click="editarSuspensao(suspensao)">
@@ -240,7 +341,7 @@ onMounted(() => {
             </td>
           </tr>
           <tr v-if="suspensoes.length === 0">
-            <td colspan="5" class="text-center">Nenhuma suspensão cadastrada.</td>
+            <td colspan="6" class="text-center">Nenhuma suspensão cadastrada.</td>
           </tr>
         </tbody>
       </table>
@@ -379,6 +480,12 @@ tbody tr:last-child td {
   background-color: #eff6ff;
   color: #1e40af;
   border: 1px solid #bfdbfe;
+}
+.alert-erro {
+  margin-bottom: 0;
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
 }
 
 /* ESPECÍFICO DE SUSPENSÕES */
