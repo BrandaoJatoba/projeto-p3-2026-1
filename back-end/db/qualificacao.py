@@ -8,7 +8,6 @@ def criar_qualificacao(
     id_dissertacao: int,
     prazo_maximo_qualificacao: date,
     status_qualificacao: str,
-    retorno_qualificacao: Optional[str] = None,
     tentativa: int = 1,
     data_realizacao: Optional[date] = None,
 ) -> models.Qualificacao:
@@ -17,7 +16,6 @@ def criar_qualificacao(
         id_dissertacao=id_dissertacao,
         prazo_maximo_qualificacao=prazo_maximo_qualificacao,
         status_qualificacao=status_qualificacao,
-        retorno_qualificacao=retorno_qualificacao,
         tentativa=tentativa,
         data_realizacao=data_realizacao
     )
@@ -87,3 +85,7 @@ def obter_qualificacoes_por_filtro(
 def obter_qualificacao_por_data_realizacao(db_connection: Session, data_realizacao) -> List[models.Qualificacao]:
     """Obtém qualificações realizadas em uma data específica."""
     return db_connection.query(models.Qualificacao).filter(models.Qualificacao.data_realizacao == data_realizacao).all()
+
+def listar_qualificacoes_por_aluno(db_connection: Session, id_estudante: int) -> List[models.Qualificacao]:
+    """Lista todas as qualificações de um aluno específico."""
+    return db_connection.query(models.Qualificacao).join(models.Dissertacao).filter(models.Dissertacao.id_estudante == id_estudante).all()

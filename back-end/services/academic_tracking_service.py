@@ -2,8 +2,8 @@ import calendar
 from dataclasses import dataclass
 from datetime import date
 
-MESES_PARA_QUALIFICACAO = 18
-MESES_PARA_DEFESA = 24
+MESES_PARA_QUALIFICACAO = 17
+MESES_PARA_DEFESA = 23
 
 
 def somar_meses(data_base: date, meses: int) -> date:

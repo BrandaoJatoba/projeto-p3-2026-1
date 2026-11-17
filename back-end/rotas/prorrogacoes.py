@@ -10,6 +10,7 @@ from schemas import (
     ProrrogacaoResponse,
 )
 from security import autorizar
+from services.prazos_service import aplicar_prorrogacao_individual # Importação do serviço
 
 router = APIRouter(prefix="/prorrogacoes", tags=["Prorrogações"])
 
@@ -28,7 +29,12 @@ def criar_prorrogacao(
 ):
     """Cria um novo pedido de prorrogação de prazo."""
     try:
-        return crud_prorrogacoes.criar_prorrogacao(db_connection, dados)
+        nova_prorrogacao = crud_prorrogacoes.criar_prorrogacao(db_connection, dados)
+        
+        # Gatilho: Recalcula os prazos do aluno afetado caso já nasça aprovada
+        aplicar_prorrogacao_individual(db_connection, nova_prorrogacao.id_estudante)
+        
+        return nova_prorrogacao
     except IntegrityError:
         db_connection.rollback()
         raise HTTPException(
@@ -103,6 +109,10 @@ def atualizar_prorrogacao(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Prorrogação não encontrada."
             )
+            
+        # Gatilho: Recalcula se o status mudou para aprovado ou se os meses mudaram
+        aplicar_prorrogacao_individual(db_connection, prorrogacao_atualizada.id_estudante)
+        
         return prorrogacao_atualizada
     except IntegrityError:
         db_connection.rollback()
@@ -122,10 +132,26 @@ def deletar_prorrogacao(
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
     """Remove um registro de prorrogação pelo ID."""
-    sucesso = crud_prorrogacoes.deletar_prorrogacao(db_connection, id_prorrogacao)
-    if not sucesso:
+    
+    # 1. Busca primeiro a prorrogação para saber de qual estudante ela é
+    prorrogacao = crud_prorrogacoes.obter_prorrogacao_por_id(db_connection, id_prorrogacao)
+    if not prorrogacao:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Prorrogação não encontrada."
         )
+        
+    id_estudante = prorrogacao.id_estudante
+    
+    # 2. Deleta o registro
+    sucesso = crud_prorrogacoes.deletar_prorrogacao(db_connection, id_prorrogacao)
+    if not sucesso:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Erro ao deletar a prorrogação."
+        )
+        
+    # 3. Gatilho: Recalcula as datas do estudante subtraindo essa prorrogação
+    aplicar_prorrogacao_individual(db_connection, id_estudante)
+    
     return None

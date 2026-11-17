@@ -37,6 +37,16 @@ def buscar_proficiencia_por_id(
         .first()
     )
 
+def buscar_proficiencias_por_estudante(
+    db_connection: Session,
+    id_estudante: int
+) -> List[models.Proficiencia]:
+    return (
+        db_connection.query(models.Proficiencia)
+        .filter(models.Proficiencia.id_estudante == id_estudante)
+        .all()
+    )
+
 def atualizar_proficiencia(db_connection: Session, id_proficiencia: int, dados_atualizacao: Dict[str, Any]) -> Optional[models.Proficiencia]:
     """Atualiza campos específicos de uma proficiência existente."""
     proficiencia = buscar_proficiencia_por_id(db_connection, id_proficiencia)

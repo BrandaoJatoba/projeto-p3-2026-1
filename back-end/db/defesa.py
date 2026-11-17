@@ -5,14 +5,11 @@ from datetime import date
 
 def criar_defesa(db: Session, 
                  id_dissertacao: int,
-                 prazo_solicitacao_homologacao_banca: int,
+                 prazo_maximo_defesa: date,
                  data_solicitacao_banca: Optional[date] = None,
-                 status_solicitacao_banca: Optional[str] = None,
                  status_homologacao_banca: Optional[str] = None,
-                 prazo_maximo_defesa: Optional[int] = None,
                  data_realizacao: Optional[date] = None,
                  status_defesa: Optional[str] = None,
-                 retorno_defesa: Optional[str] = None,
                  conceito_defesa: Optional[str] = None,
                  prazo_versao_final: Optional[date] = None,
                  prazo_limite_processo_diploma: Optional[date] = None,
@@ -20,14 +17,11 @@ def criar_defesa(db: Session,
                  ) -> models.Defesa:
     nova_defesa = models.Defesa(
         id_dissertacao=id_dissertacao,
-        prazo_solicitacao_homologacao_banca=prazo_solicitacao_homologacao_banca,
         data_solicitacao_banca=data_solicitacao_banca,
-        status_solicitacao_banca=status_solicitacao_banca,
         status_homologacao_banca=status_homologacao_banca,
         prazo_maximo_defesa=prazo_maximo_defesa,
         data_realizacao=data_realizacao,
         status_defesa=status_defesa,
-        retorno_defesa=retorno_defesa,
         conceito_defesa=conceito_defesa,
         prazo_versao_final=prazo_versao_final,
         prazo_limite_processo_diploma=prazo_limite_processo_diploma,
@@ -72,3 +66,11 @@ def listar_defesas_por_filtro(db: Session, filtro: Dict[str, Any]) -> List[model
     for chave, valor in filtro.items():
         query = query.filter(getattr(models.Defesa, chave) == valor)
     return query.all()
+
+def obter_defesas_por_aluno(db: Session, id_estudante: int) -> List[models.Defesa]:
+    return (
+        db.query(models.Defesa)
+        .join(models.Dissertacao, models.Defesa.id_dissertacao == models.Dissertacao.id_dissertacao)
+        .filter(models.Dissertacao.id_estudante == id_estudante)
+        .all()
+    )

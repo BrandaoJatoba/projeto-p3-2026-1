@@ -105,6 +105,7 @@ const linhas = computed(() =>
   estudantes.value.map((estudante) => ({
     ...estudante,
     avisoPrazo: avisoDoPrazo(estudante),
+    orientacaoInfo: resumoOrientacao(estudante),
   })),
 )
 
@@ -127,6 +128,53 @@ function codigoDoSemestre(idSemestre) {
 
 function nomeDoOrientador(idOrientador) {
   return nomesProfessores.value[idOrientador] || `Professor ${idOrientador}`
+}
+
+function resumoOrientacao(estudante) {
+  const lista = Array.isArray(estudante.orientacoes) ? estudante.orientacoes : []
+
+  if (lista.length === 0) {
+    if (estudante.id_orientador) {
+      const nome = nomeDoOrientador(estudante.id_orientador)
+      return {
+        principal: nome,
+        coorientadores: [],
+        textoCoorientadores: '',
+        tooltip: `Orientador: ${nome}`,
+      }
+    }
+    return {
+      principal: '',
+      coorientadores: [],
+      textoCoorientadores: '',
+      tooltip: '',
+    }
+  }
+
+  const obterNome = (vinculo) =>
+    vinculo.professor?.nome_professor || nomeDoOrientador(vinculo.id_professor)
+
+  const vinculoPrincipal = lista.find((v) => v.tipo_orientacao === 'ORIENTADOR')
+  const principal = vinculoPrincipal ? obterNome(vinculoPrincipal) : ''
+
+  const coorientadores = lista
+    .filter((v) => v.tipo_orientacao === 'COORIENTADOR')
+    .map(obterNome)
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+
+  const partesTooltip = []
+  if (principal) partesTooltip.push(`Orientador: ${principal}`)
+  if (coorientadores.length > 0) {
+    const rotulo = coorientadores.length === 1 ? 'Coorientador' : 'Coorientadores'
+    partesTooltip.push(`${rotulo}: ${coorientadores.join(', ')}`)
+  }
+
+  return {
+    principal,
+    coorientadores,
+    textoCoorientadores: coorientadores.join(', '),
+    tooltip: partesTooltip.join(' | '),
+  }
 }
 
 function iniciais(nome) {
@@ -632,7 +680,7 @@ onBeforeUnmount(() => {
                   Matrícula <span class="indicador">{{ indicadorOrdenacao('matricula') }}</span>
                 </button>
               </th>
-              <th>Orientador</th>
+              <th>Orientação</th>
               <th>
                 <button type="button" class="botao-ordenar" @click="ordenarPor('id_semestre')">
                   Semestre <span class="indicador">{{ indicadorOrdenacao('id_semestre') }}</span>
@@ -710,9 +758,35 @@ onBeforeUnmount(() => {
                 </div>
               </td>
               <td>
-                <span v-if="estudante.id_orientador">
-                  {{ nomeDoOrientador(estudante.id_orientador) }}
-                </span>
+                <div
+                  v-if="
+                    estudante.orientacaoInfo.principal ||
+                    estudante.orientacaoInfo.coorientadores.length > 0
+                  "
+                  class="celula-orientacao"
+                  :title="estudante.orientacaoInfo.tooltip"
+                >
+                  <div class="linha-orientador">
+                    <span v-if="estudante.orientacaoInfo.principal">
+                      {{ estudante.orientacaoInfo.principal }}
+                    </span>
+                    <span v-else class="sem-orientador">Sem orientador principal</span>
+
+                    <span
+                      v-if="estudante.orientacaoInfo.coorientadores.length > 0"
+                      class="selo-coorientador"
+                      :aria-label="estudante.orientacaoInfo.tooltip"
+                    >
+                      +{{ estudante.orientacaoInfo.coorientadores.length }}
+                    </span>
+                  </div>
+                  <span
+                    v-if="estudante.orientacaoInfo.coorientadores.length > 0"
+                    class="texto-coorientadores"
+                  >
+                    Coorient.: {{ estudante.orientacaoInfo.textoCoorientadores }}
+                  </span>
+                </div>
                 <span v-else class="sem-orientador">Sem orientador</span>
               </td>
               <td>{{ codigoDoSemestre(estudante.id_semestre) }}</td>
@@ -1046,8 +1120,9 @@ onBeforeUnmount(() => {
   font-size: 0.65rem;
 }
 
-.tabela.compacta .email-estudante {
-  font-size: 0.75rem;
+.tabela.compacta .email-estudante,
+.tabela.compacta .texto-coorientadores {
+  display: none;
 }
 
 .botao-ordenar {
@@ -1102,6 +1177,36 @@ onBeforeUnmount(() => {
 }
 
 .email-estudante {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.celula-orientacao {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.linha-orientador {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.selo-coorientador {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: help;
+}
+
+.texto-coorientadores {
   font-size: 0.8rem;
   color: #6b7280;
 }

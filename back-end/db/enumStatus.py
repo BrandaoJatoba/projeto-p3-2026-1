@@ -10,7 +10,14 @@ class StrEnum(str, Enum):
 # ==========================================
 # DISCIPLINAS
 # ==========================================
-class GrupoDisciplina(StrEnum):
+class GrupoPesquisa(StrEnum):
+    GRUPO_1 = "GRUPO 1" # Teoria da Computação, Análise de Algoritmos...
+    GRUPO_2 = "GRUPO 2" # Metodologia e Técnicas de Computação
+    GRUPO_3 = "GRUPO 3" # Sistemas de Computação
+    GRUPO_4 = "GRUPO 4" # Outros
+    GRUPO_5 = "GRUPO 5" # Disciplinas da gradução (não pertencentes ao Mestrado)
+
+class NaturezaDisciplina(StrEnum):
     BASICAS = "BASICAS"
     ELETIVAS = "ELETIVAS"
     TOPICOS_ESPECIAIS = "TOPICOS_ESPECIAIS"
@@ -36,11 +43,9 @@ class StatusDisciplina(StrEnum):
 
 
 # =========================================
-# ESTUDANTES
+# ESTUDANTES E ORIENTAÇÃO
 # =========================================
-
-    
-class StatusEstudanteEnum(str, Enum):
+class StatusEstudanteEnum(StrEnum):
     ATIVO = "ATIVO"
     TRANCADO = "TRANCADO"
     PROCESSO_DESLIGAMENTO = "PROCESSO DE DESLIGAMENTO"
@@ -49,6 +54,9 @@ class StatusEstudanteEnum(str, Enum):
     TITULADO = "TITULADO"
 
 
+class TipoOrientacao(StrEnum):
+    ORIENTADOR = "ORIENTADOR"
+    COORIENTADOR = "COORIENTADOR"
 
 
 # ==========================================
@@ -75,6 +83,8 @@ class StatusCertificadoProficiencia(StrEnum):
     ENTREGUE = "ENTREGUE"
     PENDENTE = "PENDENTE"
     DISPENSA = "DISPENSA"
+    APROVADA = "APROVADA"
+    REPROVADA = "REPROVADA"
 
 
 # ==========================================
@@ -94,32 +104,36 @@ class QualisArtigo(StrEnum):
     A4 = "A4"
     B1 = "B1"
     B2 = "B2"
+    B3 = "B3"
+    B4 = "B4"
+    B5 = "B5"
+    C = "C"
 
 
 class TipoArtigo(StrEnum):
     PERIODICO = "PERIÓDICO"
     EVENTO = "EVENTO"
+    CONFERENCIA = "CONFERÊNCIA"
+    CAPITULO_LIVRO = "CAPÍTULO DE LIVRO"
 
 
 class StatusValidacaoColegiadoArtigo(StrEnum):
     SUBMETIDA = "SUBMETIDA"
     APROVADA = "APROVADA"
     PENDENTE = "PENDENTE"
+    REPROVADA = "REPROVADA"
 
 
 # ==========================================
 # QUALIFICACOES
 # ==========================================
 class StatusQualificacao(StrEnum):
-    ENTREGUE = "ENTREGUE"
+    APROVADO = "APROVADO"
     PENDENTE = "PENDENTE"
     DISPENSA = "DISPENSA"
     REPROVADO = "REPROVADO"
-
-
-class RetornoQualificacao(StrEnum):
-    CADASTROU_BANCA = "Cadastrou Banca"
-    SOLICITOU_PRORROGACAO = "Solicitou Prorrogação"
+    AGUARDANDO_NOVA_BANCA = "AGUARDANDO_NOVA_BANCA"
+    REPROVADO_DEFINITIVO = "REPROVADO_DEFINITIVO"
 
 
 # ==========================================
@@ -127,15 +141,11 @@ class RetornoQualificacao(StrEnum):
 # ==========================================
 class StatusDefesa(StrEnum):
     PENDENTE = "PENDENTE"
-    DEFENDIDA = "Defendida"
-    CONCLUIDO = "Concluído"
-    EM_HOMOLOGACAO = "Em homologação"
+    DEFENDIDA = "DEFENDIDA"
+    CONCLUIDO = "CONCLUIDO"
+    EM_HOMOLOGACAO = "EM_HOMOLOGACAO"
+    AGUARDANDO_VERSAO_FINAL = "AGUARDANDO_VERSAO_FINAL"
     CANCELADO = "CANCELADO"
-
-
-class RetornoDefesa(StrEnum):
-    CADASTROU_BANCA = "Cadastrou Banca"
-    SOLICITOU_PRORROGACAO = "Solicitou Prorrogação"
 
 
 class ConceitoDefesa(StrEnum):
@@ -197,12 +207,3 @@ class NomePerfil(StrEnum):
     SECRETARIA = "SECRETARIA"
     COORDENACAO = "COORDENACAO"
     DISCENTE = "DISCENTE"
-
-# ==========================================
-# DISSERTACOES
-# ==========================================
-
-class StatusDissertacao(StrEnum):
-    EM_ANDAMENTO = "EM ANDAMENTO"
-    CONCLUIDA = "CONCLUÍDA"
-    CANCELADA = "CANCELADA"

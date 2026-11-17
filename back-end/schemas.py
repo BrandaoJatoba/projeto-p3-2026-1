@@ -1,19 +1,20 @@
-from datetime import date
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from datetime import date, datetime
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, computed_field
+from typing import Optional, List
 import db.enumStatus as enumStatus
-
 
 class SemestreCriacao(BaseModel):
     codigo_semestre: str = Field(max_length=6)
     data_inicio_real: date
     data_fim_real: date
     dias_letivos: int
+    data_quinzena_override: Optional[date] = None
 
 class SemestreAtualizacao(BaseModel):
     data_inicio_real: date
     data_fim_real: date
     dias_letivos: int
+    data_quinzena_override: Optional[date] = None
 
 class SemestreResposta(BaseModel):
 
@@ -24,6 +25,7 @@ class SemestreResposta(BaseModel):
     data_inicio_real: Optional[date]
     data_fim_real: Optional[date]
     dias_letivos: Optional[int]
+    data_quinzena_override: Optional[date] = None
 
 # Schema Base com os campos comuns
 class SuspensaoCalendarioBase(BaseModel):
@@ -94,7 +96,7 @@ class GatilhoAlertaCreate(GatilhoAlertaBase):
     pass
 
 class GatilhoAlertaUpdate(BaseModel):
-    dias_antecedencia: Optional[int] = Field(None, gt=0)
+    dias_antecedencia: Optional[int] = Field(None, ge=0)
     mensagem_template: Optional[str] = None
     ativo: Optional[bool] = None
 
@@ -103,12 +105,50 @@ class GatilhoAlertaResponse(GatilhoAlertaBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class HistoricoAlertaEnviadoCreate(BaseModel):
+    id_estudante: int = Field(..., gt=0)
+    id_gatilho: int = Field(..., gt=0)
+    destinatario_email: Optional[EmailStr] = None
+    emails_cc: Optional[str] = None
+    status_envio: enumStatus.StatusEnvioAlerta = Field(
+        default=enumStatus.StatusEnvioAlerta.ENVIADO
+    )
+
+# ==================
+# SCHEMAS DE HISTÓRICO DE ALERTAS ENVIADOS
+# =================
+
+class HistoricoAlertaEnviadoUpdate(BaseModel):
+    destinatario_email: Optional[EmailStr] = None
+    emails_cc: Optional[str] = None
+    status_envio: Optional[enumStatus.StatusEnvioAlerta] = None
+    data_envio: Optional[datetime] = None
+
+
+class HistoricoAlertaEnviadoResponse(BaseModel):
+    id_historico_alerta: int
+    id_estudante: int
+    id_gatilho: int
+    data_envio: datetime
+    destinatario_email: str
+    emails_cc: Optional[str] = None
+    status_envio: enumStatus.StatusEnvioAlerta
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class HistoricoAlertaPaginado(BaseModel):
+    total: int
+    skip: int
+    limit: int
+    itens: List[HistoricoAlertaEnviadoResponse]
+
 # ==========================================
 # SCHEMAS DE DISCIPLINA
 # ==========================================
 
 class DisciplinaBase(BaseModel):
-    """Atributos comuns compartilhados entre schemas de disciplina."""
+    """Atributos comuns partilhados entre schemas de disciplina."""
     codigo_disciplina: str = Field(
         ..., 
         max_length=20, 
@@ -117,13 +157,17 @@ class DisciplinaBase(BaseModel):
     )
     nome_disciplina: str = Field(
         ..., 
-        max_length=100, 
+        max_length=150,  # Aumentado para corresponder ao modelo da Base de Dados
         description="Nome da disciplina",
         examples=["Teoria da Computação"]
     )
-    grupo_disciplina: enumStatus.GrupoDisciplina = Field(
+    grupo_disciplina: enumStatus.GrupoPesquisa = Field(
         ..., 
-        description="Grupo ao qual a disciplina pertence"
+        description="Grupo de pesquisa ao qual a disciplina pertence (ex: GRUPO 1)"
+    )
+    natureza_disciplina: enumStatus.NaturezaDisciplina = Field(
+        ...,
+        description="Natureza da disciplina (ex: BASICAS, ELETIVAS, TOPICOS_ESPECIAIS)"
     )
     creditos: int = Field(
         ..., 
@@ -131,20 +175,23 @@ class DisciplinaBase(BaseModel):
         description="Quantidade de créditos (deve ser maior que zero)",
         examples=[4]
     )
-
+    eh_obrigatoria: bool = Field(
+        default=False,
+        description="Indica se a disciplina é obrigatória"
+    )
 
 class DisciplinaCreate(DisciplinaBase):
     """Schema para criação de disciplina (dados enviados no corpo do POST)."""
     pass
 
-
 class DisciplinaUpdate(BaseModel):
     """Schema para atualização parcial de disciplina (dados do PATCH/PUT)."""
     codigo_disciplina: Optional[str] = Field(None, max_length=20)
-    nome_disciplina: Optional[str] = Field(None, max_length=100)
-    grupo_disciplina: Optional[enumStatus.GrupoDisciplina] = None
+    nome_disciplina: Optional[str] = Field(None, max_length=150)
+    grupo_disciplina: Optional[enumStatus.GrupoPesquisa] = None
+    natureza_disciplina: Optional[enumStatus.NaturezaDisciplina] = None
     creditos: Optional[int] = Field(None, gt=0)
-
+    eh_obrigatoria: Optional[bool] = None
 
 class DisciplinaResponse(DisciplinaBase):
     """Schema de resposta retornado pela API para o cliente (inclui o ID)."""
@@ -210,9 +257,9 @@ class EstagioDocenciaResponse(EstagioDocenciaBase):
 class ProficienciaBase(BaseModel):
     """Atributos comuns da proficiência."""
     id_estudante: int = Field(..., description="ID do estudante")
-    status_certificado: enumStatus.StatusCertificadoProficiencia = Field(..., max_length=20, description="Status do certificado")
+    status_certificado: enumStatus.StatusCertificadoProficiencia = Field(..., description="Status do certificado")
     data_entrega_certificado: Optional[date] = Field(None, description="Data de entrega do certificado")
-    consolidada_sigaa: bool = Field(..., description="Indica se a proficiência está consolidada no SIGAA")
+    consolidada_sigaa: bool = Field(default=False, description="Indica se a proficiência está consolidada no SIGAA")
 
 class ProficienciaCreate(ProficienciaBase):
     """Schema para cadastro de uma nova proficiência (POST)."""
@@ -220,7 +267,6 @@ class ProficienciaCreate(ProficienciaBase):
 
 class ProficienciaUpdate(BaseModel):
     """Schema para atualização parcial de dados da proficiência (PATCH/PUT)."""
-    id_proficiencia: Optional[int] = None
     id_estudante: Optional[int] = None
     status_certificado: Optional[enumStatus.StatusCertificadoProficiencia] = None
     data_entrega_certificado: Optional[date] = None
@@ -241,7 +287,7 @@ class SubmissaoArtigoBase(BaseModel):
     id_estudante : int = Field(..., description="ID do estudante")
     status_comprovante : enumStatus.StatusComprovanteArtigo = Field(..., description="Status do comprovante de submissão do artigo")
     data_entrega : Optional[date] = Field(None, description="Data de entrega do comprovante")
-    qualis : Optional[str] = Field(None, max_length=2, description="Qualis do periódico ou conferência")
+    qualis : Optional[enumStatus.QualisArtigo] = Field(None, description="Qualis do periódico ou conferência")
     tipo : enumStatus.TipoArtigo = Field(..., description="Tipo do artigo (ex: CONFERENCIA, PERIODICO, CAPITULO_LIVRO)")
     status_validacao_colegiado : enumStatus.StatusValidacaoColegiadoArtigo = Field(..., description="Status de validação do colegiado")
 
@@ -251,12 +297,11 @@ class SubmissaoArtigoCreate(SubmissaoArtigoBase):
 
 class SubmissaoArtigoUpdate(BaseModel):
     """Schema para atualização parcial de dados da submissão de artigo (PATCH/PUT)."""
-    id_artigo: Optional[int] = None
     titulo: Optional[str] = Field(None, max_length=270)
     id_estudante: Optional[int] = None
     status_comprovante: Optional[enumStatus.StatusComprovanteArtigo] = None
     data_entrega: Optional[date] = None
-    qualis: Optional[str] = Field(None, max_length=2)
+    qualis: Optional[enumStatus.QualisArtigo] = Field(None, description="Qualis do periódico ou conferência")
     tipo: Optional[enumStatus.TipoArtigo] = None
     status_validacao_colegiado: Optional[enumStatus.StatusValidacaoColegiadoArtigo] = None
 
@@ -283,11 +328,7 @@ class HistoricoDisciplinaBase(BaseModel):
         default=enumStatus.StatusDisciplina.PENDENTE,
         description="Status do histórico na disciplina"
     )
-    creditos_integralizados: Optional[int] = Field(
-        default=0, 
-        ge=0, 
-        description="Quantidade de créditos obtidos após aprovação"
-    )
+  
 
 
 class HistoricoDisciplinaCreate(HistoricoDisciplinaBase):
@@ -302,7 +343,6 @@ class HistoricoDisciplinaUpdate(BaseModel):
     id_semestre: Optional[int] = None
     conceito: Optional[enumStatus.ConceitoHistorico] = None
     status_disciplina: Optional[enumStatus.StatusDisciplina] = None
-    creditos_integralizados: Optional[int] = Field(None, ge=0)
 
 
 class HistoricoDisciplinaResponse(HistoricoDisciplinaBase):
@@ -318,12 +358,9 @@ class HistoricoDisciplinaResponse(HistoricoDisciplinaBase):
 class DissertacaoBase(BaseModel):
     """Atributos comuns da dissertação."""
     id_estudante: int = Field(..., description="ID do estudante")
-    titulo: str = Field(..., max_length=255, description="Título da dissertação")
-    data_inicio: Optional[date] = Field(None, description="Data de início da dissertação")
-    status_dissertacao: enumStatus.StatusDissertacao = Field(
-        default=enumStatus.StatusDissertacao.EM_ANDAMENTO,
-        description="Status atual da dissertação"
-    )
+    titulo: Optional[str] = Field(None, max_length=255, description="Título da dissertação")
+    data_inicio: date = Field(..., description="Data de início da dissertação")
+
 
 class DissertacaoCreate(DissertacaoBase):
     """Schema para cadastro de uma nova dissertação (POST)."""
@@ -333,14 +370,18 @@ class DissertacaoUpdate(BaseModel):
     """Schema para atualização parcial de dados da dissertação (PATCH/PUT)."""
     id_estudante: Optional[int] = None
     titulo: Optional[str] = Field(None, max_length=255)
-    data_defesa: Optional[date] = None
-    status_dissertacao: Optional[enumStatus.StatusDissertacao] = None
+    data_inicio : Optional[date] = None
 
 class DissertacaoResponse(DissertacaoBase):
     """Schema de resposta retornado pela API (contém a chave primária id_dissertacao)."""
     id_dissertacao: int
-
+    
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('titulo', mode='before')
+    @classmethod
+    def substituir_titulo_nulo(cls, v):
+        return v if v is not None else "A definir"
     
 # ==========================================
 # SCHEMAS DE QUALIFICAÇÃO
@@ -349,13 +390,12 @@ class DissertacaoResponse(DissertacaoBase):
 class QualificacaoBase(BaseModel):
     """Atributos comuns da qualificação."""
     id_dissertacao: int = Field(..., description="ID da dissertação")
-    prazo_maximo_qualificacao: Optional[date] = Field(None, description="Prazo máximo para a qualificação")
+    prazo_maximo_qualificacao: date = Field(..., description="Prazo máximo para a qualificação")
     status_qualificacao: enumStatus.StatusQualificacao = Field(
         default=enumStatus.StatusQualificacao.PENDENTE,
         description="Status atual da qualificação"
     )
-    retorno_qualificacao: Optional[str] = Field(None, description="Ato do discente após a qualificação (Solicitou Banca ou Solicitou Prorrogação.)")
-    tentativa: Optional[int] = Field(None, description="Número de tentativas realizadas para a qualificação")
+    tentativa: int = Field(default=1, description="Número de tentativas realizadas para a qualificação")
     data_realizacao: Optional[date] = Field(None, description="Data da qualificação")
     
 class QualificacaoCreate(QualificacaoBase):
@@ -367,7 +407,6 @@ class QualificacaoUpdate(BaseModel):
     id_dissertacao: Optional[int] = None
     prazo_maximo_qualificacao: Optional[date] = None
     status_qualificacao: Optional[enumStatus.StatusQualificacao] = None
-    retorno_qualificacao: Optional[str] = None
     tentativa: Optional[int] = None
     data_realizacao: Optional[date] = None
 
@@ -381,55 +420,88 @@ class QualificacaoResponse(QualificacaoBase):
 # SCHEMAS DE DEFESA
 # ==========================================
 
+def _validar_intervalo_homologacao_defesa(
+    data_solicitacao: Optional[date],
+    data_realizacao: Optional[date],
+) -> None:
+    if data_solicitacao and data_realizacao:
+        if data_realizacao < data_solicitacao:
+            raise ValueError(
+                "A data de realização da defesa não pode ser anterior à data de solicitação da banca."
+            )
+        if (data_realizacao - data_solicitacao).days > 30:
+            raise ValueError(
+                "Conforme o Art. 37, VI do Regimento, a defesa deve ocorrer no máximo 30 dias após a solicitação de homologação da banca."
+            )
+
+
 class DefesaBase(BaseModel):
     """Atributos Comuns da Defesa"""
     
     # PK e FK
-    id_dissertacao : int = Field(..., description="ID da dissertação")
+    id_dissertacao: int = Field(..., description="ID da dissertação")
     
-    # --- Fase 1: Homologação da Banca
-    prazo_solicitacao_homologacao_banca: Optional[date] = Field(None, description="Prazo para solicitação de homologação da banca")
+    # --- Fase 1: Homologação da Banca ---
     data_solicitacao_banca: Optional[date] = Field(None, description="Data de solicitação da banca")
     status_homologacao_banca: Optional[enumStatus.StatusHomologacaoBanca] = Field(
         default=enumStatus.StatusHomologacaoBanca.PENDENTE,
         description="Status da homologação da banca"
     )
     
-    # --- Fase 2: Realização e Conceito da Defesa
-    prazo_maximo_defesa: Optional[date] = Field(None, description="Prazo máximo para a defesa")
+    # --- Fase 2: Realização e Conceito da Defesa ---
+    prazo_maximo_defesa: date = Field(..., description="Prazo máximo para a defesa")
     data_realizacao: Optional[date] = Field(None, description="Data de realização da defesa")
     status_defesa: Optional[enumStatus.StatusDefesa] = Field(
         default=enumStatus.StatusDefesa.PENDENTE,
-        description="Status da defesa")
-    retorno_defesa: Optional[str] = Field(None, description="Ato do discente após a defesa (Solicitou Banca ou Solicitou Prorrogação.)")
-    conceito_defesa: Optional[enumStatus.ConceitoDefesa] = Field(None, description="Conceito obtido na defesa (Aprovado, Aprovado Condicionalmente ou Reprovado)")
+        description="Status da defesa"
+    )
+    conceito_defesa: Optional[enumStatus.ConceitoDefesa] = Field(
+        None, 
+        description="Conceito obtido na defesa (Aprovado, Aprovado Condicionalmente ou Reprovado)"
+    )
     prazo_versao_final: Optional[date] = Field(None, description="Prazo para entrega da versão final da dissertação")
     
-    # --- Fase 3: Processo de Diploma
+    # --- Fase 3: Processo de Diploma ---
     prazo_limite_processo_diploma: Optional[date] = Field(None, description="Prazo máximo para o processo de diploma")
     status_processo_diploma: Optional[enumStatus.StatusProcessoDiploma] = Field(
         default=enumStatus.StatusProcessoDiploma.PENDENTE,
         description="Status do processo de diploma"
     )
 
+
 class DefesaCreate(DefesaBase):
     """Schema para cadastro de uma nova defesa (POST)."""
-    pass
+
+    @model_validator(mode="after")
+    def validar_datas_banca(self):
+        _validar_intervalo_homologacao_defesa(
+            self.data_solicitacao_banca, 
+            self.data_realizacao
+        )
+        return self
+
 
 class DefesaUpdate(BaseModel):
     """Schema para atualização parcial de dados da defesa (PATCH/PUT)."""
     id_dissertacao: Optional[int] = None
-    prazo_solicitacao_homologacao_banca: Optional[date] = None
     data_solicitacao_banca: Optional[date] = None
     status_homologacao_banca: Optional[enumStatus.StatusHomologacaoBanca] = None
     prazo_maximo_defesa: Optional[date] = None
     data_realizacao: Optional[date] = None
     status_defesa: Optional[enumStatus.StatusDefesa] = None
-    retorno_defesa: Optional[str] = None
     conceito_defesa: Optional[enumStatus.ConceitoDefesa] = None
     prazo_versao_final: Optional[date] = None
     prazo_limite_processo_diploma: Optional[date] = None
     status_processo_diploma: Optional[enumStatus.StatusProcessoDiploma] = None
+
+    @model_validator(mode="after")
+    def validar_datas_banca(self):
+        _validar_intervalo_homologacao_defesa(
+            self.data_solicitacao_banca, 
+            self.data_realizacao
+        )
+        return self
+
 
 class DefesaResponse(DefesaBase):
     """Schema de resposta retornado pela API (contém a chave primária id_defesa)."""
@@ -473,112 +545,158 @@ class ProrrogacaoResponse(ProrrogacaoBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-# ===========================================
-# SCHEMAS DE ESTUDANTE
-# ===========================================
+# ==========================================
+# Schemas para Orientação (N:N)
+# ==========================================
 
-class EstudanteCriacao(BaseModel):
-    """Corpo do POST /estudantes."""
-    matricula: str = Field(..., min_length=1, max_length=20, examples=["2026100123"])
-    nome_discente: str = Field(..., min_length=2, max_length=100, examples=["Maria da Silva"])
-    id_semestre: int = Field(..., gt=0, description="Semestre de ingresso")
-    eh_bolsista: bool = Field(default=False)
-    email: Optional[str] = Field(None, max_length=100)
+class ProfessorResumo(BaseModel):
+    id_professor: int
+    nome_professor: str
+    email: Optional[str] = None
 
-
-class EstudanteAtualizacao(BaseModel):
-    """
-    Corpo do PUT /estudantes/{id}. Todos os campos são opcionais.
-    A rota usa model_dump(exclude_unset=True) para diferenciar
-    "campo não enviado" de "campo enviado como null"
-    (ex.: {"id_orientador": null} DESVINCULA o orientador).
-
-    matricula e id_semestre ficam de fora de propósito: trocar o semestre de
-    ingresso invalidaria os prazos já gravados em QUALIFICACOES/DEFESAS.
-    """
-    nome_discente: Optional[str] = Field(None, min_length=2, max_length=100)
-    email: Optional[str] = Field(None, max_length=100)
-    id_orientador: Optional[int] = Field(None, gt=0)
-    eh_bolsista: Optional[bool] = None
-    prazo_conclusao_sigaa: Optional[date] = None
-    status_atual: Optional[enumStatus.StatusEstudanteEnum] = None
-
-
-class EstudanteResposta(BaseModel):
-    """Dados cadastrais (usado na listagem, mais leve)."""
     model_config = ConfigDict(from_attributes=True)
 
+
+class EstudanteOrientadorBase(BaseModel):
+    id_professor: int = Field(..., gt=0)
+    tipo_orientacao: enumStatus.TipoOrientacao = Field(
+        default=enumStatus.TipoOrientacao.ORIENTADOR
+    )
+
+
+class EstudanteOrientadorCreate(EstudanteOrientadorBase):
+    pass
+
+
+class EstudanteOrientadorUpdate(BaseModel):
+    tipo_orientacao: enumStatus.TipoOrientacao
+
+
+class EstudanteOrientadorResponse(EstudanteOrientadorBase):
+    id_estudante: int
+    professor: Optional[ProfessorResumo] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# Schemas para Estudante
+# ==========================================
+
+class EstudanteBase(BaseModel):
+    matricula: str = Field(..., min_length=1, max_length=20)
+    nome_discente: str = Field(..., min_length=1, max_length=100)
+    status_atual: enumStatus.StatusEstudanteEnum = Field(
+        default=enumStatus.StatusEstudanteEnum.ATIVO
+    )
+    id_semestre: int = Field(..., gt=0)
+    eh_bolsista: bool = False
+    prazo_conclusao_sigaa: Optional[date] = None
+    email: Optional[EmailStr] = None
+
+
+class EstudanteCreate(EstudanteBase):
+    id_orientador: Optional[int] = Field(None, gt=0)
+    orientacoes: Optional[List[EstudanteOrientadorCreate]] = None
+
+
+class EstudanteUpdate(BaseModel):
+    matricula: Optional[str] = Field(None, min_length=1, max_length=20)
+    nome_discente: Optional[str] = Field(None, min_length=1, max_length=100)
+    status_atual: Optional[enumStatus.StatusEstudanteEnum] = None
+    id_semestre: Optional[int] = Field(None, gt=0)
+    eh_bolsista: Optional[bool] = None
+    prazo_conclusao_sigaa: Optional[date] = None
+    email: Optional[EmailStr] = None
+    id_orientador: Optional[int] = None
+    orientacoes: Optional[List[EstudanteOrientadorCreate]] = None
+
+
+class EstudanteResponse(BaseModel):
     id_estudante: int
     matricula: str
     nome_discente: str
-    email: Optional[str]
-    id_semestre: int
-    id_orientador: Optional[int]
     status_atual: enumStatus.StatusEstudanteEnum
-    eh_bolsista: Optional[bool]
-    prazo_conclusao_sigaa: Optional[date]
+    id_semestre: int
+    eh_bolsista: bool
+    prazo_conclusao_sigaa: Optional[date] = None
+    email: Optional[str] = None
+    orientacoes: List[EstudanteOrientadorResponse] = []
 
+    @computed_field
+    @property
+    def id_orientador(self) -> Optional[int]:
+        for vinculo in self.orientacoes:
+            if vinculo.tipo_orientacao == enumStatus.TipoOrientacao.ORIENTADOR:
+                return vinculo.id_professor
+        return None
 
-class DissertacaoResumo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id_dissertacao: int
-    titulo: Optional[str]
-    data_inicio: date
 
-
-class QualificacaoResumo(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id_qualificacao: int
-    prazo_maximo_qualificacao: date
-    status_qualificacao: Optional[str]
-    tentativa: Optional[int]
-    data_realizacao: Optional[date]
-
-
-class DefesaResumo(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id_defesa: int
-    prazo_maximo_defesa: date
-    status_defesa: Optional[str]
-    data_realizacao: Optional[date]
-
-
-class EstudanteDetalhado(EstudanteResposta):
-    """Perfil completo: cadastro + marcos de acompanhamento."""
-    dissertacao: Optional[DissertacaoResumo] = None
-    qualificacao: Optional[QualificacaoResumo] = None
-    defesa: Optional[DefesaResumo] = None
+class EstudanteDetalhado(EstudanteResponse):
+    dissertacao: Optional[DissertacaoResponse] = None
+    qualificacao: Optional[QualificacaoResponse] = None
+    defesa: Optional[DefesaResponse] = None
 
 
 class EstudantePaginado(BaseModel):
-    """Resposta do GET /estudantes: o front precisa do total para montar a paginação."""
     total: int
     skip: int
     limit: int
-    itens: list[EstudanteResposta]
+    itens: List[EstudanteResponse]
+
+
+# Aliases de compatibilidade caso algum módulo ainda importe os nomes anteriores
+EstudanteCriacao = EstudanteCreate
+EstudanteAtualizacao = EstudanteUpdate
+EstudanteResposta = EstudanteResponse
+
 
 # ==========================
 # SCHEMA DE PROFESSOR
 # ==========================
-class ProfessorBase(BaseModel):
-    """Atributos comuns do professor."""
-    nome_professor: str = Field(..., min_length=2, max_length=100, description="Nome completo do professor")
-
-class ProfessorCriacao(ProfessorBase):
-    pass
+class ProfessorCriacao(BaseModel):
+    nome_professor: str = Field(..., min_length=2, max_length=100)
+    email: Optional[EmailStr] = None
 
 class ProfessorAtualizacao(BaseModel):
     nome_professor: Optional[str] = Field(None, min_length=2, max_length=100)
+    email: Optional[EmailStr] = None
 
 class ProfessorResposta(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id_professor: int
     nome_professor: str
+    email: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 class ProfessorDetalhado(ProfessorResposta):
     """Perfil completo do professor, incluindo os estudantes orientados."""
-    estudantes_orientados: list[EstudanteResposta] = []
+    estudantes_orientados: list[EstudanteResponse] = []
+
+# ===================================================
+# Endpoint Apto para defesa
+# ==================================================
+
+class DetalheCreditos(BaseModel):
+    total_valido: int
+    basicas: int
+    eletivas: int
+    topicos_especiais: int
+    estudo_dirigido: int
+    requisito_obrigatorias_cumprido: bool
+
+class RequisitosDefesa(BaseModel):
+    creditos: bool
+    proficiencia: bool
+    estagio_docencia: bool
+    qualificacao: bool
+    artigo: bool
+
+class StatusDefesaResponse(BaseModel):
+    id_estudante: int
+    apto_para_defesa: bool
+    detalhe_creditos: DetalheCreditos
+    requisitos: RequisitosDefesa
+    pendencias_detalhadas: List[str]

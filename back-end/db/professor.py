@@ -4,12 +4,14 @@ from typing import List, Optional, Dict, Any
 
 def criar_professor(
     db_connection: Session, 
-    nome_professor: str
+    nome_professor: str,
+    email: Optional[str] = None
 ) -> models.Professor:
     """Cria um novo registro de professor."""
     novo_professor = models.Professor(
-        nome_professor=nome_professor
-        )
+        nome_professor=nome_professor,
+        email=email
+    )
     db_connection.add(novo_professor)
     db_connection.commit()
     db_connection.refresh(novo_professor)
