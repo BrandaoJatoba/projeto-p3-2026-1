@@ -150,7 +150,7 @@ onMounted(() => {
 
     <div class="form-card">
       <h2>{{ editandoSuspensaoId ? 'Editar Suspensão' : 'Cadastrar Suspensão' }}</h2>
-      
+
       <form @submit.prevent="cadastrarSuspensao">
         <div class="form-grid">
           <div class="form-group">
@@ -187,17 +187,18 @@ onMounted(() => {
           <BaseButton type="submit" variant="primary">
             {{ editandoSuspensaoId ? 'Salvar Edição' : 'Cadastrar Suspensão' }}
           </BaseButton>
-          
-          <BaseButton 
-            v-if="editandoSuspensaoId" 
-            type="button" 
-            variant="secondary" 
-            @click="cancelarEdicaoSuspensao">
+
+          <BaseButton
+            v-if="editandoSuspensaoId"
+            type="button"
+            variant="secondary"
+            @click="cancelarEdicaoSuspensao"
+          >
             Cancelar
           </BaseButton>
         </div>
       </form>
-      
+
       <div v-if="mensagemSuspensao" class="alert alert-info mt-3">
         {{ mensagemSuspensao }}
       </div>
@@ -217,7 +218,9 @@ onMounted(() => {
         </thead>
         <tbody>
           <tr v-for="suspensao in suspensoes" :key="suspensao.id_suspensao">
-            <td><strong>{{ suspensao.id_semestre }}</strong></td>
+            <td>
+              <strong>{{ suspensao.id_semestre }}</strong>
+            </td>
             <td>{{ suspensao.motivo }}</td>
             <td>{{ suspensao.data_inicio_suspensao }}</td>
             <td>{{ suspensao.data_fim_suspensao || '-' }}</td>
@@ -226,7 +229,11 @@ onMounted(() => {
                 <BaseButton type="button" variant="secondary" @click="editarSuspensao(suspensao)">
                   Editar
                 </BaseButton>
-                <BaseButton type="button" variant="danger" @click="deletarSuspensao(suspensao.id_suspensao)">
+                <BaseButton
+                  type="button"
+                  variant="danger"
+                  @click="deletarSuspensao(suspensao.id_suspensao)"
+                >
                   Excluir
                 </BaseButton>
               </div>
@@ -243,10 +250,19 @@ onMounted(() => {
 
 <style scoped>
 /* Espaçamentos Globais */
-.mt-3 { margin-top: 16px; }
-.mt-4 { margin-top: 24px; }
-.text-center { text-align: center; }
-.text-muted { color: #6b7280; font-style: italic; }
+.mt-3 {
+  margin-top: 16px;
+}
+.mt-4 {
+  margin-top: 24px;
+}
+.text-center {
+  text-align: center;
+}
+.text-muted {
+  color: #6b7280;
+  font-style: italic;
+}
 
 /* Tipografia e Cabeçalhos */
 .page-header h1 {
@@ -264,12 +280,13 @@ h2 {
 }
 
 /* Estilos de Card para Forms e Detalhes */
-.form-card, .details-card {
+.form-card,
+.details-card {
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   margin-bottom: 32px;
 }
 
@@ -294,7 +311,9 @@ h2 {
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 .form-control:focus {
   outline: none;
@@ -313,7 +332,7 @@ h2 {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 .table-container h2 {
   padding: 20px 20px 0 20px;
