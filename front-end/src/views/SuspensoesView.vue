@@ -18,6 +18,8 @@ const semestres = ref([])
 
 const authStore = useAuthStore()
 
+const mensagemSessaoExpirada = 'Sua sessão expirou. Saia e entre de novo.'
+
 // "2026-11-10" vira uma data local (new Date("2026-11-10") seria lido em UTC).
 function lerData(texto) {
   if (!texto) return null
@@ -97,7 +99,15 @@ async function cadastrarSuspensao() {
     })
 
     if (!resposta.ok) {
-      mensagemSuspensao.value = 'Erro ao salvar suspensão. Confira os dados.'
+      if (resposta.status === 401) {
+        mensagemSuspensao.value = mensagemSessaoExpirada
+      } else if (resposta.status === 403) {
+        mensagemSuspensao.value = editando
+          ? 'Você não tem permissão para editar suspensões.'
+          : 'Você não tem permissão para cadastrar suspensões.'
+      } else {
+        mensagemSuspensao.value = 'Erro ao salvar suspensão. Confira os dados.'
+      }
       return
     }
 
@@ -186,7 +196,13 @@ async function deletarSuspensao(id) {
     })
 
     if (!resposta.ok) {
-      mensagemSuspensao.value = 'Erro ao excluir suspensão.'
+      if (resposta.status === 401) {
+        mensagemSuspensao.value = mensagemSessaoExpirada
+      } else if (resposta.status === 403) {
+        mensagemSuspensao.value = 'Você não tem permissão para excluir suspensões.'
+      } else {
+        mensagemSuspensao.value = 'Erro ao excluir suspensão.'
+      }
       return
     }
 
