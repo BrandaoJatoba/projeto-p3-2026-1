@@ -10,6 +10,7 @@ import SuspensoesView from '../views/SuspensoesView.vue'
 import ProfessoresView from '../views/ProfessoresView.vue'
 import DisciplinasView from '../views/DisciplinasView.vue'
 import AlertasView from '../views/AlertasView.vue'
+import CentralAlertasView from '../views/CentralAlertasView.vue'
 import EstudantesView from '../views/EstudantesView.vue'
 import EstudanteDetalheView from '../views/EstudanteDetalheView.vue'
 
@@ -25,6 +26,12 @@ const router = createRouter({
       name: 'dashboard',
       component: DashboardView,
       meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
+    },
+    {
+      path: '/central-alertas',
+      name: 'central-alertas',
+      component: CentralAlertasView,
+      meta: { perfisPermitidos: ['SECRETARIA', 'ADMIN'] },
     },
     {
       path: '/configuracoes',
