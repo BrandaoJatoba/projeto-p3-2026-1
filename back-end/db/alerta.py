@@ -354,3 +354,116 @@ def deletar_historico_alerta(
     except Exception:
         db_connection.rollback()
         raise
+
+# ==========================================================================
+# VARREDURA (ALERT ENGINE) — CONSULTAS EM LOTE
+# ==========================================================================
+
+def listar_gatilhos_ativos_com_tipo(
+    db_connection: Session,
+) -> List[Tuple[models.GatilhoAlerta, models.TipoPrazo]]:
+    """
+    Retorna pares (gatilho, tipo_prazo) apenas dos gatilhos ativos,
+    em uma única consulta (join), para o motor saber qual data-limite
+    consultar em cada gatilho (via tipo_prazo.codigo_prazo).
+    """
+    return (
+        db_connection.query(
+            models.GatilhoAlerta, models.TipoPrazo
+        )
+        .join(
+            models.TipoPrazo,
+            models.GatilhoAlerta.id_tipo_prazo == models.TipoPrazo.id_tipo_prazo
+        )
+        .filter(
+            models.GatilhoAlerta.ativo.is_(True)
+        )
+        .all()
+    )
+
+def listar_estudantes_para_varredura(
+    db_connection: Session,
+    status_permitidos: List[str],
+) -> List[models.Estudante]:
+    """
+    Estudantes elegíveis à varredura (status permitido e e-mail preenchido),
+    com orientações e professores já carregados para evitar N+1.
+    """
+    return (
+        db_connection.query(models.Estudante)
+        .options(
+            selectinload(models.Estudante.orientacoes).selectinload(
+                models.EstudanteOrientador.professor
+            )
+        )
+        .filter(
+            models.Estudante.status_atual.in_(status_permitidos),
+            models.Estudante.email.isnot(None),
+            models.Estudante.email != "",
+        )
+        .all()
+    )
+
+
+def obter_pares_alertas_enviados(db_connection: Session) -> set[tuple[int, int]]:
+    """
+    Conjunto {(id_estudante, id_gatilho)} com status ENVIADO, em uma única
+    consulta. Usado pelo motor para não listar alertas já disparados.
+    """
+    linhas = (
+        db_connection.query(
+            models.HistoricoAlertaEnviado.id_estudante,
+            models.HistoricoAlertaEnviado.id_gatilho,
+        )
+        .filter(
+            models.HistoricoAlertaEnviado.status_envio == StatusEnvioAlerta.ENVIADO.value
+        )
+        .distinct()
+        .all()
+    )
+    return {(id_estudante, id_gatilho) for id_estudante, id_gatilho in linhas}
+
+
+def mapear_qualificacoes_atuais(
+    db_connection: Session,
+    ids_estudantes: List[int],
+) -> Dict[int, models.Qualificacao]:
+    """
+    {id_estudante: qualificação mais recente}. Ordena da tentativa mais antiga
+    para a mais nova, então a última atribuição no dicionário é a atual.
+    """
+    if not ids_estudantes:
+        return {}
+
+    linhas = (
+        db_connection.query(models.Dissertacao.id_estudante, models.Qualificacao)
+        .join(
+            models.Qualificacao,
+            models.Qualificacao.id_dissertacao == models.Dissertacao.id_dissertacao,
+        )
+        .filter(models.Dissertacao.id_estudante.in_(ids_estudantes))
+        .order_by(models.Qualificacao.tentativa.asc(), models.Qualificacao.id_qualificacao.asc())
+        .all()
+    )
+    return {id_estudante: qualificacao for id_estudante, qualificacao in linhas}
+
+
+def mapear_defesas_atuais(
+    db_connection: Session,
+    ids_estudantes: List[int],
+) -> Dict[int, models.Defesa]:
+    """{id_estudante: defesa mais recente} (mesma lógica de mapear_qualificacoes_atuais)."""
+    if not ids_estudantes:
+        return {}
+
+    linhas = (
+        db_connection.query(models.Dissertacao.id_estudante, models.Defesa)
+        .join(
+            models.Defesa,
+            models.Defesa.id_dissertacao == models.Dissertacao.id_dissertacao,
+        )
+        .filter(models.Dissertacao.id_estudante.in_(ids_estudantes))
+        .order_by(models.Defesa.id_defesa.asc())
+        .all()
+    )
+    return {id_estudante: defesa for id_estudante, defesa in linhas}
