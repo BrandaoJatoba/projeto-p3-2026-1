@@ -8,6 +8,8 @@ const idSemestreSuspensao = ref('')
 const motivoSuspensao = ref('')
 const dataInicioSuspensao = ref('')
 const dataFimSuspensao = ref('')
+const diasSuspensos = ref('')
+const avisoDatas = ref('')
 const mensagemSuspensao = ref('')
 const suspensoes = ref([])
 const editandoSuspensaoId = ref(null)
@@ -16,14 +18,68 @@ const semestres = ref([])
 
 const authStore = useAuthStore()
 
+const mensagemSessaoExpirada = 'Sua sessão expirou. Saia e entre de novo.'
+
+// "2026-11-10" vira uma data local (new Date("2026-11-10") seria lido em UTC).
+function lerData(texto) {
+  if (!texto) return null
+  const [ano, mes, dia] = texto.slice(0, 10).split('-').map(Number)
+  if (!ano || !mes || !dia) return null
+  return new Date(ano, mes - 1, dia)
+}
+
+// Conta o primeiro e o último dia (de 01/11 a 10/11 = 10 dias), como combinado com o João.
+function diasEntre(inicio, fim) {
+  const umDia = 1000 * 60 * 60 * 24
+  return Math.round((fim - inicio) / umDia) + 1
+}
+
+// Roda quando a pessoa muda uma das datas (não roda ao abrir a edição,
+// para não apagar um número que a secretaria tenha digitado).
+function calcularDias() {
+  avisoDatas.value = ''
+  const inicio = lerData(dataInicioSuspensao.value)
+  const fim = lerData(dataFimSuspensao.value)
+  if (!inicio || !fim) return
+
+  if (fim < inicio) {
+    avisoDatas.value = 'A data de fim não pode ser antes da data de início.'
+    return
+  }
+
+  diasSuspensos.value = diasEntre(inicio, fim)
+}
+
+function validarFormulario() {
+  const inicio = lerData(dataInicioSuspensao.value)
+  const fim = lerData(dataFimSuspensao.value)
+  if (inicio && fim && fim < inicio) {
+    return 'A data de fim não pode ser antes da data de início.'
+  }
+
+  if (diasSuspensos.value !== '' && diasSuspensos.value !== null) {
+    const dias = Number(diasSuspensos.value)
+    if (!Number.isInteger(dias) || dias < 0) {
+      return 'Os dias de suspensão precisam ser um número inteiro (0 ou mais).'
+    }
+  }
+
+  return ''
+}
+
 async function cadastrarSuspensao() {
-  mensagemSuspensao.value = ''
+  mensagemSuspensao.value = validarFormulario()
+  if (mensagemSuspensao.value) return
 
   const dadosSuspensao = {
     id_semestre: idSemestreSuspensao.value,
     motivo: motivoSuspensao.value,
     data_inicio_suspensao: dataInicioSuspensao.value,
     data_fim_suspensao: dataFimSuspensao.value || null,
+    dias_suspensos:
+      diasSuspensos.value === '' || diasSuspensos.value === null
+        ? null
+        : Number(diasSuspensos.value),
   }
 
   const editando = editandoSuspensaoId.value !== null
@@ -43,14 +99,22 @@ async function cadastrarSuspensao() {
     })
 
     if (!resposta.ok) {
-      mensagemSuspensao.value = 'Erro ao salvar suspensão. Confira os dados.'
+      if (resposta.status === 401) {
+        mensagemSuspensao.value = mensagemSessaoExpirada
+      } else if (resposta.status === 403) {
+        mensagemSuspensao.value = editando
+          ? 'Você não tem permissão para editar suspensões.'
+          : 'Você não tem permissão para cadastrar suspensões.'
+      } else {
+        mensagemSuspensao.value = 'Erro ao salvar suspensão. Confira os dados.'
+      }
       return
     }
 
+    cancelarEdicaoSuspensao()
     mensagemSuspensao.value = editando
       ? 'Suspensão atualizada com sucesso!'
       : 'Suspensão cadastrada com sucesso!'
-    cancelarEdicaoSuspensao()
     buscarSuspensoes()
   } catch (erroDeConexao) {
     mensagemSuspensao.value = 'Não foi possível conectar ao servidor.'
@@ -63,6 +127,9 @@ function editarSuspensao(suspensao) {
   motivoSuspensao.value = suspensao.motivo
   dataInicioSuspensao.value = suspensao.data_inicio_suspensao
   dataFimSuspensao.value = suspensao.data_fim_suspensao
+  diasSuspensos.value = suspensao.dias_suspensos ?? ''
+  avisoDatas.value = ''
+  mensagemSuspensao.value = ''
 }
 
 function cancelarEdicaoSuspensao() {
@@ -71,6 +138,9 @@ function cancelarEdicaoSuspensao() {
   motivoSuspensao.value = ''
   dataInicioSuspensao.value = ''
   dataFimSuspensao.value = ''
+  diasSuspensos.value = ''
+  avisoDatas.value = ''
+  mensagemSuspensao.value = ''
 }
 
 async function buscarSuspensoes() {
@@ -126,7 +196,13 @@ async function deletarSuspensao(id) {
     })
 
     if (!resposta.ok) {
-      mensagemSuspensao.value = 'Erro ao excluir suspensão.'
+      if (resposta.status === 401) {
+        mensagemSuspensao.value = mensagemSessaoExpirada
+      } else if (resposta.status === 403) {
+        mensagemSuspensao.value = 'Você não tem permissão para excluir suspensões.'
+      } else {
+        mensagemSuspensao.value = 'Erro ao excluir suspensão.'
+      }
       return
     }
 
@@ -150,12 +226,17 @@ onMounted(() => {
 
     <div class="form-card">
       <h2>{{ editandoSuspensaoId ? 'Editar Suspensão' : 'Cadastrar Suspensão' }}</h2>
-      
+
       <form @submit.prevent="cadastrarSuspensao">
         <div class="form-grid">
           <div class="form-group">
-            <label>Semestre</label>
-            <select class="form-control" v-model="idSemestreSuspensao" required>
+            <label for="suspensao-semestre">Semestre</label>
+            <select
+              id="suspensao-semestre"
+              v-model="idSemestreSuspensao"
+              class="form-control"
+              required
+            >
               <option value="" disabled>Selecione um semestre</option>
               <option
                 v-for="semestre in semestres"
@@ -168,36 +249,71 @@ onMounted(() => {
           </div>
 
           <div class="form-group">
-            <label>Motivo (ex: Greve Docente)</label>
-            <input type="text" class="form-control" v-model="motivoSuspensao" required />
+            <label for="suspensao-motivo">Motivo (ex: Greve Docente)</label>
+            <input
+              id="suspensao-motivo"
+              v-model="motivoSuspensao"
+              type="text"
+              class="form-control"
+              required
+            />
           </div>
 
           <div class="form-group">
-            <label>Data de início</label>
-            <input type="date" class="form-control" v-model="dataInicioSuspensao" required />
+            <label for="suspensao-inicio">Data de início</label>
+            <input
+              id="suspensao-inicio"
+              v-model="dataInicioSuspensao"
+              type="date"
+              class="form-control"
+              required
+              @change="calcularDias"
+            />
           </div>
 
           <div class="form-group">
-            <label>Data de fim <small>(opcional)</small></label>
-            <input type="date" class="form-control" v-model="dataFimSuspensao" />
+            <label for="suspensao-fim">Data de fim <small>(opcional)</small></label>
+            <input
+              id="suspensao-fim"
+              v-model="dataFimSuspensao"
+              type="date"
+              class="form-control"
+              @change="calcularDias"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="suspensao-dias">Dias de suspensão</label>
+            <input
+              id="suspensao-dias"
+              v-model="diasSuspensos"
+              type="number"
+              min="0"
+              step="1"
+              class="form-control"
+            />
+            <small>Calculado pelas datas. Pode ser alterado.</small>
           </div>
         </div>
+
+        <p v-if="avisoDatas" class="alert alert-erro mt-3">{{ avisoDatas }}</p>
 
         <div class="form-actions">
           <BaseButton type="submit" variant="primary">
             {{ editandoSuspensaoId ? 'Salvar Edição' : 'Cadastrar Suspensão' }}
           </BaseButton>
-          
-          <BaseButton 
-            v-if="editandoSuspensaoId" 
-            type="button" 
-            variant="secondary" 
-            @click="cancelarEdicaoSuspensao">
+
+          <BaseButton
+            v-if="editandoSuspensaoId"
+            type="button"
+            variant="secondary"
+            @click="cancelarEdicaoSuspensao"
+          >
             Cancelar
           </BaseButton>
         </div>
       </form>
-      
+
       <div v-if="mensagemSuspensao" class="alert alert-info mt-3">
         {{ mensagemSuspensao }}
       </div>
@@ -212,28 +328,36 @@ onMounted(() => {
             <th>Motivo</th>
             <th>Início</th>
             <th>Fim</th>
+            <th>Dias</th>
             <th class="actions-col">Ações</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="suspensao in suspensoes" :key="suspensao.id_suspensao">
-            <td><strong>{{ suspensao.id_semestre }}</strong></td>
+            <td>
+              <strong>{{ suspensao.id_semestre }}</strong>
+            </td>
             <td>{{ suspensao.motivo }}</td>
             <td>{{ suspensao.data_inicio_suspensao }}</td>
             <td>{{ suspensao.data_fim_suspensao || '-' }}</td>
+            <td>{{ suspensao.dias_suspensos ?? '-' }}</td>
             <td class="actions-col">
               <div class="action-buttons">
                 <BaseButton type="button" variant="secondary" @click="editarSuspensao(suspensao)">
                   Editar
                 </BaseButton>
-                <BaseButton type="button" variant="danger" @click="deletarSuspensao(suspensao.id_suspensao)">
+                <BaseButton
+                  type="button"
+                  variant="danger"
+                  @click="deletarSuspensao(suspensao.id_suspensao)"
+                >
                   Excluir
                 </BaseButton>
               </div>
             </td>
           </tr>
           <tr v-if="suspensoes.length === 0">
-            <td colspan="5" class="text-center">Nenhuma suspensão cadastrada.</td>
+            <td colspan="6" class="text-center">Nenhuma suspensão cadastrada.</td>
           </tr>
         </tbody>
       </table>
@@ -243,10 +367,19 @@ onMounted(() => {
 
 <style scoped>
 /* Espaçamentos Globais */
-.mt-3 { margin-top: 16px; }
-.mt-4 { margin-top: 24px; }
-.text-center { text-align: center; }
-.text-muted { color: #6b7280; font-style: italic; }
+.mt-3 {
+  margin-top: 16px;
+}
+.mt-4 {
+  margin-top: 24px;
+}
+.text-center {
+  text-align: center;
+}
+.text-muted {
+  color: #6b7280;
+  font-style: italic;
+}
 
 /* Tipografia e Cabeçalhos */
 .page-header h1 {
@@ -264,12 +397,13 @@ h2 {
 }
 
 /* Estilos de Card para Forms e Detalhes */
-.form-card, .details-card {
+.form-card,
+.details-card {
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   margin-bottom: 32px;
 }
 
@@ -294,7 +428,9 @@ h2 {
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 .form-control:focus {
   outline: none;
@@ -313,7 +449,7 @@ h2 {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 .table-container h2 {
   padding: 20px 20px 0 20px;
@@ -360,6 +496,12 @@ tbody tr:last-child td {
   background-color: #eff6ff;
   color: #1e40af;
   border: 1px solid #bfdbfe;
+}
+.alert-erro {
+  margin-bottom: 0;
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
 }
 
 /* ESPECÍFICO DE SUSPENSÕES */
