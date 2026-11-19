@@ -11,14 +11,14 @@ import {
 
 // Níveis de urgência, como na task:
 // crítico = vencido ou até 7 dias; atenção = 8 a 30; preventivo = mais de 30.
+// Visual dos cards igual ao Dashboard: só o crítico fica com fundo colorido.
 const niveis = [
   {
     chave: 'critico',
     rotulo: 'Crítico',
     descricao: 'Vencidos ou até 7 dias',
-    classeCard: 'bg-rose-50 border-rose-200',
-    classeTitulo: 'text-rose-700',
-    classeValor: 'text-rose-600',
+    destaque: true,
+    classePonto: 'bg-rose-500',
     classeAba: 'border-rose-500 text-rose-700',
     classeSelo: 'bg-rose-100 text-rose-700',
   },
@@ -26,9 +26,8 @@ const niveis = [
     chave: 'atencao',
     rotulo: 'Atenção',
     descricao: 'De 8 a 30 dias',
-    classeCard: 'bg-amber-50 border-amber-200',
-    classeTitulo: 'text-amber-800',
-    classeValor: 'text-amber-600',
+    destaque: false,
+    classePonto: 'bg-amber-400',
     classeAba: 'border-amber-500 text-amber-800',
     classeSelo: 'bg-amber-100 text-amber-800',
   },
@@ -36,9 +35,8 @@ const niveis = [
     chave: 'preventivo',
     rotulo: 'Preventivo',
     descricao: 'Mais de 30 dias',
-    classeCard: 'bg-blue-50 border-blue-200',
-    classeTitulo: 'text-blue-800',
-    classeValor: 'text-blue-600',
+    destaque: false,
+    classePonto: 'bg-blue-500',
     classeAba: 'border-blue-500 text-blue-800',
     classeSelo: 'bg-blue-100 text-blue-800',
   },
@@ -79,6 +77,18 @@ function normalizar(texto) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+}
+
+// "Ana Clara Lima" → "AL" (primeira letra do primeiro e do último nome).
+function iniciais(nome) {
+  const partes = String(nome ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (partes.length === 0) return '?'
+  const primeira = partes[0][0]
+  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ''
+  return `${primeira}${ultima}`.toUpperCase()
 }
 
 function hojeTexto() {
@@ -284,28 +294,38 @@ onMounted(carregar)
       {{ erro }}
     </p>
 
-    <!-- Cards de resumo (total geral, sem filtros) -->
+    <!-- Cards de resumo (total geral, sem filtros), no mesmo estilo do Dashboard -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <div
         v-for="nivel in niveis"
         :key="nivel.chave"
         class="p-5 rounded-xl border shadow-sm"
-        :class="nivel.classeCard"
+        :class="nivel.destaque ? 'bg-rose-50 border-rose-200' : 'bg-white border-gray-200'"
       >
-        <p class="text-xs font-semibold uppercase tracking-wider mb-1" :class="nivel.classeTitulo">
+        <p
+          class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-1"
+          :class="nivel.destaque ? 'text-rose-700' : 'text-gray-500'"
+        >
+          <span class="h-2 w-2 rounded-full" :class="nivel.classePonto" aria-hidden="true"></span>
           {{ nivel.rotulo }}
         </p>
-        <p class="text-3xl font-extrabold" :class="nivel.classeValor">
+        <p
+          class="text-3xl font-extrabold"
+          :class="nivel.destaque ? 'text-rose-600' : 'text-gray-900'"
+        >
           {{ carregando || erro ? '—' : totaisPorNivel[nivel.chave].length }}
         </p>
         <p class="text-xs text-gray-500 mt-1">{{ nivel.descricao }}</p>
       </div>
 
-      <div class="p-5 rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-wider mb-1 text-emerald-800">
+      <div class="p-5 rounded-xl border border-gray-200 bg-white shadow-sm">
+        <p
+          class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-1 text-gray-500"
+        >
+          <span class="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true"></span>
           Enviados hoje
         </p>
-        <p class="text-3xl font-extrabold text-emerald-600">
+        <p class="text-3xl font-extrabold text-gray-900">
           {{ carregando || erro ? '—' : enviadosHoje }}
         </p>
         <p class="text-xs text-gray-500 mt-1">E-mails com status Enviado</p>
@@ -424,13 +444,14 @@ onMounted(carregar)
             </tr>
           </thead>
           <tbody>
+            <!-- align-middle: as colunas com uma informação só ficam centralizadas na altura da linha -->
             <tr
               v-for="alerta in alertasDaAba"
               :key="alerta.id_alerta"
-              class="border-t border-gray-200 align-top"
-              :class="{ 'bg-blue-50/50': estaSelecionado(alerta) }"
+              class="border-t border-gray-200 align-middle transition-colors"
+              :class="estaSelecionado(alerta) ? 'bg-blue-50/50' : 'hover:bg-gray-50'"
             >
-              <td class="pl-6 pr-2 py-3">
+              <td class="pl-6 pr-2 py-4">
                 <input
                   type="checkbox"
                   class="h-4 w-4 cursor-pointer"
@@ -439,20 +460,34 @@ onMounted(carregar)
                   @change="alternarSelecao(alerta)"
                 />
               </td>
-              <td class="px-4 py-3">
-                <p class="font-medium text-gray-900">{{ alerta.nome_discente }}</p>
-                <p class="text-xs text-gray-500">{{ alerta.matricula }}</p>
-                <!-- Mesmo padrão do "+1 coorientador": linha própria, texto pequeno -->
-                <p v-if="!alerta.email" class="text-xs font-medium text-rose-600 whitespace-nowrap">
-                  Sem e-mail cadastrado
-                </p>
+              <td class="px-4 py-4">
+                <div class="flex items-center gap-3">
+                  <!-- Iniciais, como na tela de Estudantes -->
+                  <span
+                    class="h-9 w-9 shrink-0 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold flex items-center justify-center"
+                    aria-hidden="true"
+                  >
+                    {{ iniciais(alerta.nome_discente) }}
+                  </span>
+                  <div>
+                    <p class="font-medium text-gray-900 leading-snug">{{ alerta.nome_discente }}</p>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ alerta.matricula }}</p>
+                    <!-- Mesmo padrão do "+1 coorientador": linha própria, texto pequeno -->
+                    <p
+                      v-if="!alerta.email"
+                      class="mt-0.5 text-xs font-medium text-rose-600 whitespace-nowrap"
+                    >
+                      Sem e-mail cadastrado
+                    </p>
+                  </div>
+                </div>
               </td>
-              <td class="px-4 py-3 text-gray-700">
-                <p>{{ orientadorPrincipal(alerta)?.nome_professor || '—' }}</p>
+              <td class="px-4 py-4 text-gray-700">
+                <p class="leading-snug">{{ orientadorPrincipal(alerta)?.nome_professor || '—' }}</p>
                 <!-- Discreto, como a matrícula: o mouse em cima mostra quem vai em cópia -->
                 <p
                   v-if="coorientadores(alerta).length"
-                  class="text-xs text-gray-500 whitespace-nowrap"
+                  class="mt-0.5 text-xs text-gray-500 whitespace-nowrap"
                 >
                   <span
                     class="underline decoration-dotted underline-offset-2 cursor-help"
@@ -462,11 +497,11 @@ onMounted(carregar)
                   </span>
                 </p>
               </td>
-              <td class="px-4 py-3 text-gray-700">{{ alerta.nome_prazo }}</td>
-              <td class="px-4 py-3 text-gray-700 whitespace-nowrap">
+              <td class="px-4 py-4 text-gray-700">{{ alerta.nome_prazo }}</td>
+              <td class="px-4 py-4 text-gray-700 whitespace-nowrap">
                 {{ formatarData(alerta.data_limite) }}
               </td>
-              <td class="px-4 py-3">
+              <td class="px-4 py-4">
                 <span
                   class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
                   :class="classeSeloDias(alerta.dias_restantes)"
@@ -474,10 +509,10 @@ onMounted(carregar)
                   {{ textoDias(alerta.dias_restantes) }}
                 </span>
               </td>
-              <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
+              <td class="px-4 py-4 text-gray-600 whitespace-nowrap">
                 {{ alerta.dias_antecedencia }} dias antes
               </td>
-              <td class="px-6 py-3 text-right">
+              <td class="px-6 py-4 text-right">
                 <button
                   type="button"
                   class="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-md hover:bg-blue-50 whitespace-nowrap"
