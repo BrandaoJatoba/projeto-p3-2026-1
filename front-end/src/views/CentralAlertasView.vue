@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
+import BaseModal from '../components/BaseModal.vue'
+import BaseButton from '../components/BaseButton.vue'
 import {
   buscarAlertasPendentes,
   buscarHistoricoAlertas,
@@ -52,6 +54,13 @@ const abaAtiva = ref('critico')
 const busca = ref('')
 const filtroTipo = ref('')
 const filtroBolsista = ref('')
+
+// Seleção (guarda os id_alerta marcados, em qualquer aba)
+const selecionados = ref([])
+
+// Modal provisório: será trocado pelo modal da PAP-49 (edição das minutas)
+const modalMinutasAberto = ref(false)
+const alertasParaMinuta = ref([])
 
 // ---------- Funções de apoio ----------
 
@@ -170,6 +179,58 @@ const enviadosHoje = computed(
   () => historico.value.filter((h) => h.status === 'ENVIADO' && ehHoje(h.data_envio)).length,
 )
 
+// ---------- Seleção ----------
+
+function estaSelecionado(alerta) {
+  return selecionados.value.includes(alerta.id_alerta)
+}
+
+function alternarSelecao(alerta) {
+  selecionados.value = estaSelecionado(alerta)
+    ? selecionados.value.filter((id) => id !== alerta.id_alerta)
+    : [...selecionados.value, alerta.id_alerta]
+}
+
+const quantosDaAbaSelecionados = computed(
+  () => alertasDaAba.value.filter((a) => estaSelecionado(a)).length,
+)
+const todosDaAbaSelecionados = computed(
+  () =>
+    alertasDaAba.value.length > 0 && quantosDaAbaSelecionados.value === alertasDaAba.value.length,
+)
+// "Meio marcado": alguns da aba marcados, mas não todos.
+const algunsDaAbaSelecionados = computed(
+  () => quantosDaAbaSelecionados.value > 0 && !todosDaAbaSelecionados.value,
+)
+
+function alternarTodosDaAba() {
+  const idsDaAba = alertasDaAba.value.map((a) => a.id_alerta)
+  if (todosDaAbaSelecionados.value) {
+    selecionados.value = selecionados.value.filter((id) => !idsDaAba.includes(id))
+  } else {
+    selecionados.value = [...new Set([...selecionados.value, ...idsDaAba])]
+  }
+}
+
+function limparSelecao() {
+  selecionados.value = []
+}
+
+const alertasSelecionados = computed(() =>
+  pendentes.value.filter((a) => selecionados.value.includes(a.id_alerta)),
+)
+
+// ---------- Ações ----------
+
+function abrirMinutas(alertas) {
+  alertasParaMinuta.value = alertas
+  modalMinutasAberto.value = true
+}
+
+function fecharMinutas() {
+  modalMinutasAberto.value = false
+}
+
 function limparFiltros() {
   busca.value = ''
   filtroTipo.value = ''
@@ -186,6 +247,9 @@ async function carregar() {
     ])
     pendentes.value = listaPendentes
     historico.value = listaHistorico
+    // Tira da seleção os alertas que não existem mais (por exemplo, já enviados).
+    const idsExistentes = listaPendentes.map((a) => a.id_alerta)
+    selecionados.value = selecionados.value.filter((id) => idsExistentes.includes(id))
   } catch {
     erro.value = 'Não foi possível carregar os alertas. Tente de novo em instantes.'
   } finally {
@@ -248,7 +312,10 @@ onMounted(carregar)
       </div>
     </div>
 
-    <section class="bg-white rounded-2xl border border-gray-200 shadow-sm">
+    <section
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm"
+      :class="{ 'mb-24': selecionados.length > 0 }"
+    >
       <!-- Filtros rápidos -->
       <div class="flex flex-wrap items-end gap-4 px-6 pt-6">
         <div class="flex flex-col gap-1 grow min-w-[220px]">
@@ -335,14 +402,25 @@ onMounted(carregar)
       <!-- Tabela de alertas pendentes -->
       <div v-else class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-gray-50 text-left text-gray-700">
+          <thead class="bg-gray-50 text-left text-gray-700 whitespace-nowrap">
             <tr>
-              <th class="px-6 py-3 font-semibold">Discente</th>
-              <th class="px-6 py-3 font-semibold">Orientador</th>
-              <th class="px-6 py-3 font-semibold">Tipo de prazo</th>
-              <th class="px-6 py-3 font-semibold">Data limite</th>
-              <th class="px-6 py-3 font-semibold">Dias restantes</th>
-              <th class="px-6 py-3 font-semibold">Gatilho</th>
+              <th class="pl-6 pr-2 py-3 w-10">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 cursor-pointer"
+                  :checked="todosDaAbaSelecionados"
+                  :indeterminate="algunsDaAbaSelecionados"
+                  aria-label="Selecionar todos desta aba"
+                  @change="alternarTodosDaAba"
+                />
+              </th>
+              <th class="px-4 py-3 font-semibold">Discente</th>
+              <th class="px-4 py-3 font-semibold">Orientador</th>
+              <th class="px-4 py-3 font-semibold">Tipo de prazo</th>
+              <th class="px-4 py-3 font-semibold">Data limite</th>
+              <th class="px-4 py-3 font-semibold">Dias restantes</th>
+              <th class="px-4 py-3 font-semibold">Gatilho</th>
+              <th class="px-6 py-3 font-semibold text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -350,34 +428,45 @@ onMounted(carregar)
               v-for="alerta in alertasDaAba"
               :key="alerta.id_alerta"
               class="border-t border-gray-200 align-top"
+              :class="{ 'bg-blue-50/50': estaSelecionado(alerta) }"
             >
-              <td class="px-6 py-3">
+              <td class="pl-6 pr-2 py-3">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 cursor-pointer"
+                  :checked="estaSelecionado(alerta)"
+                  :aria-label="`Selecionar ${alerta.nome_discente}`"
+                  @change="alternarSelecao(alerta)"
+                />
+              </td>
+              <td class="px-4 py-3">
                 <p class="font-medium text-gray-900">{{ alerta.nome_discente }}</p>
-                <p class="text-xs text-gray-500">
-                  {{ alerta.matricula }}
+                <p class="text-xs text-gray-500">{{ alerta.matricula }}</p>
+                <!-- Mesmo padrão do "+1 coorientador": linha própria, texto pequeno -->
+                <p v-if="!alerta.email" class="text-xs font-medium text-rose-600 whitespace-nowrap">
+                  Sem e-mail cadastrado
+                </p>
+              </td>
+              <td class="px-4 py-3 text-gray-700">
+                <p>{{ orientadorPrincipal(alerta)?.nome_professor || '—' }}</p>
+                <!-- Discreto, como a matrícula: o mouse em cima mostra quem vai em cópia -->
+                <p
+                  v-if="coorientadores(alerta).length"
+                  class="text-xs text-gray-500 whitespace-nowrap"
+                >
                   <span
-                    v-if="!alerta.email"
-                    class="ml-1 inline-block px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-semibold"
+                    class="underline decoration-dotted underline-offset-2 cursor-help"
+                    :title="dicaCopia(alerta)"
                   >
-                    sem e-mail
+                    {{ textoCoorientadores(coorientadores(alerta).length) }}
                   </span>
                 </p>
               </td>
-              <td class="px-6 py-3 text-gray-700">
-                <p>{{ orientadorPrincipal(alerta)?.nome_professor || '—' }}</p>
-                <span
-                  v-if="coorientadores(alerta).length"
-                  class="mt-1 inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs cursor-help"
-                  :title="dicaCopia(alerta)"
-                >
-                  {{ textoCoorientadores(coorientadores(alerta).length) }}
-                </span>
-              </td>
-              <td class="px-6 py-3 text-gray-700">{{ alerta.nome_prazo }}</td>
-              <td class="px-6 py-3 text-gray-700 whitespace-nowrap">
+              <td class="px-4 py-3 text-gray-700">{{ alerta.nome_prazo }}</td>
+              <td class="px-4 py-3 text-gray-700 whitespace-nowrap">
                 {{ formatarData(alerta.data_limite) }}
               </td>
-              <td class="px-6 py-3">
+              <td class="px-4 py-3">
                 <span
                   class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
                   :class="classeSeloDias(alerta.dias_restantes)"
@@ -385,13 +474,78 @@ onMounted(carregar)
                   {{ textoDias(alerta.dias_restantes) }}
                 </span>
               </td>
-              <td class="px-6 py-3 text-gray-600 whitespace-nowrap">
+              <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
                 {{ alerta.dias_antecedencia }} dias antes
+              </td>
+              <td class="px-6 py-3 text-right">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-md hover:bg-blue-50 whitespace-nowrap"
+                  @click="abrirMinutas([alerta])"
+                >
+                  Revisar e Enviar
+                </button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
+
+    <!-- Barra flutuante de ação em massa (aparece com 1 ou mais selecionados) -->
+    <div
+      v-if="selecionados.length > 0"
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-4 px-5 py-3 bg-gray-900 text-white rounded-xl shadow-lg"
+      role="region"
+      aria-label="Ações para os alertas selecionados"
+    >
+      <span class="text-sm">
+        <strong>{{ selecionados.length }}</strong>
+        selecionado{{ selecionados.length > 1 ? 's' : '' }}
+      </span>
+      <button
+        type="button"
+        class="text-sm text-gray-300 hover:text-white hover:underline"
+        @click="limparSelecao"
+      >
+        Limpar seleção
+      </button>
+      <button
+        type="button"
+        class="px-4 py-2 text-sm font-semibold bg-blue-600 rounded-md hover:bg-blue-500"
+        @click="abrirMinutas(alertasSelecionados)"
+      >
+        Gerar minutas em lote ({{ selecionados.length }})
+      </button>
+    </div>
+
+    <!-- Modal PROVISÓRIO: será substituído pelo modal de edição das minutas (PAP-49) -->
+    <BaseModal
+      :aberto="modalMinutasAberto"
+      titulo="Revisar e enviar"
+      larguraMaxima="560px"
+      @fechar="fecharMinutas"
+    >
+      <p class="text-sm text-gray-600 mb-4">
+        A edição das minutas e o envio dos e-mails entram na próxima etapa (PAP-49). Por enquanto,
+        esta janela mostra só os alunos escolhidos.
+      </p>
+      <ul class="divide-y divide-gray-100 border border-gray-200 rounded-lg">
+        <li
+          v-for="alerta in alertasParaMinuta"
+          :key="alerta.id_alerta"
+          class="px-4 py-2 text-sm flex flex-wrap justify-between gap-2"
+        >
+          <span class="font-medium text-gray-900">{{ alerta.nome_discente }}</span>
+          <span class="text-gray-500">
+            {{ alerta.nome_prazo }} · {{ textoDias(alerta.dias_restantes) }}
+          </span>
+        </li>
+      </ul>
+
+      <template #rodape>
+        <BaseButton type="button" variant="secondary" @click="fecharMinutas">Fechar</BaseButton>
+      </template>
+    </BaseModal>
   </DefaultLayout>
 </template>
