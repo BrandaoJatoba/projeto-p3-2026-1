@@ -6,6 +6,7 @@ import BaseButton from '../components/BaseButton.vue'
 import {
   buscarAlertasPendentes,
   buscarHistoricoAlertas,
+  reenviarAlerta,
   usandoDadosDeExemplo,
 } from '../services/alertas'
 
@@ -56,9 +57,18 @@ const filtroBolsista = ref('')
 // Seleção (guarda os id_alerta marcados, em qualquer aba)
 const selecionados = ref([])
 
+// Reenvio: guarda quais envios estão sendo reenviados (para desativar o botão)
+const reenviando = ref({})
+
+// Aviso que aparece no canto da tela por alguns segundos
+const aviso = ref(null)
+let temporizadorAviso = null
+
 // Modal provisório: será trocado pelo modal da PAP-49 (edição das minutas)
 const modalMinutasAberto = ref(false)
 const alertasParaMinuta = ref([])
+
+const naAbaHistorico = computed(() => abaAtiva.value === 'historico')
 
 // ---------- Funções de apoio ----------
 
@@ -109,6 +119,13 @@ function formatarData(texto) {
   return `${dia}/${mes}/${ano}`
 }
 
+// "2026-11-19T09:17:00" → "19/11/2026 às 09:17"
+function formatarDataHora(texto) {
+  if (!texto) return '—'
+  const hora = texto.slice(11, 16)
+  return hora ? `${formatarData(texto)} às ${hora}` : formatarData(texto)
+}
+
 function textoDias(dias) {
   if (dias === 0) return 'vence hoje'
   if (dias === 1) return 'falta 1 dia'
@@ -148,7 +165,15 @@ function agruparPorNivel(lista) {
   return grupos
 }
 
-// ---------- Dados calculados ----------
+function mostrarAviso(texto, tipo) {
+  aviso.value = { texto, tipo }
+  clearTimeout(temporizadorAviso)
+  temporizadorAviso = setTimeout(() => {
+    aviso.value = null
+  }, 3000)
+}
+
+// ---------- Dados calculados: pendentes ----------
 
 // Tipos de prazo que aparecem nos alertas (para o filtro).
 const tiposDePrazo = computed(() => {
@@ -185,9 +210,25 @@ const totaisPorNivel = computed(() => agruparPorNivel(pendentes.value))
 const filtradosPorNivel = computed(() => agruparPorNivel(pendentesFiltrados.value))
 const alertasDaAba = computed(() => filtradosPorNivel.value[abaAtiva.value] || [])
 
+// ---------- Dados calculados: histórico ----------
+
 const enviadosHoje = computed(
   () => historico.value.filter((h) => h.status === 'ENVIADO' && ehHoje(h.data_envio)).length,
 )
+
+// No histórico, só a busca vale (nome, matrícula ou e-mail). Mais recente primeiro.
+const historicoFiltrado = computed(() => {
+  const termo = normalizar(busca.value.trim())
+  return historico.value
+    .filter(
+      (h) =>
+        !termo ||
+        normalizar(h.nome_discente).includes(termo) ||
+        normalizar(h.matricula).includes(termo) ||
+        normalizar(h.destinatario_email).includes(termo),
+    )
+    .sort((a, b) => String(b.data_envio).localeCompare(String(a.data_envio)))
+})
 
 // ---------- Seleção ----------
 
@@ -241,6 +282,21 @@ function fecharMinutas() {
   modalMinutasAberto.value = false
 }
 
+async function reenviar(envio) {
+  reenviando.value[envio.id_historico] = true
+  try {
+    const atualizado = await reenviarAlerta(envio.id_historico)
+    historico.value = historico.value.map((h) =>
+      h.id_historico === atualizado.id_historico ? atualizado : h,
+    )
+    mostrarAviso(`Alerta reenviado para ${envio.nome_discente}.`, 'sucesso')
+  } catch {
+    mostrarAviso('Não foi possível reenviar o alerta. Tente de novo.', 'erro')
+  } finally {
+    reenviando.value[envio.id_historico] = false
+  }
+}
+
 function limparFiltros() {
   busca.value = ''
   filtroTipo.value = ''
@@ -272,6 +328,20 @@ onMounted(carregar)
 
 <template>
   <DefaultLayout>
+    <!-- Aviso no canto da tela (some depois de 3 segundos) -->
+    <div
+      v-if="aviso"
+      class="fixed top-20 right-6 z-50 px-4 py-3 rounded-lg border text-sm shadow-lg"
+      :class="
+        aviso.tipo === 'sucesso'
+          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          : 'bg-rose-50 border-rose-200 text-rose-700'
+      "
+      role="status"
+    >
+      {{ aviso.texto }}
+    </div>
+
     <div class="mb-8 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
       <h2 class="text-2xl font-bold text-gray-900">Central de Alertas</h2>
       <p class="text-sm text-gray-500 mt-1">
@@ -346,37 +416,42 @@ onMounted(carregar)
             id="alertas-busca"
             v-model="busca"
             type="search"
-            placeholder="Nome ou matrícula"
+            :placeholder="naAbaHistorico ? 'Nome, matrícula ou e-mail' : 'Nome ou matrícula'"
             class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
         </div>
 
-        <div class="flex flex-col gap-1">
-          <label for="alertas-tipo" class="text-xs font-medium text-gray-600">Tipo de prazo</label>
-          <select
-            id="alertas-tipo"
-            v-model="filtroTipo"
-            class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          >
-            <option value="">Todos</option>
-            <option v-for="tipo in tiposDePrazo" :key="tipo.id" :value="tipo.id">
-              {{ tipo.nome }}
-            </option>
-          </select>
-        </div>
+        <!-- Tipo de prazo e bolsa só fazem sentido nas abas de pendentes -->
+        <template v-if="!naAbaHistorico">
+          <div class="flex flex-col gap-1">
+            <label for="alertas-tipo" class="text-xs font-medium text-gray-600">
+              Tipo de prazo
+            </label>
+            <select
+              id="alertas-tipo"
+              v-model="filtroTipo"
+              class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">Todos</option>
+              <option v-for="tipo in tiposDePrazo" :key="tipo.id" :value="tipo.id">
+                {{ tipo.nome }}
+              </option>
+            </select>
+          </div>
 
-        <div class="flex flex-col gap-1">
-          <label for="alertas-bolsista" class="text-xs font-medium text-gray-600">Bolsa</label>
-          <select
-            id="alertas-bolsista"
-            v-model="filtroBolsista"
-            class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          >
-            <option value="">Todos</option>
-            <option value="sim">Bolsistas</option>
-            <option value="nao">Não bolsistas</option>
-          </select>
-        </div>
+          <div class="flex flex-col gap-1">
+            <label for="alertas-bolsista" class="text-xs font-medium text-gray-600">Bolsa</label>
+            <select
+              id="alertas-bolsista"
+              v-model="filtroBolsista"
+              class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">Todos</option>
+              <option value="sim">Bolsistas</option>
+              <option value="nao">Não bolsistas</option>
+            </select>
+          </div>
+        </template>
 
         <button
           v-if="temFiltro"
@@ -388,7 +463,7 @@ onMounted(carregar)
         </button>
       </div>
 
-      <!-- Abas por urgência (contagem com os filtros) -->
+      <!-- Abas: três níveis de urgência (contagem com os filtros) + histórico -->
       <div class="flex flex-wrap gap-1 px-4 pt-4 mt-2 border-b border-gray-200" role="tablist">
         <button
           v-for="nivel in niveis"
@@ -409,17 +484,120 @@ onMounted(carregar)
             ({{ carregando ? '…' : filtradosPorNivel[nivel.chave].length }})
           </span>
         </button>
+
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="naAbaHistorico"
+          class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
+          :class="
+            naAbaHistorico
+              ? 'border-gray-700 text-gray-900'
+              : 'border-transparent text-gray-500 hover:text-gray-800'
+          "
+          @click="abaAtiva = 'historico'"
+        >
+          Histórico
+          <span class="ml-1 text-xs text-gray-400">
+            ({{ carregando ? '…' : historicoFiltrado.length }})
+          </span>
+        </button>
       </div>
 
       <p v-if="carregando" class="p-6 text-sm italic text-gray-500">Carregando alertas...</p>
       <p v-else-if="erro" class="p-6 text-sm italic text-gray-500">—</p>
+
+      <!-- ===== Aba Histórico ===== -->
+      <template v-else-if="naAbaHistorico">
+        <p v-if="historicoFiltrado.length === 0" class="p-6 text-sm italic text-gray-500">
+          {{
+            busca.trim() ? 'Nenhum envio encontrado com essa busca.' : 'Nenhum envio registrado.'
+          }}
+        </p>
+
+        <div v-else class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-left text-gray-700 whitespace-nowrap">
+              <tr>
+                <th class="px-6 py-3 font-semibold">Envio</th>
+                <th class="px-4 py-3 font-semibold">Discente</th>
+                <th class="px-4 py-3 font-semibold">Prazo</th>
+                <th class="px-4 py-3 font-semibold">Destinatários</th>
+                <th class="px-4 py-3 font-semibold">Status</th>
+                <th class="px-6 py-3 font-semibold text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="envio in historicoFiltrado"
+                :key="envio.id_historico"
+                class="border-t border-gray-200 align-middle hover:bg-gray-50 transition-colors"
+              >
+                <td class="px-6 py-4 text-gray-700 whitespace-nowrap">
+                  {{ formatarDataHora(envio.data_envio) }}
+                </td>
+                <td class="px-4 py-4">
+                  <div class="flex items-center gap-3">
+                    <span
+                      class="h-9 w-9 shrink-0 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold flex items-center justify-center"
+                      aria-hidden="true"
+                    >
+                      {{ iniciais(envio.nome_discente) }}
+                    </span>
+                    <div>
+                      <p class="font-medium text-gray-900 leading-snug">
+                        {{ envio.nome_discente }}
+                      </p>
+                      <p class="mt-0.5 text-xs text-gray-500">{{ envio.matricula }}</p>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-4 text-gray-700">{{ envio.nome_prazo }}</td>
+                <td class="px-4 py-4 text-gray-700">
+                  <p class="leading-snug">{{ envio.destinatario_email || '—' }}</p>
+                  <p v-if="envio.emails_cc" class="mt-0.5 text-xs text-gray-500">
+                    Cc: {{ envio.emails_cc }}
+                  </p>
+                </td>
+                <td class="px-4 py-4">
+                  <span
+                    class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                    :class="
+                      envio.status === 'ENVIADO'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-rose-100 text-rose-700'
+                    "
+                  >
+                    {{ envio.status === 'ENVIADO' ? 'Enviado' : 'Falha' }}
+                  </span>
+                  <p v-if="envio.mensagem_erro" class="mt-1 text-xs text-rose-600">
+                    {{ envio.mensagem_erro }}
+                  </p>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <button
+                    v-if="envio.status === 'FALHA'"
+                    type="button"
+                    class="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-md hover:bg-blue-50 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    :disabled="reenviando[envio.id_historico]"
+                    @click="reenviar(envio)"
+                  >
+                    {{ reenviando[envio.id_historico] ? 'Reenviando...' : 'Reenviar' }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <!-- ===== Abas de pendentes ===== -->
       <p v-else-if="alertasDaAba.length === 0" class="p-6 text-sm italic text-gray-500">
         {{
           temFiltro ? 'Nenhum alerta encontrado com esses filtros.' : 'Nenhum alerta neste nível.'
         }}
       </p>
 
-      <!-- Tabela de alertas pendentes -->
       <div v-else class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="bg-gray-50 text-left text-gray-700 whitespace-nowrap">
