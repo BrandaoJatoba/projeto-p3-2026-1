@@ -10,11 +10,13 @@ from services.prazos_service import aplicar_suspensao_global # Importação do s
 
 router = APIRouter(prefix="/configuracoes/suspensoes", tags=["Suspensoes"])
 
+PERFIS_GESTAO = ["SECRETARIA", "COORDENACAO", "ADMIN"]
+
 @router.post("", response_model=SuspensaoCalendarioResponse, status_code=status.HTTP_201_CREATED)
 def criar_suspensao(
     dados: SuspensaoCalendarioCreate,
     db: Session = Depends(get_db),
-    usuario_atual = Depends(autorizar(["ADMIN", "COORDENACAO"]))
+    usuario_atual = Depends(autorizar(PERFIS_GESTAO))
 ):
     nova_suspensao = suspensao.criar_suspensao_calendario(db=db, **dados.model_dump())
     
@@ -27,7 +29,7 @@ def criar_suspensao(
 @router.get("", response_model=List[SuspensaoCalendarioResponse])
 def listar_todas_suspensoes(
     db: Session = Depends(get_db),
-    usuario_atual = Depends(autorizar(["ADMIN", "COORDENACAO", "SECRETARIA", "DISCENTE"]))
+    usuario_atual = Depends(autorizar(PERFIS_GESTAO))
 ):
     registros = suspensao.listar_todas_suspensoes(db=db)
     return registros
@@ -36,7 +38,7 @@ def listar_todas_suspensoes(
 def obter_suspensao_por_id(
     id_suspensao: int,
     db: Session = Depends(get_db),
-    usuario_atual = Depends(autorizar(["ADMIN", "COORDENACAO", "SECRETARIA", "DISCENTE"]))
+    usuario_atual = Depends(autorizar(PERFIS_GESTAO))
 ):
     registro = suspensao.buscar_suspensao(db=db, id_suspensao=id_suspensao)
     if not registro:
@@ -48,7 +50,7 @@ def atualizar_suspensao(
     id_suspensao: int,
     dados: SuspensaoCalendarioUpdate,
     db: Session = Depends(get_db),
-    usuario_atual = Depends(autorizar(["ADMIN", "COORDENACAO"]))
+    usuario_atual = Depends(autorizar(PERFIS_GESTAO))
 ):
     dados_atualizacao = dados.model_dump(exclude_unset=True)
     
@@ -71,7 +73,7 @@ def atualizar_suspensao(
 def deletar_suspensao_rota(
     id_suspensao: int,
     db: Session = Depends(get_db),
-    usuario_atual = Depends(autorizar(["ADMIN"]))
+    usuario_atual = Depends(autorizar(PERFIS_GESTAO))
 ):
     sucesso = suspensao.deletar_suspensao(db=db, id_suspensao=id_suspensao)
     if not sucesso:
