@@ -1,7 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
-import { buscarAlertasPendentes, buscarHistoricoAlertas } from '../services/alertas'
+import {
+  buscarAlertasPendentes,
+  buscarHistoricoAlertas,
+  usandoDadosDeExemplo,
+} from '../services/alertas'
 
 // Níveis de urgência, como na task:
 // crítico = vencido ou até 7 dias; atenção = 8 a 30; preventivo = mais de 30.
@@ -14,6 +18,7 @@ const niveis = [
     classeTitulo: 'text-rose-700',
     classeValor: 'text-rose-600',
     classeAba: 'border-rose-500 text-rose-700',
+    classeSelo: 'bg-rose-100 text-rose-700',
   },
   {
     chave: 'atencao',
@@ -23,6 +28,7 @@ const niveis = [
     classeTitulo: 'text-amber-800',
     classeValor: 'text-amber-600',
     classeAba: 'border-amber-500 text-amber-800',
+    classeSelo: 'bg-amber-100 text-amber-800',
   },
   {
     chave: 'preventivo',
@@ -32,6 +38,7 @@ const niveis = [
     classeTitulo: 'text-blue-800',
     classeValor: 'text-blue-600',
     classeAba: 'border-blue-500 text-blue-800',
+    classeSelo: 'bg-blue-100 text-blue-800',
   },
 ]
 
@@ -41,19 +48,46 @@ const carregando = ref(true)
 const erro = ref('')
 const abaAtiva = ref('critico')
 
+// Filtros rápidos
+const busca = ref('')
+const filtroTipo = ref('')
+const filtroBolsista = ref('')
+
+// ---------- Funções de apoio ----------
+
 function nivelUrgencia(dias) {
   if (dias <= 7) return 'critico'
   if (dias <= 30) return 'atencao'
   return 'preventivo'
 }
 
-function ehHoje(textoDataHora) {
-  if (!textoDataHora) return false
+function classeSeloDias(dias) {
+  return niveis.find((n) => n.chave === nivelUrgencia(dias)).classeSelo
+}
+
+function normalizar(texto) {
+  return String(texto ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function hojeTexto() {
   const hoje = new Date()
   const ano = hoje.getFullYear()
   const mes = String(hoje.getMonth() + 1).padStart(2, '0')
   const dia = String(hoje.getDate()).padStart(2, '0')
-  return textoDataHora.slice(0, 10) === `${ano}-${mes}-${dia}`
+  return `${ano}-${mes}-${dia}`
+}
+
+function ehHoje(textoDataHora) {
+  return Boolean(textoDataHora) && textoDataHora.slice(0, 10) === hojeTexto()
+}
+
+function formatarData(texto) {
+  if (!texto) return '—'
+  const [ano, mes, dia] = texto.slice(0, 10).split('-')
+  return `${dia}/${mes}/${ano}`
 }
 
 function textoDias(dias) {
@@ -63,21 +97,84 @@ function textoDias(dias) {
   return `faltam ${dias} dias`
 }
 
-// Alertas separados por nível, do mais urgente para o menos urgente.
-const pendentesPorNivel = computed(() => {
+function orientadorPrincipal(alerta) {
+  return (alerta.orientadores || []).find((o) => o.tipo_orientacao === 'ORIENTADOR') || null
+}
+
+function coorientadores(alerta) {
+  return (alerta.orientadores || []).filter((o) => o.tipo_orientacao === 'COORIENTADOR')
+}
+
+function textoCoorientadores(quantidade) {
+  return `+${quantidade} coorientador${quantidade > 1 ? 'es' : ''}`
+}
+
+// Texto que aparece ao passar o mouse: quem vai em cópia (CC).
+function dicaCopia(alerta) {
+  const orientadores = alerta.orientadores || []
+  const emails = orientadores.filter((o) => o.email).map((o) => o.email)
+  const semEmail = orientadores.filter((o) => !o.email).map((o) => o.nome_professor)
+
+  let dica = `Cópia (CC): ${emails.length ? emails.join(', ') : 'nenhum e-mail cadastrado'}`
+  if (semEmail.length) dica += ` · Sem e-mail: ${semEmail.join(', ')}`
+  return dica
+}
+
+function agruparPorNivel(lista) {
   const grupos = { critico: [], atencao: [], preventivo: [] }
-  pendentes.value.forEach((alerta) => grupos[nivelUrgencia(alerta.dias_restantes)].push(alerta))
-  Object.values(grupos).forEach((lista) =>
-    lista.sort((a, b) => a.dias_restantes - b.dias_restantes),
+  lista.forEach((alerta) => grupos[nivelUrgencia(alerta.dias_restantes)].push(alerta))
+  Object.values(grupos).forEach((grupo) =>
+    grupo.sort((a, b) => a.dias_restantes - b.dias_restantes),
   )
   return grupos
+}
+
+// ---------- Dados calculados ----------
+
+// Tipos de prazo que aparecem nos alertas (para o filtro).
+const tiposDePrazo = computed(() => {
+  const mapa = new Map()
+  pendentes.value.forEach((a) => mapa.set(a.id_tipo_prazo, a.nome_prazo))
+  return [...mapa]
+    .map(([id, nome]) => ({ id, nome }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 })
+
+const temFiltro = computed(
+  () => busca.value.trim() !== '' || filtroTipo.value !== '' || filtroBolsista.value !== '',
+)
+
+const pendentesFiltrados = computed(() => {
+  const termo = normalizar(busca.value.trim())
+  return pendentes.value.filter((a) => {
+    if (
+      termo &&
+      !normalizar(a.nome_discente).includes(termo) &&
+      !normalizar(a.matricula).includes(termo)
+    ) {
+      return false
+    }
+    if (filtroTipo.value !== '' && a.id_tipo_prazo !== filtroTipo.value) return false
+    if (filtroBolsista.value === 'sim' && !a.eh_bolsista) return false
+    if (filtroBolsista.value === 'nao' && a.eh_bolsista) return false
+    return true
+  })
+})
+
+// Cards: total geral. Abas e tabela: com os filtros aplicados.
+const totaisPorNivel = computed(() => agruparPorNivel(pendentes.value))
+const filtradosPorNivel = computed(() => agruparPorNivel(pendentesFiltrados.value))
+const alertasDaAba = computed(() => filtradosPorNivel.value[abaAtiva.value] || [])
 
 const enviadosHoje = computed(
   () => historico.value.filter((h) => h.status === 'ENVIADO' && ehHoje(h.data_envio)).length,
 )
 
-const alertasDaAba = computed(() => pendentesPorNivel.value[abaAtiva.value] || [])
+function limparFiltros() {
+  busca.value = ''
+  filtroTipo.value = ''
+  filtroBolsista.value = ''
+}
 
 async function carregar() {
   carregando.value = true
@@ -109,13 +206,21 @@ onMounted(carregar)
     </div>
 
     <p
+      v-if="usandoDadosDeExemplo"
+      class="mb-6 px-4 py-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-sm"
+    >
+      <strong>Dados de exemplo:</strong> as rotas de alertas do back-end ainda não estão prontas. Os
+      alunos abaixo são fictícios.
+    </p>
+
+    <p
       v-if="erro"
       class="mb-8 px-4 py-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm"
     >
       {{ erro }}
     </p>
 
-    <!-- Cards de resumo -->
+    <!-- Cards de resumo (total geral, sem filtros) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <div
         v-for="nivel in niveis"
@@ -127,7 +232,7 @@ onMounted(carregar)
           {{ nivel.rotulo }}
         </p>
         <p class="text-3xl font-extrabold" :class="nivel.classeValor">
-          {{ carregando || erro ? '—' : pendentesPorNivel[nivel.chave].length }}
+          {{ carregando || erro ? '—' : totaisPorNivel[nivel.chave].length }}
         </p>
         <p class="text-xs text-gray-500 mt-1">{{ nivel.descricao }}</p>
       </div>
@@ -143,9 +248,61 @@ onMounted(carregar)
       </div>
     </div>
 
-    <!-- Abas por urgência -->
     <section class="bg-white rounded-2xl border border-gray-200 shadow-sm">
-      <div class="flex flex-wrap gap-1 px-4 pt-4 border-b border-gray-200" role="tablist">
+      <!-- Filtros rápidos -->
+      <div class="flex flex-wrap items-end gap-4 px-6 pt-6">
+        <div class="flex flex-col gap-1 grow min-w-[220px]">
+          <label for="alertas-busca" class="text-xs font-medium text-gray-600">
+            Buscar discente
+          </label>
+          <input
+            id="alertas-busca"
+            v-model="busca"
+            type="search"
+            placeholder="Nome ou matrícula"
+            class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label for="alertas-tipo" class="text-xs font-medium text-gray-600">Tipo de prazo</label>
+          <select
+            id="alertas-tipo"
+            v-model="filtroTipo"
+            class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="">Todos</option>
+            <option v-for="tipo in tiposDePrazo" :key="tipo.id" :value="tipo.id">
+              {{ tipo.nome }}
+            </option>
+          </select>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label for="alertas-bolsista" class="text-xs font-medium text-gray-600">Bolsa</label>
+          <select
+            id="alertas-bolsista"
+            v-model="filtroBolsista"
+            class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="">Todos</option>
+            <option value="sim">Bolsistas</option>
+            <option value="nao">Não bolsistas</option>
+          </select>
+        </div>
+
+        <button
+          v-if="temFiltro"
+          type="button"
+          class="px-3 py-2 text-sm font-medium text-blue-700 hover:underline"
+          @click="limparFiltros"
+        >
+          Limpar filtros
+        </button>
+      </div>
+
+      <!-- Abas por urgência (contagem com os filtros) -->
+      <div class="flex flex-wrap gap-1 px-4 pt-4 mt-2 border-b border-gray-200" role="tablist">
         <button
           v-for="nivel in niveis"
           :key="nivel.chave"
@@ -162,31 +319,78 @@ onMounted(carregar)
         >
           {{ nivel.rotulo }}
           <span class="ml-1 text-xs text-gray-400">
-            ({{ carregando ? '…' : pendentesPorNivel[nivel.chave].length }})
+            ({{ carregando ? '…' : filtradosPorNivel[nivel.chave].length }})
           </span>
         </button>
       </div>
 
-      <div class="p-6">
-        <p v-if="carregando" class="text-sm italic text-gray-500">Carregando alertas...</p>
-        <p v-else-if="erro" class="text-sm italic text-gray-500">—</p>
-        <p v-else-if="alertasDaAba.length === 0" class="text-sm italic text-gray-500">
-          Nenhum alerta neste nível.
-        </p>
-        <!-- Lista simples por enquanto: a tabela completa vem no próximo passo -->
-        <ul v-else class="divide-y divide-gray-100">
-          <li
-            v-for="alerta in alertasDaAba"
-            :key="alerta.id_alerta"
-            class="py-3 flex flex-wrap items-center justify-between gap-2 text-sm"
-          >
-            <span class="font-medium text-gray-900">
-              {{ alerta.nome_discente }}
-              <span class="font-normal text-gray-500">— {{ alerta.nome_prazo }}</span>
-            </span>
-            <span class="text-gray-600">{{ textoDias(alerta.dias_restantes) }}</span>
-          </li>
-        </ul>
+      <p v-if="carregando" class="p-6 text-sm italic text-gray-500">Carregando alertas...</p>
+      <p v-else-if="erro" class="p-6 text-sm italic text-gray-500">—</p>
+      <p v-else-if="alertasDaAba.length === 0" class="p-6 text-sm italic text-gray-500">
+        {{
+          temFiltro ? 'Nenhum alerta encontrado com esses filtros.' : 'Nenhum alerta neste nível.'
+        }}
+      </p>
+
+      <!-- Tabela de alertas pendentes -->
+      <div v-else class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-left text-gray-700">
+            <tr>
+              <th class="px-6 py-3 font-semibold">Discente</th>
+              <th class="px-6 py-3 font-semibold">Orientador</th>
+              <th class="px-6 py-3 font-semibold">Tipo de prazo</th>
+              <th class="px-6 py-3 font-semibold">Data limite</th>
+              <th class="px-6 py-3 font-semibold">Dias restantes</th>
+              <th class="px-6 py-3 font-semibold">Gatilho</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="alerta in alertasDaAba"
+              :key="alerta.id_alerta"
+              class="border-t border-gray-200 align-top"
+            >
+              <td class="px-6 py-3">
+                <p class="font-medium text-gray-900">{{ alerta.nome_discente }}</p>
+                <p class="text-xs text-gray-500">
+                  {{ alerta.matricula }}
+                  <span
+                    v-if="!alerta.email"
+                    class="ml-1 inline-block px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-semibold"
+                  >
+                    sem e-mail
+                  </span>
+                </p>
+              </td>
+              <td class="px-6 py-3 text-gray-700">
+                <p>{{ orientadorPrincipal(alerta)?.nome_professor || '—' }}</p>
+                <span
+                  v-if="coorientadores(alerta).length"
+                  class="mt-1 inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs cursor-help"
+                  :title="dicaCopia(alerta)"
+                >
+                  {{ textoCoorientadores(coorientadores(alerta).length) }}
+                </span>
+              </td>
+              <td class="px-6 py-3 text-gray-700">{{ alerta.nome_prazo }}</td>
+              <td class="px-6 py-3 text-gray-700 whitespace-nowrap">
+                {{ formatarData(alerta.data_limite) }}
+              </td>
+              <td class="px-6 py-3">
+                <span
+                  class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                  :class="classeSeloDias(alerta.dias_restantes)"
+                >
+                  {{ textoDias(alerta.dias_restantes) }}
+                </span>
+              </td>
+              <td class="px-6 py-3 text-gray-600 whitespace-nowrap">
+                {{ alerta.dias_antecedencia }} dias antes
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
   </DefaultLayout>
