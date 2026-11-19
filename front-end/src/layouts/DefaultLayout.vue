@@ -16,21 +16,21 @@ const toggleConfig = () => {
 
 const handleLogout = async () => {
   isLoggingOut.value = true
-  
+
   const accessToken = localStorage.getItem('access_token')
   const refreshToken = localStorage.getItem('refresh_token')
 
   try {
     if (accessToken && refreshToken) {
-      await fetch('http://localhost:8000/logout', { 
+      await fetch('http://localhost:8000/logout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          refresh_token: refreshToken
-        })
+          refresh_token: refreshToken,
+        }),
       })
     }
   } catch (error) {
@@ -39,7 +39,7 @@ const handleLogout = async () => {
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('usuario')
-    
+
     authStore.clear()
 
     router.push('/login')
@@ -51,24 +51,35 @@ const handleLogout = async () => {
 <template>
   <div class="min-h-screen bg-gray-50 flex">
     <!-- Menu Lateral (Sidebar) -->
-    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
+    <aside
+      class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex"
+    >
       <div class="p-6">
-        <h2 class="text-xl font-bold text-blue-900 tracking-wide">
-          PPGI - IC
-        </h2>
+        <h2 class="text-xl font-bold text-blue-900 tracking-wide">PPGI - IC</h2>
         <p class="text-xs text-gray-500 mt-1">Acompanhamento de Mestrado</p>
 
         <!-- Navegação do Menu -->
         <nav class="mt-8 space-y-1">
           <!-- Item Principal: Dashboard -->
-          <router-link 
+          <router-link
             to="/dashboard"
             class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-900 transition-colors"
             active-class="bg-blue-50 text-blue-900 font-semibold"
           >
             <!-- Ícone de Quadrados/Grid (Dashboard) -->
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+              />
             </svg>
             <span>Dashboard</span>
           </router-link>
@@ -80,8 +91,19 @@ const handleLogout = async () => {
             active-class="bg-blue-50 text-blue-900 font-semibold"
           >
             <!-- Ícone de Pessoas (Estudantes) -->
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+              />
             </svg>
             <span>Estudantes</span>
           </router-link>
@@ -93,8 +115,19 @@ const handleLogout = async () => {
             active-class="bg-blue-50 text-blue-900 font-semibold"
           >
             <!-- Ícone de Capelo (Professores) -->
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"
+              />
             </svg>
             <span>Professores</span>
           </router-link>
@@ -106,60 +139,92 @@ const handleLogout = async () => {
             active-class="bg-blue-50 text-blue-900 font-semibold"
           >
             <!-- Ícone de Livro Aberto (Disciplinas) -->
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
             </svg>
             <span>Disciplinas</span>
           </router-link>
 
           <!-- Item Principal: Configurações (Dropdown) -->
           <div>
-            <button 
+            <button
               @click="toggleConfig"
               class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-900 transition-colors"
             >
               <div class="flex items-center gap-2">
                 <!-- Ícone de Engrenagem -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 text-gray-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
                 </svg>
                 <span>Configurações</span>
               </div>
-              
+
               <!-- Seta do Dropdown -->
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
                 class="h-4 w-4 text-gray-400 transition-transform duration-200"
                 :class="{ 'rotate-180': isConfigOpen }"
-                fill="none" 
-                viewBox="0 0 24 24" 
+                fill="none"
+                viewBox="0 0 24 24"
                 stroke="currentColor"
               >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </button>
 
             <!-- Opções do Submenu -->
             <div v-show="isConfigOpen" class="mt-1 pl-8 space-y-1">
-              <router-link 
-                to="/semestres" 
+              <router-link
+                to="/semestres"
                 class="block px-3 py-1.5 text-xs font-medium text-gray-600 rounded-md hover:bg-gray-100 hover:text-blue-900 transition-colors"
                 active-class="bg-blue-50 text-blue-900 font-semibold"
               >
                 Semestres
               </router-link>
-              
-              <router-link 
-                to="/suspensoes" 
+
+              <router-link
+                to="/suspensoes"
                 class="block px-3 py-1.5 text-xs font-medium text-gray-600 rounded-md hover:bg-gray-100 hover:text-blue-900 transition-colors"
                 active-class="bg-blue-50 text-blue-900 font-semibold"
               >
                 Suspensoes
               </router-link>
 
-              <router-link 
-                to="/alertas" 
+              <router-link
+                to="/alertas"
                 class="block px-3 py-1.5 text-xs font-medium text-gray-600 rounded-md hover:bg-gray-100 hover:text-blue-900 transition-colors"
                 active-class="bg-blue-50 text-blue-900 font-semibold"
               >
@@ -180,15 +245,13 @@ const handleLogout = async () => {
     <div class="flex-1 flex flex-col">
       <!-- Cabeçalho Superior -->
       <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6">
-        <h1 class="text-lg font-semibold text-gray-800">
-          Acompanhamento PPGI - IC
-        </h1>
-        
+        <h1 class="text-lg font-semibold text-gray-800">Acompanhamento PPGI - IC</h1>
+
         <div class="flex items-center gap-4">
           <span class="text-sm text-gray-600">Usuário Conectado</span>
-          
-          <button 
-            @click="handleLogout" 
+
+          <button
+            @click="handleLogout"
             :disabled="isLoggingOut"
             class="text-sm px-4 py-2 bg-red-50 text-red-600 font-medium rounded-md hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
