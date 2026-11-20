@@ -31,7 +31,7 @@ const router = createRouter({
       path: '/central-alertas',
       name: 'central-alertas',
       component: CentralAlertasView,
-      meta: { perfisPermitidos: ['SECRETARIA', 'ADMIN'] },
+      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
     },
     {
       path: '/configuracoes',
