@@ -144,6 +144,34 @@ class HistoricoAlertaPaginado(BaseModel):
     itens: List[HistoricoAlertaEnviadoResponse]
 
 # ==========================================
+# SCHEMAS DO MOTOR DE ALERTAS (PENDENTES)
+# ==========================================
+
+class OrientadorAlerta(BaseModel):
+    id_professor: int
+    nome_professor: str
+    email: Optional[str] = None
+    tipo_orientacao: str
+
+
+class AlertaPendenteResponse(BaseModel):
+    id_estudante: int
+    nome_discente: str
+    matricula: str
+    email: str
+    eh_bolsista: bool
+    id_gatilho: int
+    dias_antecedencia: int
+    id_tipo_prazo: int
+    codigo_prazo: str
+    nome_prazo: str
+    data_limite: date
+    dias_restantes: int
+    urgencia: str  # CRITICO | ATENCAO | PREVENTIVO
+    orientadores: List[OrientadorAlerta]
+    orientador_sem_email: bool
+    
+# ==========================================
 # SCHEMAS DE DISCIPLINA
 # ==========================================
 
@@ -700,3 +728,4 @@ class StatusDefesaResponse(BaseModel):
     detalhe_creditos: DetalheCreditos
     requisitos: RequisitosDefesa
     pendencias_detalhadas: List[str]
+
