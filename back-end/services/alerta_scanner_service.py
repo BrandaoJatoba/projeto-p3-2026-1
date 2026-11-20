@@ -5,7 +5,7 @@ Motor de varredura de alertas (Alert Engine).
     Para cada aluno e tipo de prazo, considera só o gatilho mais próximo do prazo
     (menor dias_antecedencia com dias_restantes <= dias_antecedencia, inclui vencidos);
     se esse gatilho já tem registro ENVIADO no histórico, o prazo não aparece.
-    
+
 """
 
 from datetime import date
@@ -268,6 +268,7 @@ def listar_alertas_pendentes(db_connection: Session, hoje: Optional[date] = None
                     "eh_bolsista": bool(estudante.eh_bolsista),
                     "id_gatilho": gatilho.id_gatilho,
                     "dias_antecedencia": gatilho.dias_antecedencia,
+                    "mensagem_template": gatilho.mensagem_template,
                     "id_tipo_prazo": tipo_prazo.id_tipo_prazo,
                     "codigo_prazo": tipo_prazo.codigo_prazo,
                     "nome_prazo": tipo_prazo.nome_prazo,

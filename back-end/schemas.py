@@ -170,6 +170,41 @@ class AlertaPendenteResponse(BaseModel):
     urgencia: str  # CRITICO | ATENCAO | PREVENTIVO
     orientadores: List[OrientadorAlerta]
     orientador_sem_email: bool
+
+# ==========================================
+# SCHEMAS DE MINUTAS DE E-MAIL
+# ==========================================
+
+class MinutaItemRequest(BaseModel):
+    """Um alerta pendente selecionado na tela (par aluno + gatilho)."""
+    id_estudante: int = Field(..., gt=0)
+    id_gatilho: int = Field(..., gt=0)
+
+
+class MinutaPreviewRequest(BaseModel):
+    itens: List[MinutaItemRequest] = Field(..., min_length=1)
+
+
+class MinutaResponse(BaseModel):
+    id_estudante: int
+    id_gatilho: int
+    nome_discente: str
+    destinatario: Optional[str] = None
+    cc: List[str]
+    assunto: str
+    corpo: str
+    avisos: List[str]
+
+
+class MinutaIgnorada(BaseModel):
+    id_estudante: int
+    id_gatilho: int
+    motivo: str
+
+
+class MinutaPreviewResponse(BaseModel):
+    minutas: List[MinutaResponse]
+    ignorados: List[MinutaIgnorada]
     
 # ==========================================
 # SCHEMAS DE DISCIPLINA
