@@ -19,7 +19,6 @@ const niveis = [
     rotulo: 'Crítico',
     descricao: 'Vencidos ou até 7 dias',
     destaque: true,
-    classePonto: 'bg-rose-500',
     classeAba: 'border-rose-500 text-rose-700',
     classeSelo: 'bg-rose-100 text-rose-700',
   },
@@ -28,7 +27,6 @@ const niveis = [
     rotulo: 'Atenção',
     descricao: 'De 8 a 30 dias',
     destaque: false,
-    classePonto: 'bg-amber-400',
     classeAba: 'border-amber-500 text-amber-800',
     classeSelo: 'bg-amber-100 text-amber-800',
   },
@@ -37,7 +35,6 @@ const niveis = [
     rotulo: 'Preventivo',
     descricao: 'Mais de 30 dias',
     destaque: false,
-    classePonto: 'bg-blue-500',
     classeAba: 'border-blue-500 text-blue-800',
     classeSelo: 'bg-blue-100 text-blue-800',
   },
@@ -373,10 +370,9 @@ onMounted(carregar)
         :class="nivel.destaque ? 'bg-rose-50 border-rose-200' : 'bg-white border-gray-200'"
       >
         <p
-          class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-1"
+          class="text-xs font-semibold uppercase tracking-wider mb-1"
           :class="nivel.destaque ? 'text-rose-700' : 'text-gray-500'"
         >
-          <span class="h-2 w-2 rounded-full" :class="nivel.classePonto" aria-hidden="true"></span>
           {{ nivel.rotulo }}
         </p>
         <p
@@ -389,10 +385,7 @@ onMounted(carregar)
       </div>
 
       <div class="p-5 rounded-xl border border-gray-200 bg-white shadow-sm">
-        <p
-          class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-1 text-gray-500"
-        >
-          <span class="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true"></span>
+        <p class="text-xs font-semibold uppercase tracking-wider mb-1 text-gray-500">
           Enviados hoje
         </p>
         <p class="text-3xl font-extrabold text-gray-900">
