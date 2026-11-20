@@ -6,11 +6,10 @@ import BaseButton from '../components/BaseButton.vue'
 import {
   buscarAlertasPendentes,
   buscarHistoricoAlertas,
-  reenviarAlerta,
-  usandoDadosDeExemplo,
+  historicoDeExemplo,
 } from '../services/alertas'
 
-// Níveis de urgência, como na task:
+// Níveis de urgência, iguais aos do back (services/alerta_scanner_service.py):
 // crítico = vencido ou até 7 dias; atenção = 8 a 30; preventivo = mais de 30.
 // Visual dos cards igual ao Dashboard: só o crítico fica com fundo colorido.
 const niveis = [
@@ -40,6 +39,13 @@ const niveis = [
   },
 ]
 
+// O back manda a urgência em maiúsculas; aqui vira a chave da aba.
+const nivelPorUrgencia = {
+  CRITICO: 'critico',
+  ATENCAO: 'atencao',
+  PREVENTIVO: 'preventivo',
+}
+
 const pendentes = ref([])
 const historico = ref([])
 const carregando = ref(true)
@@ -51,15 +57,8 @@ const busca = ref('')
 const filtroTipo = ref('')
 const filtroBolsista = ref('')
 
-// Seleção (guarda os id_alerta marcados, em qualquer aba)
+// Seleção (guarda as chaves dos alertas marcados, em qualquer aba)
 const selecionados = ref([])
-
-// Reenvio: guarda quais envios estão sendo reenviados (para desativar o botão)
-const reenviando = ref({})
-
-// Aviso que aparece no canto da tela por alguns segundos
-const aviso = ref(null)
-let temporizadorAviso = null
 
 // Modal provisório: será trocado pelo modal da PAP-49 (edição das minutas)
 const modalMinutasAberto = ref(false)
@@ -69,14 +68,23 @@ const naAbaHistorico = computed(() => abaAtiva.value === 'historico')
 
 // ---------- Funções de apoio ----------
 
-function nivelUrgencia(dias) {
-  if (dias <= 7) return 'critico'
-  if (dias <= 30) return 'atencao'
+// O back não tem um id próprio para o alerta: ele é identificado pelo par
+// estudante + gatilho (o mesmo par que o preview e o envio das minutas pedem).
+function chaveAlerta(alerta) {
+  return `${alerta.id_estudante}-${alerta.id_gatilho}`
+}
+
+function nivelDoAlerta(alerta) {
+  const nivel = nivelPorUrgencia[alerta.urgencia]
+  if (nivel) return nivel
+  // Segurança: se a urgência não vier, calcula pelos dias (mesmos limites do back).
+  if (alerta.dias_restantes <= 7) return 'critico'
+  if (alerta.dias_restantes <= 30) return 'atencao'
   return 'preventivo'
 }
 
-function classeSeloDias(dias) {
-  return niveis.find((n) => n.chave === nivelUrgencia(dias)).classeSelo
+function classeSelo(alerta) {
+  return niveis.find((n) => n.chave === nivelDoAlerta(alerta)).classeSelo
 }
 
 function normalizar(texto) {
@@ -130,12 +138,17 @@ function textoDias(dias) {
   return `faltam ${dias} dias`
 }
 
+// Qualquer tipo que comece com "co" (COORIENTADOR, CO_ORIENTADOR...) conta como coorientador.
+function ehCoorientador(orientador) {
+  return normalizar(orientador.tipo_orientacao).startsWith('co')
+}
+
 function orientadorPrincipal(alerta) {
-  return (alerta.orientadores || []).find((o) => o.tipo_orientacao === 'ORIENTADOR') || null
+  return (alerta.orientadores || []).find((o) => !ehCoorientador(o)) || null
 }
 
 function coorientadores(alerta) {
-  return (alerta.orientadores || []).filter((o) => o.tipo_orientacao === 'COORIENTADOR')
+  return (alerta.orientadores || []).filter(ehCoorientador)
 }
 
 function textoCoorientadores(quantidade) {
@@ -155,19 +168,11 @@ function dicaCopia(alerta) {
 
 function agruparPorNivel(lista) {
   const grupos = { critico: [], atencao: [], preventivo: [] }
-  lista.forEach((alerta) => grupos[nivelUrgencia(alerta.dias_restantes)].push(alerta))
+  lista.forEach((alerta) => grupos[nivelDoAlerta(alerta)].push(alerta))
   Object.values(grupos).forEach((grupo) =>
     grupo.sort((a, b) => a.dias_restantes - b.dias_restantes),
   )
   return grupos
-}
-
-function mostrarAviso(texto, tipo) {
-  aviso.value = { texto, tipo }
-  clearTimeout(temporizadorAviso)
-  temporizadorAviso = setTimeout(() => {
-    aviso.value = null
-  }, 3000)
 }
 
 // ---------- Dados calculados: pendentes ----------
@@ -230,13 +235,14 @@ const historicoFiltrado = computed(() => {
 // ---------- Seleção ----------
 
 function estaSelecionado(alerta) {
-  return selecionados.value.includes(alerta.id_alerta)
+  return selecionados.value.includes(chaveAlerta(alerta))
 }
 
 function alternarSelecao(alerta) {
+  const chave = chaveAlerta(alerta)
   selecionados.value = estaSelecionado(alerta)
-    ? selecionados.value.filter((id) => id !== alerta.id_alerta)
-    : [...selecionados.value, alerta.id_alerta]
+    ? selecionados.value.filter((c) => c !== chave)
+    : [...selecionados.value, chave]
 }
 
 const quantosDaAbaSelecionados = computed(
@@ -252,11 +258,11 @@ const algunsDaAbaSelecionados = computed(
 )
 
 function alternarTodosDaAba() {
-  const idsDaAba = alertasDaAba.value.map((a) => a.id_alerta)
+  const chavesDaAba = alertasDaAba.value.map(chaveAlerta)
   if (todosDaAbaSelecionados.value) {
-    selecionados.value = selecionados.value.filter((id) => !idsDaAba.includes(id))
+    selecionados.value = selecionados.value.filter((c) => !chavesDaAba.includes(c))
   } else {
-    selecionados.value = [...new Set([...selecionados.value, ...idsDaAba])]
+    selecionados.value = [...new Set([...selecionados.value, ...chavesDaAba])]
   }
 }
 
@@ -265,7 +271,7 @@ function limparSelecao() {
 }
 
 const alertasSelecionados = computed(() =>
-  pendentes.value.filter((a) => selecionados.value.includes(a.id_alerta)),
+  pendentes.value.filter((a) => selecionados.value.includes(chaveAlerta(a))),
 )
 
 // ---------- Ações ----------
@@ -277,21 +283,6 @@ function abrirMinutas(alertas) {
 
 function fecharMinutas() {
   modalMinutasAberto.value = false
-}
-
-async function reenviar(envio) {
-  reenviando.value[envio.id_historico] = true
-  try {
-    const atualizado = await reenviarAlerta(envio.id_historico)
-    historico.value = historico.value.map((h) =>
-      h.id_historico === atualizado.id_historico ? atualizado : h,
-    )
-    mostrarAviso(`Alerta reenviado para ${envio.nome_discente}.`, 'sucesso')
-  } catch {
-    mostrarAviso('Não foi possível reenviar o alerta. Tente de novo.', 'erro')
-  } finally {
-    reenviando.value[envio.id_historico] = false
-  }
 }
 
 function limparFiltros() {
@@ -311,10 +302,10 @@ async function carregar() {
     pendentes.value = listaPendentes
     historico.value = listaHistorico
     // Tira da seleção os alertas que não existem mais (por exemplo, já enviados).
-    const idsExistentes = listaPendentes.map((a) => a.id_alerta)
-    selecionados.value = selecionados.value.filter((id) => idsExistentes.includes(id))
-  } catch {
-    erro.value = 'Não foi possível carregar os alertas. Tente de novo em instantes.'
+    const chavesExistentes = listaPendentes.map(chaveAlerta)
+    selecionados.value = selecionados.value.filter((c) => chavesExistentes.includes(c))
+  } catch (e) {
+    erro.value = e?.message || 'Não foi possível carregar os alertas. Tente de novo em instantes.'
   } finally {
     carregando.value = false
   }
@@ -325,20 +316,6 @@ onMounted(carregar)
 
 <template>
   <DefaultLayout>
-    <!-- Aviso no canto da tela (some depois de 3 segundos) -->
-    <div
-      v-if="aviso"
-      class="fixed top-20 right-6 z-50 px-4 py-3 rounded-lg border text-sm shadow-lg"
-      :class="
-        aviso.tipo === 'sucesso'
-          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-          : 'bg-rose-50 border-rose-200 text-rose-700'
-      "
-      role="status"
-    >
-      {{ aviso.texto }}
-    </div>
-
     <div class="mb-8 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
       <h2 class="text-2xl font-bold text-gray-900">Central de Alertas</h2>
       <p class="text-sm text-gray-500 mt-1">
@@ -347,11 +324,12 @@ onMounted(carregar)
     </div>
 
     <p
-      v-if="usandoDadosDeExemplo"
+      v-if="historicoDeExemplo"
       class="mb-6 px-4 py-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-sm"
     >
-      <strong>Dados de exemplo:</strong> as rotas de alertas do back-end ainda não estão prontas. Os
-      alunos abaixo são fictícios.
+      <strong>Dados de exemplo no histórico:</strong> a aba Histórico e o card "Enviados hoje" ainda
+      mostram envios fictícios, porque essa rota do back-end ainda não está pronta. Os alertas
+      pendentes já são reais.
     </p>
 
     <p
@@ -516,8 +494,7 @@ onMounted(carregar)
                 <th class="px-4 py-3 font-semibold">Discente</th>
                 <th class="px-4 py-3 font-semibold">Prazo</th>
                 <th class="px-4 py-3 font-semibold">Destinatários</th>
-                <th class="px-4 py-3 font-semibold">Status</th>
-                <th class="px-6 py-3 font-semibold text-right">Ações</th>
+                <th class="px-6 py-3 font-semibold">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -537,7 +514,8 @@ onMounted(carregar)
                     >
                       {{ iniciais(envio.nome_discente) }}
                     </span>
-                    <div>
+                    <!-- Largura mínima: o nome quebra no máximo em 2 linhas -->
+                    <div class="min-w-[160px]">
                       <p class="font-medium text-gray-900 leading-snug">
                         {{ envio.nome_discente }}
                       </p>
@@ -552,7 +530,7 @@ onMounted(carregar)
                     Cc: {{ envio.emails_cc }}
                   </p>
                 </td>
-                <td class="px-4 py-4">
+                <td class="px-6 py-4">
                   <span
                     class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
                     :class="
@@ -566,17 +544,6 @@ onMounted(carregar)
                   <p v-if="envio.mensagem_erro" class="mt-1 text-xs text-rose-600">
                     {{ envio.mensagem_erro }}
                   </p>
-                </td>
-                <td class="px-6 py-4 text-right">
-                  <button
-                    v-if="envio.status === 'FALHA'"
-                    type="button"
-                    class="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-md hover:bg-blue-50 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                    :disabled="reenviando[envio.id_historico]"
-                    @click="reenviar(envio)"
-                  >
-                    {{ reenviando[envio.id_historico] ? 'Reenviando...' : 'Reenviar' }}
-                  </button>
                 </td>
               </tr>
             </tbody>
@@ -618,7 +585,7 @@ onMounted(carregar)
             <!-- align-middle: as colunas com uma informação só ficam centralizadas na altura da linha -->
             <tr
               v-for="alerta in alertasDaAba"
-              :key="alerta.id_alerta"
+              :key="chaveAlerta(alerta)"
               class="border-t border-gray-200 align-middle transition-colors"
               :class="estaSelecionado(alerta) ? 'bg-blue-50/50' : 'hover:bg-gray-50'"
             >
@@ -640,7 +607,8 @@ onMounted(carregar)
                   >
                     {{ iniciais(alerta.nome_discente) }}
                   </span>
-                  <div>
+                  <!-- Largura mínima: o nome quebra no máximo em 2 linhas -->
+                  <div class="min-w-[160px]">
                     <p class="font-medium text-gray-900 leading-snug">{{ alerta.nome_discente }}</p>
                     <p class="mt-0.5 text-xs text-gray-500">{{ alerta.matricula }}</p>
                     <!-- Mesmo padrão do "+1 coorientador": linha própria, texto pequeno -->
@@ -675,7 +643,7 @@ onMounted(carregar)
               <td class="px-4 py-4">
                 <span
                   class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
-                  :class="classeSeloDias(alerta.dias_restantes)"
+                  :class="classeSelo(alerta)"
                 >
                   {{ textoDias(alerta.dias_restantes) }}
                 </span>
@@ -739,7 +707,7 @@ onMounted(carregar)
       <ul class="divide-y divide-gray-100 border border-gray-200 rounded-lg">
         <li
           v-for="alerta in alertasParaMinuta"
-          :key="alerta.id_alerta"
+          :key="chaveAlerta(alerta)"
           class="px-4 py-2 text-sm flex flex-wrap justify-between gap-2"
         >
           <span class="font-medium text-gray-900">{{ alerta.nome_discente }}</span>
