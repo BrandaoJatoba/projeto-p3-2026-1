@@ -46,34 +46,14 @@ def gerar_preview_minutas(
     db_connection: Session = Depends(get_db),
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
+       """
+    Gera as minutas dos alertas selecionados para a Secretaria revisar.
+
+    Só pares pendentes de verdade viram minuta (anti-spam do motor); os demais
+    voltam em "ignorados". A regra fica em minuta_service.gerar_minutas_selecionadas.
     """
-    Gera as minutas dos alertas selecionados.
-
-    Só gera minuta para pares (aluno, gatilho) que estão pendentes de verdade
-    (assim o anti-spam do motor é respeitado). Os demais voltam em "ignorados".
-    """
-    pendentes = alerta_scanner_service.listar_alertas_pendentes(db_connection, hoje=data_referencia)
-    por_par = {(a["id_estudante"], a["id_gatilho"]): a for a in pendentes}
-
-    minutas = []
-    ignorados = []
-    vistos = set()
-
-    for item in dados.itens:
-        par = (item.id_estudante, item.id_gatilho)
-        if par in vistos:
-            continue  # item repetido na requisição
-        vistos.add(par)
-
-        alerta = por_par.get(par)
-        if alerta is None:
-            ignorados.append({
-                "id_estudante": item.id_estudante,
-                "id_gatilho": item.id_gatilho,
-                "motivo": "Alerta não está pendente (já enviado, fora da janela do gatilho ou inexistente).",
-            })
-            continue
-
-        minutas.append(minuta_service.gerar_minuta(alerta, dados.template_customizado))
-
-    return {"minutas": minutas, "ignorados": ignorados}
+    pares = [(item.id_estudante, item.id_gatilho) for item in dados.itens]
+    return minuta_service.gerar_minutas_selecionadas(
+        db_connection, pares, dados.template_customizado, hoje=data_referencia
+    )
+    

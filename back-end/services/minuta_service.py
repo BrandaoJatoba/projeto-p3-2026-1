@@ -6,8 +6,21 @@ a minuta pronta para a Secretaria revisar: destinatário, cópias, assunto e cor
 Não envia nada e não grava nada.
 
 Variáveis aceitas no template (chave simples):
-    {nome_discente}, {matricula}, {nome_prazo}, {data_limite},
-    {dias_restantes}, {orientador}, {coorientadores}
+    {nome_discente}       nome do discente
+    {matricula}           matrícula do discente
+    {nome_prazo}          nome do tipo de prazo (ex.: "Exame de Qualificação")
+    {data_limite}         data limite no formato DD/MM/AAAA
+    {dias_restantes}      número de dias até o prazo (negativo se já venceu)
+    {situacao_prazo}      frase pronta: "vence em 5 dias", "vence hoje", "venceu há 3 dias"
+    {orientador}          orientador principal ou "Não informado"
+    {coorientadores}      coorientadores ("Ana e João") ou "Não possui"
+    {lista_orientadores}  todos com o papel: "Ana (Orientador), João (Coorientador)"
+                          ou "Não informado"
+    {titulo_dissertacao}  título da dissertação ou "Não informado"
+
+Obs.: o card pedia "Vencido há X dias" dentro de {dias_restantes}. Optamos por
+manter {dias_restantes} sempre numérico e criar {situacao_prazo}, porque o texto do
+template já traz palavras em volta da variável ("Faltam {dias_restantes} dias").
 
 A substituição usa lista branca: só as variáveis acima são trocadas. Qualquer
 outra coisa entre chaves fica como está e gera um aviso. Não usamos str.format
@@ -15,11 +28,14 @@ porque ele quebra com chaves soltas no texto e permite acessar atributos interno
 de objetos Python a partir do template.
 """
 
-import re
-from typing import List, Optional
 import html
+from datetime import date
+from typing import List, Optional, Tuple
+
+from sqlalchemy.orm import Session
 
 from db.enumStatus import TipoOrientacao
+from services import alerta_scanner_service
 
 PADRAO_VARIAVEL = re.compile(r"\{([a-z_]+)\}")
 
@@ -33,6 +49,7 @@ VARIAVEIS_DISPONIVEIS = [
     "coorientadores",
     "lista_orientadores",
     "titulo_dissertacao",
+    "situacao_prazo",
 ]
 
 SEM_INFORMACAO = "Não informado"
@@ -61,12 +78,6 @@ def _juntar_nomes(nomes: List[str]) -> str:
     return ", ".join(nomes[:-1]) + " e " + nomes[-1]
 
 
-def _formatar_dias_restantes(dias_restantes: int) -> str:
-    """30 -> "30"; -3 -> "Vencido há 3 dias"."""
-    if dias_restantes < 0:
-        return f"Vencido há {abs(dias_restantes)} dias"
-    return str(dias_restantes)
-
 
 def montar_contexto(alerta: dict) -> dict[str, str]:
     """
@@ -94,7 +105,8 @@ def montar_contexto(alerta: dict) -> dict[str, str]:
         "matricula": alerta["matricula"],
         "nome_prazo": alerta["nome_prazo"],
         "data_limite": alerta["data_limite"].strftime("%d/%m/%Y"),
-        "dias_restantes": _formatar_dias_restantes(alerta["dias_restantes"]),
+        "dias_restantes": str(alerta["dias_restantes"]),
+        "situacao_prazo": _descrever_situacao(alerta["dias_restantes"]),
         "orientador": _juntar_nomes(principais) or SEM_INFORMACAO,
         "coorientadores": _juntar_nomes(coorientadores) or SEM_COORIENTADOR,
         "lista_orientadores": ", ".join(lista_orientadores) or SEM_INFORMACAO,
@@ -199,3 +211,43 @@ def gerar_minuta(alerta: dict, template: Optional[str] = None) -> dict:
         "corpo_html": texto_para_html(corpo),
         "avisos": avisos,
     }
+
+def gerar_minutas_selecionadas(
+    db_connection: Session,
+    pares: List[Tuple[int, int]],
+    template: Optional[str] = None,
+    hoje: Optional[date] = None,
+) -> dict:
+    """
+    Gera minutas para os pares (id_estudante, id_gatilho) selecionados.
+
+    Só gera minuta para pares realmente pendentes (respeita o anti-spam do motor).
+    Pares repetidos são processados uma vez; os não pendentes voltam em "ignorados".
+    Usado pelo preview e, na sequência, pelo disparo de alertas.
+
+    Retorna {"minutas": [...], "ignorados": [...]}.
+    """
+    pendentes = alerta_scanner_service.listar_alertas_pendentes(db_connection, hoje=hoje)
+    por_par = {(a["id_estudante"], a["id_gatilho"]): a for a in pendentes}
+
+    minutas: List[dict] = []
+    ignorados: List[dict] = []
+    vistos = set()
+
+    for par in pares:
+        if par in vistos:
+            continue  # item repetido na requisição
+        vistos.add(par)
+
+        alerta = por_par.get(par)
+        if alerta is None:
+            ignorados.append({
+                "id_estudante": par[0],
+                "id_gatilho": par[1],
+                "motivo": "Alerta não está pendente (já enviado, fora da janela do gatilho ou inexistente).",
+            })
+            continue
+
+        minutas.append(gerar_minuta(alerta, template))
+
+    return {"minutas": minutas, "ignorados": ignorados}
