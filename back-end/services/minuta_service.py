@@ -17,6 +17,7 @@ de objetos Python a partir do template.
 
 import re
 from typing import List, Optional
+import html
 
 from db.enumStatus import TipoOrientacao
 
@@ -30,7 +31,12 @@ VARIAVEIS_DISPONIVEIS = [
     "dias_restantes",
     "orientador",
     "coorientadores",
+    "lista_orientadores",
+    "titulo_dissertacao",
 ]
+
+SEM_INFORMACAO = "Não informado"
+SEM_COORIENTADOR = "Não possui"
 
 # O corpo do e-mail é sempre: SAUDACAO + texto do gatilho + ENCERRAMENTO.
 # A Secretaria edita só o miolo (mensagem_template); saudação e assinatura são fixas.
@@ -55,8 +61,18 @@ def _juntar_nomes(nomes: List[str]) -> str:
     return ", ".join(nomes[:-1]) + " e " + nomes[-1]
 
 
+def _formatar_dias_restantes(dias_restantes: int) -> str:
+    """30 -> "30"; -3 -> "Vencido há 3 dias"."""
+    if dias_restantes < 0:
+        return f"Vencido há {abs(dias_restantes)} dias"
+    return str(dias_restantes)
+
+
 def montar_contexto(alerta: dict) -> dict[str, str]:
-    """Traduz o dict do scanner no texto que entra no lugar de cada variável."""
+    """
+    Traduz o dict do scanner no texto que entra no lugar de cada variável.
+    Dado ausente no banco nunca quebra a minuta: entra um texto padrão.
+    """
     orientadores = alerta.get("orientadores") or []
     principais = [
         o["nome_professor"]
@@ -68,17 +84,22 @@ def montar_contexto(alerta: dict) -> dict[str, str]:
         for o in orientadores
         if o["tipo_orientacao"] == TipoOrientacao.COORIENTADOR.value
     ]
+    lista_orientadores = [
+        f"{o['nome_professor']} ({o['tipo_orientacao'].capitalize()})"
+        for o in orientadores
+    ]
 
     return {
         "nome_discente": alerta["nome_discente"],
         "matricula": alerta["matricula"],
         "nome_prazo": alerta["nome_prazo"],
         "data_limite": alerta["data_limite"].strftime("%d/%m/%Y"),
-        "dias_restantes": str(alerta["dias_restantes"]),
-        "orientador": _juntar_nomes(principais),
-        "coorientadores": _juntar_nomes(coorientadores),
+        "dias_restantes": _formatar_dias_restantes(alerta["dias_restantes"]),
+        "orientador": _juntar_nomes(principais) or SEM_INFORMACAO,
+        "coorientadores": _juntar_nomes(coorientadores) or SEM_COORIENTADOR,
+        "lista_orientadores": ", ".join(lista_orientadores) or SEM_INFORMACAO,
+        "titulo_dissertacao": alerta.get("titulo_dissertacao") or SEM_INFORMACAO,
     }
-
 
 def encontrar_variaveis_desconhecidas(template: str) -> List[str]:
     """Variáveis usadas no template que não estão na lista branca (sem repetição)."""
@@ -115,6 +136,20 @@ def montar_assunto(alerta: dict) -> str:
     """Ex.: "PPGI/UFAL – Prazo de Exame de Qualificação vence em 5 dias"."""
     situacao = _descrever_situacao(alerta["dias_restantes"])
     return f"PPGI/UFAL – Prazo de {alerta['nome_prazo']} {situacao}"
+
+def texto_para_html(texto: str) -> str:
+    """
+    Converte o corpo em texto puro para HTML básico e seguro.
+
+    - html.escape troca <, >, & e aspas por códigos (&lt; etc.), então qualquer
+      tag digitada no template aparece como texto e não é executada.
+    - Cada bloco separado por linha em branco vira um <p>; quebras simples viram <br>.
+    """
+    paragrafos = [p for p in texto.strip().split("\n\n") if p.strip()]
+    return "\n".join(
+        "<p>" + html.escape(p.strip()).replace("\n", "<br>") + "</p>"
+        for p in paragrafos
+    )
 
 
 def gerar_minuta(alerta: dict, template: Optional[str] = None) -> dict:
@@ -161,5 +196,6 @@ def gerar_minuta(alerta: dict, template: Optional[str] = None) -> dict:
         "cc": cc,
         "assunto": montar_assunto(alerta),
         "corpo": corpo,
+        "corpo_html": texto_para_html(corpo),
         "avisos": avisos,
     }

@@ -223,6 +223,7 @@ def listar_alertas_pendentes(db_connection: Session, hoje: Optional[date] = None
     ids_estudantes = [e.id_estudante for e in estudantes]
     qualificacoes = crud_alerta.mapear_qualificacoes_atuais(db_connection, ids_estudantes)
     defesas = crud_alerta.mapear_defesas_atuais(db_connection, ids_estudantes)
+    titulos = crud_alerta.mapear_titulos_dissertacao(db_connection, ids_estudantes)
     ja_enviados = crud_alerta.obter_pares_alertas_enviados(db_connection)
 
     # 2. Cruzamento em memória
@@ -269,6 +270,7 @@ def listar_alertas_pendentes(db_connection: Session, hoje: Optional[date] = None
                     "id_gatilho": gatilho.id_gatilho,
                     "dias_antecedencia": gatilho.dias_antecedencia,
                     "mensagem_template": gatilho.mensagem_template,
+                    "titulo_dissertacao": titulos.get(estudante.id_estudante),
                     "id_tipo_prazo": tipo_prazo.id_tipo_prazo,
                     "codigo_prazo": tipo_prazo.codigo_prazo,
                     "nome_prazo": tipo_prazo.nome_prazo,

@@ -183,6 +183,10 @@ class MinutaItemRequest(BaseModel):
 
 class MinutaPreviewRequest(BaseModel):
     itens: List[MinutaItemRequest] = Field(..., min_length=1)
+    template_customizado: Optional[str] = Field(
+        None,
+        description="Texto para testar no lugar do template do gatilho (vale para todos os itens).",
+    )
 
 
 class MinutaResponse(BaseModel):
@@ -194,7 +198,7 @@ class MinutaResponse(BaseModel):
     assunto: str
     corpo: str
     avisos: List[str]
-
+    corpo_html: str
 
 class MinutaIgnorada(BaseModel):
     id_estudante: int

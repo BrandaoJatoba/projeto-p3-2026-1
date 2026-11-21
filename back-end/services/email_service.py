@@ -1,5 +1,5 @@
 """
-Envio de e-mails via SMTP (RNF03).
+Envio de e-mails via SMTP.
 
 As configurações vêm de variáveis de ambiente (nunca do código). Ver .env.example.
 
@@ -19,8 +19,12 @@ import ssl
 from email.message import EmailMessage
 from email.utils import formataddr
 from typing import List, Optional
+import time
 
 MODOS_VALIDOS = ("console", "smtp")
+
+MAX_TENTATIVAS = 3
+ESPERA_INICIAL_SEGUNDOS = 1
 
 
 class ErroEnvioEmail(Exception):
@@ -65,8 +69,12 @@ def montar_mensagem(
     assunto: str,
     corpo: str,
     cc: Optional[List[str]] = None,
+    corpo_html: Optional[str] = None,
 ) -> EmailMessage:
-    """Cria o objeto de e-mail (texto puro, UTF-8)."""
+    """
+    Cria o objeto de e-mail em UTF-8. Se corpo_html vier, o e-mail leva as duas
+    versões: o programa de e-mail mostra o HTML e usa o texto puro como reserva.
+    """
     mensagem = EmailMessage()
     mensagem["From"] = remetente
     mensagem["To"] = destinatario
@@ -74,6 +82,8 @@ def montar_mensagem(
         mensagem["Cc"] = ", ".join(cc)
     mensagem["Subject"] = assunto
     mensagem.set_content(corpo)
+    if corpo_html:
+        mensagem.add_alternative(corpo_html, subtype="html")
     return mensagem
 
 
@@ -84,7 +94,10 @@ def _imprimir_no_console(mensagem: EmailMessage) -> None:
     if mensagem["Cc"]:
         print(f"Cc:      {mensagem['Cc']}")
     print(f"Assunto: {mensagem['Subject']}\n")
-    print(mensagem.get_content())
+    parte_texto = mensagem.get_body(preferencelist=("plain",))
+    print(parte_texto.get_content())
+    if mensagem.get_body(preferencelist=("html",)) is not None:
+        print("(o e-mail também leva uma versão HTML)")
     print(f"{linha}\n")
 
 
@@ -93,6 +106,7 @@ def enviar_email(
     assunto: str,
     corpo: str,
     cc: Optional[List[str]] = None,
+    corpo_html: Optional[str] = None,
 ) -> None:
     """
     Envia um e-mail. Não retorna nada se der certo; lança ErroEnvioEmail se falhar.
@@ -106,30 +120,42 @@ def enviar_email(
 
     if modo == "console":
         remetente = os.getenv("SMTP_REMETENTE") or "nao-configurado@exemplo.com"
-        _imprimir_no_console(montar_mensagem(remetente, destinatario, assunto, corpo, cc))
+        _imprimir_no_console(montar_mensagem(remetente, destinatario, assunto, corpo, cc, corpo_html))
         return
 
     config = _carregar_config_smtp()
     remetente = formataddr((config["nome_remetente"], config["remetente"]))
-    mensagem = montar_mensagem(remetente, destinatario, assunto, corpo, cc)
+    mensagem = montar_mensagem(remetente, destinatario, assunto, corpo, cc, corpo_html)
+
+    for tentativa in range(1, MAX_TENTATIVAS + 1):
+        try:
+            _enviar_via_smtp(config, mensagem)
+            return
+
+        except smtplib.SMTPAuthenticationError as erro:
+            raise ErroEnvioEmail("Falha de login no servidor SMTP (usuário ou senha de app).") from erro
+        except smtplib.SMTPRecipientsRefused as erro:
+            raise ErroEnvioEmail(f"Servidor recusou o destinatário: {destinatario}") from erro
+        except (smtplib.SMTPException, OSError) as erro:
+            # OSError cobre timeout, host inexistente e conexão recusada.
+            if tentativa == MAX_TENTATIVAS:
+                raise ErroEnvioEmail(
+                    f"Erro ao enviar e-mail após {MAX_TENTATIVAS} tentativas: {erro.__class__.__name__}"
+                ) from erro
+            time.sleep(ESPERA_INICIAL_SEGUNDOS * 2 ** (tentativa - 1))  # 1s, 2s
+
+
+def _enviar_via_smtp(config: dict, mensagem: EmailMessage) -> None:
+    """Uma tentativa de envio. Porta 465 usa SSL direto; as outras usam STARTTLS."""
     contexto_ssl = ssl.create_default_context()
 
-    try:
-        if config["porta"] == 465:
-            servidor = smtplib.SMTP_SSL(config["host"], config["porta"], context=contexto_ssl, timeout=20)
-        else:
-            servidor = smtplib.SMTP(config["host"], config["porta"], timeout=20)
+    if config["porta"] == 465:
+        servidor = smtplib.SMTP_SSL(config["host"], config["porta"], context=contexto_ssl, timeout=20)
+    else:
+        servidor = smtplib.SMTP(config["host"], config["porta"], timeout=20)
 
-        with servidor:
-            if config["porta"] != 465:
-                servidor.starttls(context=contexto_ssl)
-            servidor.login(config["usuario"], config["senha"])
-            servidor.send_message(mensagem)
-
-    except smtplib.SMTPAuthenticationError as erro:
-        raise ErroEnvioEmail("Falha de login no servidor SMTP (usuário ou senha de app).") from erro
-    except smtplib.SMTPRecipientsRefused as erro:
-        raise ErroEnvioEmail(f"Servidor recusou o destinatário: {destinatario}") from erro
-    except (smtplib.SMTPException, OSError) as erro:
-        # OSError cobre timeout, host inexistente e conexão recusada.
-        raise ErroEnvioEmail(f"Erro ao enviar e-mail: {erro.__class__.__name__}") from erro
+    with servidor:
+        if config["porta"] != 465:
+            servidor.starttls(context=contexto_ssl)
+        servidor.login(config["usuario"], config["senha"])
+        servidor.send_message(mensagem)

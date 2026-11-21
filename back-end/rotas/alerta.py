@@ -74,6 +74,6 @@ def gerar_preview_minutas(
             })
             continue
 
-        minutas.append(minuta_service.gerar_minuta(alerta))
+        minutas.append(minuta_service.gerar_minuta(alerta, dados.template_customizado))
 
     return {"minutas": minutas, "ignorados": ignorados}
