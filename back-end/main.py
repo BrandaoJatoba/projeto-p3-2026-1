@@ -19,7 +19,8 @@ from rotas import (
     dissertacao, 
     aptidao, 
     historicodisciplina,
-    alerta
+    alerta,
+    historico_alerta,
                    )
 
 app = FastAPI(title="API PPGI")
@@ -63,6 +64,7 @@ app.include_router(dissertacao.router)
 app.include_router(aptidao.router)
 app.include_router(historicodisciplina.router)
 app.include_router(alerta.router)
+app.include_router(historico_alerta.router)
 
 
 
