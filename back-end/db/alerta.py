@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from sqlalchemy import or_
@@ -115,6 +115,8 @@ def criar_historico_alerta(
     status_envio: Union[StatusEnvioAlerta, str] = StatusEnvioAlerta.ENVIADO,
     data_envio: Optional[datetime] = None,
     preencher_cc_automaticamente: bool = True,
+    assunto: Optional[str] = None,
+    corpo_mensagem: Optional[str] = None,
 ) -> models.HistoricoAlertaEnviado:
     """
     Registra um disparo de alerta no histórico.
@@ -167,6 +169,8 @@ def criar_historico_alerta(
             destinatario_email=email_destino,
             emails_cc=cc_final,
             status_envio=status_str,
+            assunto=assunto,
+            corpo_mensagem=corpo_mensagem,
         )
         if data_envio is not None:
             novo_registro.data_envio = data_envio
@@ -225,36 +229,60 @@ def listar_historico_alertas_por_gatilho(
     )
 
 
+# data_envio é gravado em UTC (CURRENT_TIMESTAMP do SQLite). Os filtros por dia
+# usam o dia de Maceió (UTC-3, sem horário de verão desde 2019).
+FUSO_PPGI = timezone(timedelta(hours=-3))
+
+
+def _inicio_do_dia_em_utc(dia: date) -> datetime:
+    """00:00 do dia em Maceió, convertido para UTC sem fuso (mesmo formato do banco)."""
+    local = datetime.combine(dia, time.min, tzinfo=FUSO_PPGI)
+    return local.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 def listar_historico_alertas_filtrados(
     db_connection: Session,
     id_estudante: Optional[int] = None,
     id_gatilho: Optional[int] = None,
     id_tipo_prazo: Optional[int] = None,
     status_envio: Optional[Union[StatusEnvioAlerta, str]] = None,
-    data_inicio: Optional[datetime] = None,
-    data_fim: Optional[datetime] = None,
+    data_inicio: Optional[Union[date, datetime]] = None,
+    data_fim: Optional[Union[date, datetime]] = None,
     busca: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
     ordem_desc: bool = True,
-) -> Tuple[int, List[models.HistoricoAlertaEnviado]]:
+) -> Tuple[int, List[Tuple[models.HistoricoAlertaEnviado, str, str, str]]]:
     """
     Listagem paginada com filtros combináveis para auditoria de alertas enviados.
+
+    Cada item vem enriquecido: (registro, nome_discente, matricula, nome_prazo).
+    `data_inicio`/`data_fim` aceitam data (dia de Maceió, inclusive nas duas
+    pontas) ou data-hora (comparada direto com o valor em UTC do banco).
+
     Retorna (total_sem_paginacao, itens_da_pagina).
     """
-    query = db_connection.query(models.HistoricoAlertaEnviado)
+    Historico = models.HistoricoAlertaEnviado
+    query = (
+        db_connection.query(
+            Historico,
+            models.Estudante.nome_discente,
+            models.Estudante.matricula,
+            models.TipoPrazo.nome_prazo,
+        )
+        .join(models.Estudante, Historico.id_estudante == models.Estudante.id_estudante)
+        .join(models.GatilhoAlerta, Historico.id_gatilho == models.GatilhoAlerta.id_gatilho)
+        .join(models.TipoPrazo, models.GatilhoAlerta.id_tipo_prazo == models.TipoPrazo.id_tipo_prazo)
+    )
 
     if id_estudante is not None:
-        query = query.filter(models.HistoricoAlertaEnviado.id_estudante == id_estudante)
+        query = query.filter(Historico.id_estudante == id_estudante)
 
     if id_gatilho is not None:
-        query = query.filter(models.HistoricoAlertaEnviado.id_gatilho == id_gatilho)
+        query = query.filter(Historico.id_gatilho == id_gatilho)
 
     if id_tipo_prazo is not None:
-        query = query.join(
-            models.GatilhoAlerta,
-            models.HistoricoAlertaEnviado.id_gatilho == models.GatilhoAlerta.id_gatilho,
-        ).filter(models.GatilhoAlerta.id_tipo_prazo == id_tipo_prazo)
+        query = query.filter(models.GatilhoAlerta.id_tipo_prazo == id_tipo_prazo)
 
     if status_envio is not None:
         status_str = (
@@ -262,42 +290,76 @@ def listar_historico_alertas_filtrados(
             if isinstance(status_envio, StatusEnvioAlerta)
             else str(status_envio)
         )
-        query = query.filter(models.HistoricoAlertaEnviado.status_envio == status_str)
+        query = query.filter(Historico.status_envio == status_str)
 
     if data_inicio is not None:
-        query = query.filter(models.HistoricoAlertaEnviado.data_envio >= data_inicio)
+        if not isinstance(data_inicio, datetime):
+            data_inicio = _inicio_do_dia_em_utc(data_inicio)
+        query = query.filter(Historico.data_envio >= data_inicio)
 
     if data_fim is not None:
-        query = query.filter(models.HistoricoAlertaEnviado.data_envio <= data_fim)
+        if isinstance(data_fim, datetime):
+            query = query.filter(Historico.data_envio <= data_fim)
+        else:
+            # Dia inteiro: até antes da meia-noite do dia seguinte.
+            limite = _inicio_do_dia_em_utc(data_fim + timedelta(days=1))
+            query = query.filter(Historico.data_envio < limite)
 
     if busca:
         termo = f"%{busca.strip()}%"
-        query = query.join(
-            models.Estudante,
-            models.HistoricoAlertaEnviado.id_estudante == models.Estudante.id_estudante,
-        ).filter(
+        query = query.filter(
             or_(
                 models.Estudante.nome_discente.ilike(termo),
                 models.Estudante.matricula.ilike(termo),
-                models.HistoricoAlertaEnviado.destinatario_email.ilike(termo),
-                models.HistoricoAlertaEnviado.emails_cc.ilike(termo),
+                Historico.destinatario_email.ilike(termo),
+                Historico.emails_cc.ilike(termo),
             )
         )
 
     if ordem_desc:
-        query = query.order_by(
-            models.HistoricoAlertaEnviado.data_envio.desc(),
-            models.HistoricoAlertaEnviado.id_historico_alerta.desc(),
-        )
+        query = query.order_by(Historico.data_envio.desc(), Historico.id_historico_alerta.desc())
     else:
-        query = query.order_by(
-            models.HistoricoAlertaEnviado.data_envio.asc(),
-            models.HistoricoAlertaEnviado.id_historico_alerta.asc(),
-        )
+        query = query.order_by(Historico.data_envio.asc(), Historico.id_historico_alerta.asc())
 
     total = query.count()
     itens = query.offset(skip).limit(limit).all()
     return total, itens
+
+
+def listar_orientadores_do_estudante(
+    db_connection: Session,
+    id_estudante: int,
+) -> List[models.EstudanteOrientador]:
+    """Vínculos de orientação do discente (principal primeiro), com o professor carregado."""
+    vinculos = (
+        db_connection.query(models.EstudanteOrientador)
+        .options(selectinload(models.EstudanteOrientador.professor))
+        .filter(models.EstudanteOrientador.id_estudante == id_estudante)
+        .all()
+    )
+    return sorted(
+        (v for v in vinculos if v.professor is not None),
+        key=lambda v: (
+            0 if v.tipo_orientacao == TipoOrientacao.ORIENTADOR.value else 1,
+            v.professor.nome_professor.lower(),
+        ),
+    )
+
+
+def buscar_estudante(db_connection: Session, id_estudante: int) -> Optional[models.Estudante]:
+    return (
+        db_connection.query(models.Estudante)
+        .filter(models.Estudante.id_estudante == id_estudante)
+        .first()
+    )
+
+
+def buscar_gatilho(db_connection: Session, id_gatilho: int) -> Optional[models.GatilhoAlerta]:
+    return (
+        db_connection.query(models.GatilhoAlerta)
+        .filter(models.GatilhoAlerta.id_gatilho == id_gatilho)
+        .first()
+    )
 
 
 # ==========================================================================
@@ -313,7 +375,10 @@ def atualizar_historico_alerta(
     Atualiza campos mutáveis do registro de histórico (ex.: reprocessamento de
     um envio que estava com status 'FALHA' para 'ENVIADO').
     """
-    campos_permitidos = {"destinatario_email", "emails_cc", "status_envio", "data_envio"}
+    campos_permitidos = {
+        "destinatario_email", "emails_cc", "status_envio", "data_envio",
+        "assunto", "corpo_mensagem",
+    }
 
     try:
         for key, value in updates.items():
@@ -467,3 +532,19 @@ def mapear_defesas_atuais(
         .all()
     )
     return {id_estudante: defesa for id_estudante, defesa in linhas}
+
+
+def mapear_titulos_dissertacao(
+    db_connection: Session,
+    ids_estudantes: List[int],
+) -> Dict[int, Optional[str]]:
+    """{id_estudante: título da dissertação} (None se o título não foi preenchido)."""
+    if not ids_estudantes:
+        return {}
+
+    linhas = (
+        db_connection.query(models.Dissertacao.id_estudante, models.Dissertacao.titulo)
+        .filter(models.Dissertacao.id_estudante.in_(ids_estudantes))
+        .all()
+    )
+    return {id_estudante: titulo for id_estudante, titulo in linhas}

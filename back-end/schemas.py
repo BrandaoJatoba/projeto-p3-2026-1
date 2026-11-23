@@ -133,6 +133,8 @@ class HistoricoAlertaEnviadoResponse(BaseModel):
     destinatario_email: str
     emails_cc: Optional[str] = None
     status_envio: enumStatus.StatusEnvioAlerta
+    assunto: Optional[str] = None
+    corpo_mensagem: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -142,6 +144,76 @@ class HistoricoAlertaPaginado(BaseModel):
     skip: int
     limit: int
     itens: List[HistoricoAlertaEnviadoResponse]
+
+
+class HistoricoAlertaDetalhado(HistoricoAlertaEnviadoResponse):
+    """Registro do histórico enriquecido para a tela de auditoria."""
+    nome_discente: str
+    matricula: str
+    nome_prazo: str
+
+
+class HistoricoAlertaDetalhadoPaginado(BaseModel):
+    total: int
+    skip: int
+    limit: int
+    itens: List[HistoricoAlertaDetalhado]
+
+
+# ==========================================
+# SCHEMAS DE DISPARO DE ALERTAS
+# ==========================================
+
+class AjusteCcDisparo(BaseModel):
+    """Ajustes opcionais da Secretaria nos destinatários em cópia (CC)."""
+    cc_adicionais: Optional[List[EmailStr]] = Field(
+        None, description="E-mails extras em cópia, além dos orientadores."
+    )
+    ignorar_cc_ids: Optional[List[int]] = Field(
+        None,
+        description="id_professor dos orientadores/coorientadores que NÃO vão em cópia.",
+    )
+
+
+class DisparoIndividualRequest(AjusteCcDisparo):
+    id_estudante: int = Field(..., gt=0)
+    id_gatilho: int = Field(..., gt=0)
+    assunto: str = Field(..., min_length=1, max_length=255)
+    corpo_mensagem: str = Field(..., min_length=1)
+    email_destino: Optional[EmailStr] = Field(
+        None, description="Sobrescreve o e-mail do discente (padrão: Estudante.email)."
+    )
+
+
+class ItemDisparoLote(AjusteCcDisparo):
+    id_estudante: int = Field(..., gt=0)
+    id_gatilho: int = Field(..., gt=0)
+    assunto: Optional[str] = Field(None, max_length=255)
+    corpo_mensagem: Optional[str] = None
+
+
+class DisparoLoteRequest(BaseModel):
+    itens: List[ItemDisparoLote] = Field(..., min_length=1)
+    template_global_override: Optional[str] = Field(
+        None,
+        description=(
+            "Texto usado no lugar do template do gatilho para os itens que não "
+            "trazem assunto/corpo próprios."
+        ),
+    )
+
+
+class ItemDisparoRecusado(BaseModel):
+    id_estudante: int
+    id_gatilho: int
+    motivo: str
+
+
+class DisparoLoteResponse(BaseModel):
+    status: str = "PROCESSANDO"
+    itens_aceitos: int
+    recusados: List[ItemDisparoRecusado]
+
 
 # ==========================================
 # SCHEMAS DO MOTOR DE ALERTAS (PENDENTES)
@@ -170,6 +242,46 @@ class AlertaPendenteResponse(BaseModel):
     urgencia: str  # CRITICO | ATENCAO | PREVENTIVO
     orientadores: List[OrientadorAlerta]
     orientador_sem_email: bool
+
+# ==========================================
+# SCHEMAS DE MINUTAS DE E-MAIL
+# ==========================================
+
+class MinutaItemRequest(BaseModel):
+    """Um alerta pendente selecionado na tela (par aluno + gatilho)."""
+    id_estudante: int = Field(..., gt=0)
+    id_gatilho: int = Field(..., gt=0)
+
+
+class MinutaPreviewRequest(BaseModel):
+    itens: List[MinutaItemRequest] = Field(..., min_length=1)
+    template_customizado: Optional[str] = Field(
+        None,
+        description="Texto para testar no lugar do template do gatilho (vale para todos os itens).",
+    )
+
+
+class MinutaResponse(BaseModel):
+    id_estudante: int
+    id_gatilho: int
+    nome_discente: str
+    destinatario: Optional[str] = None
+    cc: List[str]
+    assunto: str
+    corpo: str
+    avisos: List[str]
+    destinatarios_cc: List[OrientadorAlerta] = []
+    corpo_html: str
+
+class MinutaIgnorada(BaseModel):
+    id_estudante: int
+    id_gatilho: int
+    motivo: str
+
+
+class MinutaPreviewResponse(BaseModel):
+    minutas: List[MinutaResponse]
+    ignorados: List[MinutaIgnorada]
     
 # ==========================================
 # SCHEMAS DE DISCIPLINA
@@ -728,4 +840,3 @@ class StatusDefesaResponse(BaseModel):
     detalhe_creditos: DetalheCreditos
     requisitos: RequisitosDefesa
     pendencias_detalhadas: List[str]
-

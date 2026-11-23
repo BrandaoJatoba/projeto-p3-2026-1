@@ -174,6 +174,9 @@ class HistoricoAlertaEnviado(Base):
     destinatario_email = Column(String(100), nullable=False)
     emails_cc = Column(Text, nullable=True)
     status_envio = Column(String(20), default="ENVIADO")
+    # Texto efetivamente enviado (permite reenviar a mesma mensagem e auditar o conteúdo).
+    assunto = Column(String(255), nullable=True)
+    corpo_mensagem = Column(Text, nullable=True)
 
 # -- Discentes -- #
 
