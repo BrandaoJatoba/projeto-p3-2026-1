@@ -6,7 +6,8 @@ import BaseButton from '../components/BaseButton.vue'
 import {
   buscarAlertasPendentes,
   buscarHistoricoAlertas,
-  historicoDeExemplo,
+  contarEnviadosHoje,
+  reenviarAlerta,
 } from '../services/alertas'
 
 // Níveis de urgência, iguais aos do back (services/alerta_scanner_service.py):
@@ -48,6 +49,8 @@ const nivelPorUrgencia = {
 
 const pendentes = ref([])
 const historico = ref([])
+const historicoTotal = ref(0)
+const enviadosHoje = ref(0)
 const carregando = ref(true)
 const erro = ref('')
 const abaAtiva = ref('critico')
@@ -59,6 +62,13 @@ const filtroBolsista = ref('')
 
 // Seleção (guarda as chaves dos alertas marcados, em qualquer aba)
 const selecionados = ref([])
+
+// Reenvio: guarda quais envios estão sendo reenviados (para desativar o botão)
+const reenviando = ref({})
+
+// Aviso que aparece no canto da tela por alguns segundos
+const aviso = ref(null)
+let temporizadorAviso = null
 
 // Modal provisório: será trocado pelo modal da PAP-49 (edição das minutas)
 const modalMinutasAberto = ref(false)
@@ -106,29 +116,27 @@ function iniciais(nome) {
   return `${primeira}${ultima}`.toUpperCase()
 }
 
-function hojeTexto() {
-  const hoje = new Date()
-  const ano = hoje.getFullYear()
-  const mes = String(hoje.getMonth() + 1).padStart(2, '0')
-  const dia = String(hoje.getDate()).padStart(2, '0')
-  return `${ano}-${mes}-${dia}`
-}
-
-function ehHoje(textoDataHora) {
-  return Boolean(textoDataHora) && textoDataHora.slice(0, 10) === hojeTexto()
-}
-
 function formatarData(texto) {
   if (!texto) return '—'
   const [ano, mes, dia] = texto.slice(0, 10).split('-')
   return `${dia}/${mes}/${ano}`
 }
 
-// "2026-11-19T09:17:00" → "19/11/2026 às 09:17"
+// O back grava a hora do envio em UTC, mas sem o fuso no texto ("2026-10-13T08:00:00").
+// O "Z" no final avisa o JavaScript que a hora é UTC; aí ele converte para o fuso do
+// computador. Exemplo: "2026-10-13T08:00:00" → "13/10/2026 às 05:00" (horário de Maceió).
 function formatarDataHora(texto) {
   if (!texto) return '—'
-  const hora = texto.slice(11, 16)
-  return hora ? `${formatarData(texto)} às ${hora}` : formatarData(texto)
+  const jaTemFuso = /(z|[+-]\d{2}:?\d{2})$/i.test(texto)
+  const data = new Date(jaTemFuso ? texto : `${texto}Z`)
+  if (Number.isNaN(data.getTime())) return '—'
+
+  const dia = String(data.getDate()).padStart(2, '0')
+  const mes = String(data.getMonth() + 1).padStart(2, '0')
+  const ano = data.getFullYear()
+  const hora = String(data.getHours()).padStart(2, '0')
+  const minuto = String(data.getMinutes()).padStart(2, '0')
+  return `${dia}/${mes}/${ano} às ${hora}:${minuto}`
 }
 
 function textoDias(dias) {
@@ -175,6 +183,14 @@ function agruparPorNivel(lista) {
   return grupos
 }
 
+function mostrarAviso(texto, tipo) {
+  aviso.value = { texto, tipo }
+  clearTimeout(temporizadorAviso)
+  temporizadorAviso = setTimeout(() => {
+    aviso.value = null
+  }, 3000)
+}
+
 // ---------- Dados calculados: pendentes ----------
 
 // Tipos de prazo que aparecem nos alertas (para o filtro).
@@ -213,10 +229,6 @@ const filtradosPorNivel = computed(() => agruparPorNivel(pendentesFiltrados.valu
 const alertasDaAba = computed(() => filtradosPorNivel.value[abaAtiva.value] || [])
 
 // ---------- Dados calculados: histórico ----------
-
-const enviadosHoje = computed(
-  () => historico.value.filter((h) => h.status === 'ENVIADO' && ehHoje(h.data_envio)).length,
-)
 
 // No histórico, só a busca vale (nome, matrícula ou e-mail). Mais recente primeiro.
 const historicoFiltrado = computed(() => {
@@ -291,16 +303,52 @@ function limparFiltros() {
   filtroBolsista.value = ''
 }
 
+// Atualiza os pendentes sem mostrar "Carregando..." (usado depois de um reenvio).
+async function recarregarPendentesEmSilencio() {
+  try {
+    pendentes.value = await buscarAlertasPendentes()
+  } catch {
+    // Se não der, a lista antiga continua na tela.
+  }
+}
+
+async function reenviar(envio) {
+  const id = envio.id_historico_alerta
+  reenviando.value[id] = true
+  try {
+    const atualizado = await reenviarAlerta(id)
+    // O back devolve o registro sem os nomes: junta com a linha que já estava na tela.
+    historico.value = historico.value.map((h) =>
+      h.id_historico_alerta === id ? { ...h, ...atualizado } : h,
+    )
+
+    if (atualizado.status_envio === 'ENVIADO') {
+      enviadosHoje.value += 1
+      mostrarAviso(`Alerta reenviado para ${envio.nome_discente}.`, 'sucesso')
+      recarregarPendentesEmSilencio()
+    } else {
+      mostrarAviso('O envio falhou de novo. Tente mais tarde.', 'erro')
+    }
+  } catch (e) {
+    mostrarAviso(e?.message || 'Não foi possível reenviar o alerta. Tente de novo.', 'erro')
+  } finally {
+    reenviando.value[id] = false
+  }
+}
+
 async function carregar() {
   carregando.value = true
   erro.value = ''
   try {
-    const [listaPendentes, listaHistorico] = await Promise.all([
+    const [listaPendentes, resultadoHistorico, quantidadeHoje] = await Promise.all([
       buscarAlertasPendentes(),
       buscarHistoricoAlertas(),
+      contarEnviadosHoje(),
     ])
     pendentes.value = listaPendentes
-    historico.value = listaHistorico
+    historico.value = resultadoHistorico.itens
+    historicoTotal.value = resultadoHistorico.total
+    enviadosHoje.value = quantidadeHoje
     // Tira da seleção os alertas que não existem mais (por exemplo, já enviados).
     const chavesExistentes = listaPendentes.map(chaveAlerta)
     selecionados.value = selecionados.value.filter((c) => chavesExistentes.includes(c))
@@ -316,21 +364,26 @@ onMounted(carregar)
 
 <template>
   <DefaultLayout>
+    <!-- Aviso no canto da tela (some depois de 3 segundos) -->
+    <div
+      v-if="aviso"
+      class="fixed top-20 right-6 z-50 px-4 py-3 rounded-lg border text-sm shadow-lg"
+      :class="
+        aviso.tipo === 'sucesso'
+          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          : 'bg-rose-50 border-rose-200 text-rose-700'
+      "
+      role="status"
+    >
+      {{ aviso.texto }}
+    </div>
+
     <div class="mb-8 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
       <h2 class="text-2xl font-bold text-gray-900">Central de Alertas</h2>
       <p class="text-sm text-gray-500 mt-1">
         Prazos que precisam de aviso, separados por urgência.
       </p>
     </div>
-
-    <p
-      v-if="historicoDeExemplo"
-      class="mb-6 px-4 py-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-sm"
-    >
-      <strong>Dados de exemplo no histórico:</strong> a aba Histórico e o card "Enviados hoje" ainda
-      mostram envios fictícios, porque essa rota do back-end ainda não está pronta. Os alertas
-      pendentes já são reais.
-    </p>
 
     <p
       v-if="erro"
@@ -494,13 +547,14 @@ onMounted(carregar)
                 <th class="px-4 py-3 font-semibold">Discente</th>
                 <th class="px-4 py-3 font-semibold">Prazo</th>
                 <th class="px-4 py-3 font-semibold">Destinatários</th>
-                <th class="px-6 py-3 font-semibold">Status</th>
+                <th class="px-4 py-3 font-semibold">Status</th>
+                <th class="px-6 py-3 font-semibold text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="envio in historicoFiltrado"
-                :key="envio.id_historico"
+                :key="envio.id_historico_alerta"
                 class="border-t border-gray-200 align-middle hover:bg-gray-50 transition-colors"
               >
                 <td class="px-6 py-4 text-gray-700 whitespace-nowrap">
@@ -530,25 +584,40 @@ onMounted(carregar)
                     Cc: {{ envio.emails_cc }}
                   </p>
                 </td>
-                <td class="px-6 py-4">
+                <td class="px-4 py-4">
                   <span
                     class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
                     :class="
-                      envio.status === 'ENVIADO'
+                      envio.status_envio === 'ENVIADO'
                         ? 'bg-emerald-100 text-emerald-800'
                         : 'bg-rose-100 text-rose-700'
                     "
                   >
-                    {{ envio.status === 'ENVIADO' ? 'Enviado' : 'Falha' }}
+                    {{ envio.status_envio === 'ENVIADO' ? 'Enviado' : 'Falha' }}
                   </span>
-                  <p v-if="envio.mensagem_erro" class="mt-1 text-xs text-rose-600">
-                    {{ envio.mensagem_erro }}
-                  </p>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <button
+                    v-if="envio.status_envio === 'FALHA'"
+                    type="button"
+                    class="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-md hover:bg-blue-50 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    :disabled="reenviando[envio.id_historico_alerta]"
+                    @click="reenviar(envio)"
+                  >
+                    {{ reenviando[envio.id_historico_alerta] ? 'Reenviando...' : 'Reenviar' }}
+                  </button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <p
+          v-if="historicoTotal > historico.length"
+          class="px-6 py-3 text-xs text-gray-500 border-t border-gray-200"
+        >
+          Mostrando os {{ historico.length }} envios mais recentes de {{ historicoTotal }}.
+        </p>
       </template>
 
       <!-- ===== Abas de pendentes ===== -->
