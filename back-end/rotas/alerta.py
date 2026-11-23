@@ -96,13 +96,14 @@ def disparar_alerta_individual(
             cc_adicionais=dados.cc_adicionais,
             ignorar_cc_ids=dados.ignorar_cc_ids,
         )
-    except RecursoNaoEncontrado as erro:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(erro))
-    except ConflitoDisparo as erro:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(erro))
-    except DisparoInvalido as erro:
+    except RecursoNaoEncontrado:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recurso não encontrado.")
+    except ConflitoDisparo:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Conflito no disparo do alerta.")
+    except DisparoInvalido:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Dados inválidos para disparo do alerta.",
         )
 
 
