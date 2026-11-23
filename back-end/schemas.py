@@ -159,6 +159,7 @@ class HistoricoAlertaDetalhadoPaginado(BaseModel):
     limit: int
     itens: List[HistoricoAlertaDetalhado]
 
+
 # ==========================================
 # SCHEMAS DE DISPARO DE ALERTAS
 # ==========================================
@@ -169,7 +170,8 @@ class AjusteCcDisparo(BaseModel):
         None, description="E-mails extras em cópia, além dos orientadores."
     )
     ignorar_cc_ids: Optional[List[int]] = Field(
-        None, description="id_professor dos orientadores/coorientadores que NÃO vão em cópia."
+        None,
+        description="id_professor dos orientadores/coorientadores que NÃO vão em cópia.",
     )
 
 
@@ -212,6 +214,7 @@ class DisparoLoteResponse(BaseModel):
     itens_aceitos: int
     recusados: List[ItemDisparoRecusado]
 
+
 # ==========================================
 # SCHEMAS DO MOTOR DE ALERTAS (PENDENTES)
 # ==========================================
@@ -239,8 +242,6 @@ class AlertaPendenteResponse(BaseModel):
     urgencia: str  # CRITICO | ATENCAO | PREVENTIVO
     orientadores: List[OrientadorAlerta]
     orientador_sem_email: bool
-<<<<<<< Updated upstream
-=======
 
 # ==========================================
 # SCHEMAS DE MINUTAS DE E-MAIL
@@ -281,7 +282,6 @@ class MinutaIgnorada(BaseModel):
 class MinutaPreviewResponse(BaseModel):
     minutas: List[MinutaResponse]
     ignorados: List[MinutaIgnorada]
->>>>>>> Stashed changes
     
 # ==========================================
 # SCHEMAS DE DISCIPLINA
@@ -840,4 +840,3 @@ class StatusDefesaResponse(BaseModel):
     detalhe_creditos: DetalheCreditos
     requisitos: RequisitosDefesa
     pendencias_detalhadas: List[str]
-

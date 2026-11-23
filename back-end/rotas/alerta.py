@@ -3,16 +3,11 @@ Rotas do Gerador de Alertas.
 
 - GET /alertas/pendentes: roda o motor de varredura e lista os alertas a enviar.
   Só consulta: não envia e-mail nem grava histórico.
-<<<<<<< Updated upstream
-=======
-
 - POST /alertas/minutas/preview: monta o e-mail de cada alerta selecionado para
   a Secretaria revisar. Também não envia nem grava nada.
-
 - POST /alertas/disparar/individual: envia um alerta revisado e grava o histórico.
 - POST /alertas/disparar/lote: aceita o lote, responde 202 e envia em background;
   cada item gera seu próprio registro (ENVIADO ou FALHA).
->>>>>>> Stashed changes
 """
 
 from datetime import date
@@ -22,9 +17,6 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 from sqlalchemy.orm import Session
 
 from db.database import get_db
-<<<<<<< Updated upstream
-from schemas import AlertaPendenteResponse
-=======
 from schemas import (
     AlertaPendenteResponse,
     DisparoIndividualRequest,
@@ -34,15 +26,13 @@ from schemas import (
     MinutaPreviewRequest,
     MinutaPreviewResponse,
 )
+from security import autorizar
 from services import alerta_disparo_service, alerta_scanner_service, minuta_service
 from services.alerta_disparo_service import (
     ConflitoDisparo,
     DisparoInvalido,
     RecursoNaoEncontrado,
 )
->>>>>>> Stashed changes
-from security import autorizar
-from services import alerta_scanner_service
 
 PERFIS_GESTAO = ["SECRETARIA", "COORDENACAO", "ADMIN"]
 
@@ -58,11 +48,9 @@ def listar_alertas_pendentes(
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
     """Lista os alertas pendentes, do mais urgente para o menos urgente."""
-<<<<<<< Updated upstream
-    return alerta_scanner_service.listar_alertas_pendentes(db_connection, hoje=data_referencia)
-=======
-    return alerta_scanner_service.listar_alertas_pendentes(db_connection, hoje=data_referencia)
-
+    return alerta_scanner_service.listar_alertas_pendentes(
+        db_connection, hoje=data_referencia
+    )
 
 
 @router.post("/minutas/preview", response_model=MinutaPreviewResponse)
@@ -96,12 +84,7 @@ def disparar_alerta_individual(
     db_connection: Session = Depends(get_db),
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
-    """
-    Envia um alerta revisado e devolve o registro criado no histórico.
-
-    O resultado do envio vem em `status_envio` (ENVIADO ou FALHA): a falha de
-    envio também é registrada, então a resposta continua sendo 201.
-    """
+    """Envia um alerta revisado e devolve o registro criado no histórico."""
     try:
         return alerta_disparo_service.disparar_individual(
             db_connection,
@@ -118,7 +101,9 @@ def disparar_alerta_individual(
     except ConflitoDisparo as erro:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(erro))
     except DisparoInvalido as erro:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)
+        )
 
 
 @router.post(
@@ -132,20 +117,21 @@ def disparar_alertas_em_lote(
     db_connection: Session = Depends(get_db),
     usuario=Depends(autorizar(PERFIS_GESTAO)),
 ):
-    """
-    Valida o lote, agenda o envio em background e responde na hora (202).
-
-    Itens inválidos (inexistentes, repetidos, já enviados, discente sem e-mail)
-    voltam em `recusados` e não são enviados. O resultado de cada envio aceito
-    aparece depois em GET /historico-alertas.
-    """
+    """Valida o lote e agenda o envio em background."""
     itens = [item.model_dump() for item in dados.itens]
-    aceitos, recusados = alerta_disparo_service.validar_itens_lote(db_connection, itens)
+    aceitos, recusados = alerta_disparo_service.validar_itens_lote(
+        db_connection, itens
+    )
 
     if aceitos:
         background_tasks.add_task(
-            alerta_disparo_service.processar_lote, aceitos, dados.template_global_override
+            alerta_disparo_service.processar_lote,
+            aceitos,
+            dados.template_global_override,
         )
 
-    return {"status": "PROCESSANDO", "itens_aceitos": len(aceitos), "recusados": recusados}
->>>>>>> Stashed changes
+    return {
+        "status": "PROCESSANDO",
+        "itens_aceitos": len(aceitos),
+        "recusados": recusados,
+    }

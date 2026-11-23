@@ -532,3 +532,19 @@ def mapear_defesas_atuais(
         .all()
     )
     return {id_estudante: defesa for id_estudante, defesa in linhas}
+
+
+def mapear_titulos_dissertacao(
+    db_connection: Session,
+    ids_estudantes: List[int],
+) -> Dict[int, Optional[str]]:
+    """{id_estudante: título da dissertação} (None se o título não foi preenchido)."""
+    if not ids_estudantes:
+        return {}
+
+    linhas = (
+        db_connection.query(models.Dissertacao.id_estudante, models.Dissertacao.titulo)
+        .filter(models.Dissertacao.id_estudante.in_(ids_estudantes))
+        .all()
+    )
+    return {id_estudante: titulo for id_estudante, titulo in linhas}
