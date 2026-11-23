@@ -17,17 +17,9 @@ Variáveis aceitas no template (chave simples):
     {lista_orientadores}  todos com o papel: "Ana (Orientador), João (Coorientador)"
                           ou "Não informado"
     {titulo_dissertacao}  título da dissertação ou "Não informado"
-
-Obs.: o card pedia "Vencido há X dias" dentro de {dias_restantes}. Optamos por
-manter {dias_restantes} sempre numérico e criar {situacao_prazo}, porque o texto do
-template já traz palavras em volta da variável ("Faltam {dias_restantes} dias").
-
-A substituição usa lista branca: só as variáveis acima são trocadas. Qualquer
-outra coisa entre chaves fica como está e gera um aviso. Não usamos str.format
-porque ele quebra com chaves soltas no texto e permite acessar atributos internos
-de objetos Python a partir do template.
 """
 
+import re
 import html
 from datetime import date
 from typing import List, Optional, Tuple
@@ -76,7 +68,6 @@ def _juntar_nomes(nomes: List[str]) -> str:
     if len(nomes) == 1:
         return nomes[0]
     return ", ".join(nomes[:-1]) + " e " + nomes[-1]
-
 
 
 def montar_contexto(alerta: dict) -> dict[str, str]:
@@ -206,11 +197,13 @@ def gerar_minuta(alerta: dict, template: Optional[str] = None) -> dict:
         "nome_discente": alerta["nome_discente"],
         "destinatario": alerta.get("email"),
         "cc": cc,
+        "destinatarios_cc": [o for o in orientadores if o.get("email")],
         "assunto": montar_assunto(alerta),
         "corpo": corpo,
         "corpo_html": texto_para_html(corpo),
         "avisos": avisos,
     }
+
 
 def gerar_minutas_selecionadas(
     db_connection: Session,
