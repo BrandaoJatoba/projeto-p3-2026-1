@@ -218,8 +218,8 @@ def validar_itens_lote(
 
         try:
             estudante, _ = _carregar_par(db_connection, *par)
-        except RecursoNaoEncontrado as erro:
-            recusar(str(erro))
+        except RecursoNaoEncontrado:
+            recusar("Estudante ou gatilho inexistente.")
             continue
 
         if crud_alerta.ja_enviou_alerta(db_connection, *par):
