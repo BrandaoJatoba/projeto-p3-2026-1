@@ -10,6 +10,7 @@ import SuspensoesView from '../views/SuspensoesView.vue'
 import ProfessoresView from '../views/ProfessoresView.vue'
 import DisciplinasView from '../views/DisciplinasView.vue'
 import AlertasView from '../views/AlertasView.vue'
+import CentralAlertasView from '../views/CentralAlertasView.vue'
 import EstudantesView from '../views/EstudantesView.vue'
 import EstudanteDetalheView from '../views/EstudanteDetalheView.vue'
 
@@ -24,6 +25,12 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: DashboardView,
+      meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
+    },
+    {
+      path: '/central-alertas',
+      name: 'central-alertas',
+      component: CentralAlertasView,
       meta: { perfisPermitidos: ['SECRETARIA', 'COORDENACAO', 'ADMIN'] },
     },
     {
@@ -91,8 +98,8 @@ router.beforeEach((to, from) => {
 
   // ✅ ADICIONADO: Resgata a lista de perfis do usuário logado na store
   const perfisUsuario = authStore.usuario?.perfis || []
-  
-  const temPermissao = perfisUsuario.some(perfil => perfisPermitidos.includes(perfil))
+
+  const temPermissao = perfisUsuario.some((perfil) => perfisPermitidos.includes(perfil))
   if (!temPermissao) {
     return { name: 'acesso-negado' } // autenticado, mas sem permissão → avisa
   }
