@@ -1,8 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
-import BaseModal from '../components/BaseModal.vue'
-import BaseButton from '../components/BaseButton.vue'
+import ModalMinutas from '../components/alertas/ModalMinutas.vue'
 import {
   buscarAlertasPendentes,
   buscarHistoricoAlertas,
@@ -70,7 +69,7 @@ const reenviando = ref({})
 const aviso = ref(null)
 let temporizadorAviso = null
 
-// Modal provisório: será trocado pelo modal da PAP-49 (edição das minutas)
+// Modal de revisão e envio das minutas (um aluno ou vários)
 const modalMinutasAberto = ref(false)
 const alertasParaMinuta = ref([])
 
@@ -295,6 +294,29 @@ function abrirMinutas(alertas) {
 
 function fecharMinutas() {
   modalMinutasAberto.value = false
+}
+
+// Chamado pelo modal depois de um envio individual: avisa o resultado e recarrega a Central
+// (o alerta enviado sai dos pendentes e aparece no histórico).
+function aoEnviar({ registro, nome }) {
+  modalMinutasAberto.value = false
+  if (registro?.status_envio === 'ENVIADO') {
+    mostrarAviso(`E-mail enviado para ${nome}.`, 'sucesso')
+  } else {
+    mostrarAviso(`O envio para ${nome} falhou. Ele ficou no histórico para reenviar.`, 'erro')
+  }
+  carregar()
+}
+
+// Chamado pelo modal quando o envio em lote termina (no botão Concluir).
+function aoEnviarLote({ enviados, falhas, semResposta }) {
+  modalMinutasAberto.value = false
+  limparSelecao()
+  const partes = [`${enviados} enviado(s)`]
+  if (falhas) partes.push(`${falhas} falha(s)`)
+  if (semResposta) partes.push(`${semResposta} ainda em processamento`)
+  mostrarAviso(`Envio em lote: ${partes.join(', ')}.`, falhas || semResposta ? 'erro' : 'sucesso')
+  carregar()
 }
 
 function limparFiltros() {
@@ -762,33 +784,13 @@ onMounted(carregar)
       </button>
     </div>
 
-    <!-- Modal PROVISÓRIO: será substituído pelo modal de edição das minutas (PAP-49) -->
-    <BaseModal
+    <!-- Revisão e envio das minutas (1 aluno = individual; vários = lote) -->
+    <ModalMinutas
       :aberto="modalMinutasAberto"
-      titulo="Revisar e enviar"
-      larguraMaxima="560px"
+      :alertas="alertasParaMinuta"
       @fechar="fecharMinutas"
-    >
-      <p class="text-sm text-gray-600 mb-4">
-        A edição das minutas e o envio dos e-mails entram na próxima etapa (PAP-49). Por enquanto,
-        esta janela mostra só os alunos escolhidos.
-      </p>
-      <ul class="divide-y divide-gray-100 border border-gray-200 rounded-lg">
-        <li
-          v-for="alerta in alertasParaMinuta"
-          :key="chaveAlerta(alerta)"
-          class="px-4 py-2 text-sm flex flex-wrap justify-between gap-2"
-        >
-          <span class="font-medium text-gray-900">{{ alerta.nome_discente }}</span>
-          <span class="text-gray-500">
-            {{ alerta.nome_prazo }} · {{ textoDias(alerta.dias_restantes) }}
-          </span>
-        </li>
-      </ul>
-
-      <template #rodape>
-        <BaseButton type="button" variant="secondary" @click="fecharMinutas">Fechar</BaseButton>
-      </template>
-    </BaseModal>
+      @enviado="aoEnviar"
+      @lote-enviado="aoEnviarLote"
+    />
   </DefaultLayout>
 </template>

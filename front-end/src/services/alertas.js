@@ -1,5 +1,9 @@
 // Funções que conversam com o back-end da Central de Alertas.
 // - GET  /alertas/pendentes                    → alertas a enviar
+// - POST /alertas/minutas/preview              → monta os e-mails (não envia nada)
+// - POST /alertas/disparar/individual          → envia um e-mail e grava no histórico
+// - POST /alertas/disparar/lote                → aceita o lote e envia depois (em segundo plano)
+// - GET  /configuracoes/gatilhos/{id}          → gatilho com o modelo do texto (template)
 // - GET  /historico-alertas                    → envios já feitos (paginado)
 // - POST /historico-alertas/{id}/reenviar      → reenvia um envio que falhou
 import { useAuthStore } from '../stores/auth'
@@ -34,10 +38,21 @@ async function lerDetalhe(resposta) {
 }
 
 // Faz a chamada e transforma qualquer problema numa mensagem em português.
-async function requisitar(caminho, { metodo = 'GET', mensagemPadrao }) {
+// - corpo: dados enviados em JSON (só nas chamadas POST/PUT).
+// - mensagensPorStatus: textos próprios para alguns códigos, ex.: { 409: '...' }.
+async function requisitar(
+  caminho,
+  { metodo = 'GET', corpo, mensagemPadrao, mensagensPorStatus = {} },
+) {
+  const opcoes = { method: metodo, headers: cabecalho() }
+  if (corpo !== undefined) {
+    opcoes.headers = { ...opcoes.headers, 'Content-Type': 'application/json' }
+    opcoes.body = JSON.stringify(corpo)
+  }
+
   let resposta
   try {
-    resposta = await fetch(`${api}${caminho}`, { method: metodo, headers: cabecalho() })
+    resposta = await fetch(`${api}${caminho}`, opcoes)
   } catch {
     throw new Error('Não foi possível conectar ao servidor.')
   }
@@ -47,12 +62,17 @@ async function requisitar(caminho, { metodo = 'GET', mensagemPadrao }) {
     if (resposta.status === 403) {
       throw new Error('Você não tem permissão para usar a Central de Alertas.')
     }
+    if (mensagensPorStatus[resposta.status]) {
+      throw new Error(mensagensPorStatus[resposta.status])
+    }
     const detalhe = await lerDetalhe(resposta)
     throw new Error(detalhe || mensagemPadrao)
   }
 
   return resposta.json()
 }
+
+// ---------- Pendentes ----------
 
 // dataReferencia (opcional, "AAAA-MM-DD"): calcula os alertas como se fosse outro dia.
 // Serve para testes. A tela chama sem data, e aí o back usa o dia de hoje.
@@ -64,6 +84,71 @@ export async function buscarAlertasPendentes(dataReferencia) {
   return Array.isArray(dados) ? dados : []
 }
 
+// ---------- Minutas e envio ----------
+
+// Gatilho com o modelo do texto (mensagem_template), que pode vir vazio.
+export async function buscarGatilho(idGatilho) {
+  return requisitar(`/configuracoes/gatilhos/${idGatilho}`, {
+    mensagemPadrao: 'Não foi possível carregar o modelo do e-mail.',
+  })
+}
+
+// itens: [{ id_estudante, id_gatilho }]
+// templateCustomizado (opcional): o miolo do e-mail com variáveis, ex.: "Seu prazo de {nome_prazo}...".
+// O back acrescenta a saudação e a assinatura e preenche as variáveis. Não envia nem grava nada.
+// Devolve { minutas: [...], ignorados: [...] }.
+export async function gerarPreviewMinutas(itens, templateCustomizado) {
+  const corpo = {
+    itens: itens.map(({ id_estudante, id_gatilho }) => ({ id_estudante, id_gatilho })),
+  }
+  if (templateCustomizado != null) corpo.template_customizado = templateCustomizado
+
+  const dados = await requisitar('/alertas/minutas/preview', {
+    metodo: 'POST',
+    corpo,
+    mensagemPadrao: 'Não foi possível montar a prévia do e-mail.',
+  })
+  return {
+    minutas: Array.isArray(dados?.minutas) ? dados.minutas : [],
+    ignorados: Array.isArray(dados?.ignorados) ? dados.ignorados : [],
+  }
+}
+
+// dados: { id_estudante, id_gatilho, assunto, corpo_mensagem,
+//          email_destino?, cc_adicionais?, ignorar_cc_ids? }
+// ATENÇÃO: o corpo_mensagem vai exatamente como está. O back NÃO preenche variáveis
+// nem acrescenta saudação, então mande o texto já pronto (o "corpo" do preview).
+// Devolve o registro do histórico, com status_envio ENVIADO ou FALHA.
+export async function dispararIndividual(dados) {
+  return requisitar('/alertas/disparar/individual', {
+    metodo: 'POST',
+    corpo: dados,
+    mensagemPadrao: 'Não foi possível enviar o e-mail.',
+    mensagensPorStatus: {
+      404: 'Discente ou gatilho não encontrado.',
+      409: 'Este alerta já foi enviado para o discente.',
+      422: 'Dados inválidos para o envio. Confira o destinatário e o texto.',
+    },
+  })
+}
+
+// itens: [{ id_estudante, id_gatilho, assunto, corpo_mensagem, cc_adicionais?, ignorar_cc_ids? }]
+// O back responde na hora (202) e envia depois, em segundo plano. Cada item enviado vira
+// um registro no histórico (ENVIADO ou FALHA). O resultado de cada um sai no histórico.
+// Devolve { status, itens_aceitos, recusados: [{ id_estudante, id_gatilho, motivo }] }.
+export async function dispararLote(itens) {
+  return requisitar('/alertas/disparar/lote', {
+    metodo: 'POST',
+    corpo: { itens },
+    mensagemPadrao: 'Não foi possível iniciar o envio em lote.',
+    mensagensPorStatus: {
+      422: 'Dados inválidos para o envio em lote. Confira os assuntos e os textos.',
+    },
+  })
+}
+
+// ---------- Histórico ----------
+
 // Os envios mais recentes primeiro. Devolve a lista e o total que existe no banco.
 export async function buscarHistoricoAlertas() {
   const dados = await requisitar(`/historico-alertas?limit=${LIMITE_HISTORICO}`, {
@@ -73,6 +158,16 @@ export async function buscarHistoricoAlertas() {
     itens: Array.isArray(dados?.itens) ? dados.itens : [],
     total: dados?.total ?? 0,
   }
+}
+
+// Envios de hoje (enviados e falhas). Usado para acompanhar o envio em lote.
+export async function buscarEnviosDeHoje() {
+  const hoje = hojeTexto()
+  const dados = await requisitar(
+    `/historico-alertas?data_inicio=${hoje}&data_fim=${hoje}&limit=${LIMITE_HISTORICO}`,
+    { mensagemPadrao: 'Não foi possível consultar os envios de hoje.' },
+  )
+  return Array.isArray(dados?.itens) ? dados.itens : []
 }
 
 // Só precisa do número: pede 1 item e usa o "total" da resposta.
