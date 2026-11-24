@@ -2,6 +2,7 @@
 // - GET  /alertas/pendentes                    → alertas a enviar
 // - POST /alertas/minutas/preview              → monta os e-mails (não envia nada)
 // - POST /alertas/disparar/individual          → envia um e-mail e grava no histórico
+// - POST /alertas/disparar/lote                → aceita o lote e envia depois (em segundo plano)
 // - GET  /configuracoes/gatilhos/{id}          → gatilho com o modelo do texto (template)
 // - GET  /historico-alertas                    → envios já feitos (paginado)
 // - POST /historico-alertas/{id}/reenviar      → reenvia um envio que falhou
@@ -131,6 +132,21 @@ export async function dispararIndividual(dados) {
   })
 }
 
+// itens: [{ id_estudante, id_gatilho, assunto, corpo_mensagem, cc_adicionais?, ignorar_cc_ids? }]
+// O back responde na hora (202) e envia depois, em segundo plano. Cada item enviado vira
+// um registro no histórico (ENVIADO ou FALHA). O resultado de cada um sai no histórico.
+// Devolve { status, itens_aceitos, recusados: [{ id_estudante, id_gatilho, motivo }] }.
+export async function dispararLote(itens) {
+  return requisitar('/alertas/disparar/lote', {
+    metodo: 'POST',
+    corpo: { itens },
+    mensagemPadrao: 'Não foi possível iniciar o envio em lote.',
+    mensagensPorStatus: {
+      422: 'Dados inválidos para o envio em lote. Confira os assuntos e os textos.',
+    },
+  })
+}
+
 // ---------- Histórico ----------
 
 // Os envios mais recentes primeiro. Devolve a lista e o total que existe no banco.
@@ -142,6 +158,16 @@ export async function buscarHistoricoAlertas() {
     itens: Array.isArray(dados?.itens) ? dados.itens : [],
     total: dados?.total ?? 0,
   }
+}
+
+// Envios de hoje (enviados e falhas). Usado para acompanhar o envio em lote.
+export async function buscarEnviosDeHoje() {
+  const hoje = hojeTexto()
+  const dados = await requisitar(
+    `/historico-alertas?data_inicio=${hoje}&data_fim=${hoje}&limit=${LIMITE_HISTORICO}`,
+    { mensagemPadrao: 'Não foi possível consultar os envios de hoje.' },
+  )
+  return Array.isArray(dados?.itens) ? dados.itens : []
 }
 
 // Só precisa do número: pede 1 item e usa o "total" da resposta.

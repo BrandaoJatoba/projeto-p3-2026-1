@@ -296,7 +296,7 @@ function fecharMinutas() {
   modalMinutasAberto.value = false
 }
 
-// Chamado pelo modal depois de um envio: avisa o resultado e recarrega a Central
+// Chamado pelo modal depois de um envio individual: avisa o resultado e recarrega a Central
 // (o alerta enviado sai dos pendentes e aparece no histórico).
 function aoEnviar({ registro, nome }) {
   modalMinutasAberto.value = false
@@ -305,6 +305,17 @@ function aoEnviar({ registro, nome }) {
   } else {
     mostrarAviso(`O envio para ${nome} falhou. Ele ficou no histórico para reenviar.`, 'erro')
   }
+  carregar()
+}
+
+// Chamado pelo modal quando o envio em lote termina (no botão Concluir).
+function aoEnviarLote({ enviados, falhas, semResposta }) {
+  modalMinutasAberto.value = false
+  limparSelecao()
+  const partes = [`${enviados} enviado(s)`]
+  if (falhas) partes.push(`${falhas} falha(s)`)
+  if (semResposta) partes.push(`${semResposta} ainda em processamento`)
+  mostrarAviso(`Envio em lote: ${partes.join(', ')}.`, falhas || semResposta ? 'erro' : 'sucesso')
   carregar()
 }
 
@@ -779,6 +790,7 @@ onMounted(carregar)
       :alertas="alertasParaMinuta"
       @fechar="fecharMinutas"
       @enviado="aoEnviar"
+      @lote-enviado="aoEnviarLote"
     />
   </DefaultLayout>
 </template>
