@@ -13,6 +13,7 @@ quando falha. Quem chama (o disparo em lote) decide se registra FALHA e segue
 para o próximo aluno.
 """
 
+from logging import config
 import os
 import smtplib
 import ssl
@@ -20,6 +21,7 @@ from email.message import EmailMessage
 from email.utils import formataddr
 from typing import List, Optional
 import time
+import html
 
 MODOS_VALIDOS = ("console", "smtp")
 
@@ -101,6 +103,29 @@ def _imprimir_no_console(mensagem: EmailMessage) -> None:
     print(f"{linha}\n")
 
 
+def _aplicar_redirecionamento(destinatario, cc, assunto, corpo, corpo_html):
+    """
+    Em ambiente de teste, desvia TODO e-mail para um endereço só.
+
+    Ativado pela variável EMAIL_REDIRECIONAR_PARA. O CC é removido e um aviso
+    com os destinatários originais vai no topo do e-mail (texto e HTML).
+    """
+    redirecionar = os.getenv("EMAIL_REDIRECIONAR_PARA", "").strip()
+    if not redirecionar:
+        return destinatario, cc, assunto, corpo, corpo_html
+
+    lista_cc = ", ".join(cc) if cc else "(nenhum)"
+    aviso = f"[MODO TESTE] Este e-mail iria para: {destinatario} | CC: {lista_cc}"
+
+    novo_assunto = f"[TESTE] {assunto}"
+    novo_corpo = f"{aviso}\n\n{corpo}"
+    novo_html = None
+    if corpo_html:
+        novo_html = f'<p style="color:#b00"><b>{html.escape(aviso)}</b></p>{corpo_html}'
+
+    return redirecionar, [], novo_assunto, novo_corpo, novo_html
+
+
 def enviar_email(
     destinatario: str,
     assunto: str,
@@ -124,6 +149,9 @@ def enviar_email(
         return
 
     config = _carregar_config_smtp()
+    destinatario, cc, assunto, corpo, corpo_html = _aplicar_redirecionamento(
+        destinatario, cc, assunto, corpo, corpo_html
+    )
     remetente = formataddr((config["nome_remetente"], config["remetente"]))
     mensagem = montar_mensagem(remetente, destinatario, assunto, corpo, cc, corpo_html)
 

@@ -1,3 +1,9 @@
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Carrega o back-end/.env antes de importar qualquer módulo que leia variáveis de ambiente.
+load_dotenv(Path(__file__).parent / ".env")
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from rotas import auth

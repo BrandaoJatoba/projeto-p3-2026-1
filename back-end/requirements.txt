@@ -19,6 +19,7 @@ passlib[bcrypt]
 # Email
 pydantic
 email-validator
+python-dotenv
 
 # Calculo dos prazos
 python-dateutil
